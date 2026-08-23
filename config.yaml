@@ -1,0 +1,98 @@
+# =============================================================
+# NinjaOne Dashboard Toolkit — Application Configuration
+# Tune thresholds, labels, and display options here.
+# =============================================================
+
+dashboard:
+  title: "IT Infrastructure Compliance Dashboard"
+  subtitle: "NinjaOne — Executive View"
+  logo_text: "⚡ NinjaOne"
+  refresh_interval_seconds: 300      # Auto-refresh every 5 minutes
+  default_date_range_days: 30        # Default look-back window
+
+compliance:
+  # Device is "compliant" if ALL of the following are true:
+  # - all critical patches applied
+  # - OS is not end-of-life
+  # - device was online within N days
+  patch_weight: 0.50                 # 50% of compliance score
+  os_eol_weight: 0.30                # 30% of compliance score
+  online_recency_weight: 0.20        # 20% of compliance score
+
+  online_recency_days: 7             # Max days since last seen to count as "online"
+
+  # RAG thresholds (Red / Amber / Green)
+  green_threshold: 80                # >= 80% → Green
+  amber_threshold: 60                # 60–79% → Amber
+                                     # < 60% → Red
+
+patch:
+  # Severity levels from NinjaOne
+  critical_max_days: 7              # Critical patches must be applied within 7 days
+  important_max_days: 14
+  moderate_max_days: 30
+  low_max_days: 60
+
+os_eol:
+  # End-of-Life dates for OS versions (ISO 8601)
+  # Devices running these versions are flagged NON-COMPLIANT
+  windows:
+    "Windows 7": "2020-01-14"
+    "Windows 8": "2016-01-12"
+    "Windows 8.1": "2023-01-10"
+    "Windows 10 1507": "2017-05-09"
+    "Windows 10 1511": "2017-10-10"
+    "Windows 10 1607": "2018-04-10"
+    "Windows 10 1703": "2018-10-09"
+    "Windows 10 1709": "2019-04-09"
+    "Windows 10 1803": "2019-11-12"
+    "Windows 10 1809": "2020-11-10"
+    "Windows 10 1903": "2020-12-08"
+    "Windows 10 1909": "2021-05-11"
+    "Windows 10 2004": "2021-12-14"
+    "Windows 10 20H2": "2022-05-10"
+    "Windows 10 21H1": "2022-12-13"
+    "Windows 10 21H2 Home/Pro": "2023-06-13"
+    "Windows Server 2003": "2015-07-14"
+    "Windows Server 2008": "2020-01-14"
+    "Windows Server 2008 R2": "2020-01-14"
+    "Windows Server 2012": "2023-10-10"
+    "Windows Server 2012 R2": "2023-10-10"
+  linux:
+    "Ubuntu 16.04": "2021-04-30"
+    "Ubuntu 18.04": "2023-04-30"
+    "Ubuntu 20.04": "2025-04-30"
+    "CentOS 7": "2024-06-30"
+    "CentOS 8": "2021-12-31"
+    "Debian 9": "2022-06-30"
+    "Debian 10": "2024-06-30"
+
+server_roles:
+  # How to identify server roles — matches against OS display name
+  domain_controller:
+    label: "Domain Controller"
+    os_keywords: ["Server"]
+    ninja_roles: ["DOMAIN_CONTROLLER", "DC"]
+  file_server:
+    label: "File Server"
+    ninja_roles: ["FILE_SERVER"]
+  app_server:
+    label: "Application Server"
+    ninja_roles: ["APP_SERVER", "APPLICATION_SERVER"]
+  web_server:
+    label: "Web Server"
+    ninja_roles: ["WEB_SERVER", "IIS", "NGINX"]
+  database_server:
+    label: "Database Server"
+    ninja_roles: ["DB_SERVER", "DATABASE_SERVER", "SQL_SERVER"]
+  generic_server:
+    label: "General Server"
+    os_keywords: ["Server"]
+
+hosting:
+  # Cloud provider detection from device hostnames/descriptions
+  cloud_keywords:
+    aws: ["aws", "ec2", "amazon"]
+    azure: ["azure", "azurevm", "microsoft azure"]
+    gcp: ["gcp", "google cloud", "gce"]
+  on_prem_default: true              # If no cloud keyword found, classify as on-prem
