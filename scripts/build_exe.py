@@ -1,5 +1,5 @@
 """
-Build Script for Compiling Standalone NinjaOne Dashboard Executable.
+Build Script for Compiling Standalone Ninjaone Infra Dashboard Executable.
 
 Uses PyInstaller to bundle the application into a single portable directory / executable
 with all assets, config, and dependencies included.
@@ -23,7 +23,7 @@ def build():
     build_dir = root / "build"
 
     print("=" * 60)
-    print("📦 Building Standalone NinjaOne Dashboard Executable")
+    print("[*] Building Standalone Ninjaone Infra Dashboard Executable")
     print("=" * 60)
     print(f"Project root: {root}")
 
@@ -38,11 +38,17 @@ def build():
         sys.executable,
         "-m",
         "PyInstaller",
-        "--name=NinjaOne-Compliance-Dashboard",
-        "--onedir",  # onedir launches faster than onefile
+        "--name=Ninjaone-Infra-Dashboard",
+        "--onedir",
         "--clean",
         f"--add-data={root / 'config.yaml'}{os.pathsep}.",
         f"--add-data={root / '.env.example'}{os.pathsep}.",
+        f"--add-data={root / 'src'}{os.pathsep}src",
+        f"--add-data={root / 'scripts'}{os.pathsep}scripts",
+        "--collect-all=dash",
+        "--collect-all=dash_bootstrap_components",
+        "--collect-all=openpyxl",
+        "--collect-all=plotly",
         "--hidden-import=dash",
         "--hidden-import=dash_bootstrap_components",
         "--hidden-import=plotly",
@@ -54,6 +60,7 @@ def build():
         "--hidden-import=yaml",
         "--hidden-import=cachetools",
         "--hidden-import=flask",
+        "--hidden-import=openpyxl",
         "--noconfirm",
         str(root / "launcher.py"),
     ]
@@ -61,14 +68,14 @@ def build():
     print("\nRunning PyInstaller command...")
     subprocess.check_call(pyinstaller_args, cwd=str(root))
 
-    out_folder = dist_dir / "NinjaOne-Compliance-Dashboard"
+    out_folder = dist_dir / "Ninjaone-Infra-Dashboard"
     if (root / ".env.example").exists() and not (out_folder / ".env").exists():
         shutil.copy(root / ".env.example", out_folder / ".env")
 
     print("\n" + "=" * 60)
-    print("✅ Build Completed Successfully!")
+    print("[+] Build Completed Successfully!")
     print(f"Executable folder: {out_folder}")
-    print(f"Main Executable: {out_folder / 'NinjaOne-Compliance-Dashboard.exe'}")
+    print(f"Main Executable: {out_folder / 'Ninjaone-Infra-Dashboard.exe'}")
     print("=" * 60)
 
 

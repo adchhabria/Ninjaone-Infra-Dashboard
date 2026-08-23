@@ -23,6 +23,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.spec
+*.zip
 
 # Secrets & Environment
 .env
