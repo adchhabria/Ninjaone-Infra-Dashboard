@@ -2,7 +2,7 @@
 Dashboard layout — full responsive page structure with multi-tab navigation.
 
 Assembles:
-- Header with Settings modal & Live status
+- Header with Authentication status badge, Sign In/Sign Out buttons, Settings modal & Live status
 - Excel-style Multi-Dimensional Slicer Bar (Organization, Location, OS Family)
 - Interactive World Map with Region Filters (hover-only tooltips)
 - Multi-Tab Navigation:
@@ -37,11 +37,14 @@ from src.dashboard.components.sla_panel import build_sla_panel
 from src.dashboard.components.reboot_failures_panel import build_reboot_failures_panel
 from src.dashboard.components.reports_panel import build_reports_panel
 from src.dashboard.components.settings_modal import build_settings_modal
+from src.metrics.data_provider import coordinator
 
 
-def build_header(last_refreshed: datetime | None = None, active_filter_label: str = "Global Overview") -> html.Div:
-    """Top navigation bar with brand, active filter badge, settings, and refresh buttons."""
+def build_header(last_refreshed: datetime | None = None, active_filter_label: str = "Global Overview", is_live: bool = False, base_url: str = "") -> html.Div:
+    """Top navigation bar with brand, active filter badge, auth controls, settings, and refresh buttons."""
     ts = (last_refreshed or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M UTC")
+    clean_url = (base_url or "app.ninjarmm.com").replace("https://", "").replace("http://", "").rstrip("/")
+
     return html.Div(
         dbc.Container(
             dbc.Row(
@@ -75,6 +78,44 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                         "fontSize": "0.75rem", "color": T.TEXT_MUTED,
                                         "marginRight": "14px", "lineHeight": "34px",
                                     },
+                                ),
+                                # Persistent Auth Controls
+                                html.Div(
+                                    [
+                                        dbc.Badge(
+                                            f"🟢 Live: {clean_url}",
+                                            id="header-live-badge",
+                                            color="success",
+                                            className="me-2",
+                                            style={"fontSize": "0.78rem", "padding": "5px 10px", "display": "inline-block" if is_live else "none"},
+                                        ),
+                                        dbc.Button(
+                                            "🚪 Sign Out",
+                                            id="header-signout-btn",
+                                            color="danger",
+                                            outline=True,
+                                            size="sm",
+                                            className="me-2",
+                                            style={"fontSize": "0.8rem", "display": "inline-block" if is_live else "none"},
+                                        ),
+                                        dbc.Badge(
+                                            "🟡 Demo Mode",
+                                            id="header-demo-badge",
+                                            color="warning",
+                                            className="me-2",
+                                            style={"fontSize": "0.78rem", "padding": "5px 10px", "display": "none" if is_live else "inline-block"},
+                                        ),
+                                        dbc.Button(
+                                            "🔐 Sign In to NinjaOne",
+                                            id="header-signin-btn",
+                                            color="primary",
+                                            size="sm",
+                                            className="me-2",
+                                            style={"fontSize": "0.8rem", "fontWeight": "600", "display": "none" if is_live else "inline-block"},
+                                        ),
+                                    ],
+                                    id="header-auth-container",
+                                    style={"display": "inline-flex", "alignItems": "center"},
                                 ),
                                 dbc.Button(
                                     "⚙️ Settings",
@@ -115,123 +156,204 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
     )
 
 
-def build_tab_content(data, active_tab: str = "tab-executive", threshold_settings: dict | None = None) -> html.Div:
-    """Renders the content for the currently active navigation tab."""
-    ts = threshold_settings or {
-        "eol_days": 180,
-        "patch_red": 60.0,
-        "patch_amber": 84.0,
-        "patch_green": 85.0,
-    }
+# ---------------------------------------------------------------------------
+# Tab Routing
+# ---------------------------------------------------------------------------
 
-    if active_tab == "tab-patch-ops":
-        return build_sla_panel(data.sla)
+def build_tab_content(
+    data,
+    active_tab: str = "tab-executive",
+    eol_days: int = 180,
+    patch_red: float = 60.0,
+    patch_amber: float = 84.0,
+    patch_green: float = 85.0,
+) -> html.Div:
+    """Renders the inner content for the currently active tab."""
+    if active_tab == "tab-executive":
+        return html.Div(
+            [
+                # Row 1: KPI Summary Strip
+                dbc.Row(
+                    dbc.Col(build_kpi_strip(data), width=12),
+                    className="mb-4",
+                ),
+                # Row 2: OS Landscape & Server Fleet
+                dbc.Row(
+                    [
+                        dbc.Col(build_os_panel(data.os), lg=6, md=12, className="mb-4"),
+                        dbc.Col(build_server_compliance_panel(data.servers), lg=6, md=12, className="mb-4"),
+                    ]
+                ),
+                # Row 3: Multi-Cloud Server Hosting
+                dbc.Row(
+                    dbc.Col(build_server_hosting_panel(data.servers), width=12),
+                    className="mb-4",
+                ),
+                # Row 4: Speedometer Patch Gauge
+                dbc.Row(
+                    dbc.Col(build_patch_panel(data.patches, red_limit=patch_red, amber_limit=patch_amber, green_target=patch_green), width=12),
+                    className="mb-4",
+                ),
+                # Row 5: EOL Compliance & Risk Analysis
+                dbc.Row(
+                    dbc.Col(build_eol_panel(data.os), width=12),
+                    className="mb-4",
+                ),
+                # Row 6: Organization Compliance Table
+                dbc.Row(
+                    dbc.Col(build_compliance_table(data.org_table), width=12),
+                    className="mb-4",
+                ),
+            ]
+        )
+
+    elif active_tab == "tab-patch-ops":
+        return html.Div(
+            [
+                dbc.Row(
+                    dbc.Col(build_sla_panel(data.sla), width=12),
+                    className="mb-4",
+                ),
+            ]
+        )
+
     elif active_tab == "tab-reboots":
-        return build_reboot_failures_panel(data.sla)
-    elif active_tab == "tab-reports":
-        return build_reports_panel(data)
+        return html.Div(
+            [
+                dbc.Row(
+                    dbc.Col(build_reboot_failures_panel(data.reboots), width=12),
+                    className="mb-4",
+                ),
+            ]
+        )
 
-    # Default: Executive Overview
+    elif active_tab == "tab-reports":
+        return html.Div(
+            [
+                dbc.Row(
+                    dbc.Col(build_reports_panel(data), width=12),
+                    className="mb-4",
+                ),
+            ]
+        )
+
+    return html.Div("Tab content not found.", style={"color": T.TEXT_MUTED})
+
+
+def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, patch_red: float = 60.0, patch_amber: float = 84.0, patch_green: float = 85.0) -> html.Div:
+    """Builds the main container with slicers, map, tab bar, and tab content."""
+    org_list = data.org_options or [{"label": o.name, "value": str(o.id)} for o in data.organizations]
+    location_opts = data.location_options or list({d.location_name for d in data.devices_raw if d.location_name})
+    os_opts = data.os_family_options or ["Windows", "Linux", "macOS"]
+
     return html.Div(
         [
-            # 1. Executive KPI Strip
-            build_kpi_strip(data),
-
-            # 2. OS Landscape (2 Separate Donuts) + Server Compliance Panel (Roles & Online %)
-            dbc.Row(
-                [
-                    dbc.Col(build_os_panel(data.os), md=6, className="mb-3"),
-                    dbc.Col(build_server_compliance_panel(data.servers), md=6, className="mb-3"),
-                ],
-                className="g-3",
-            ),
-
-            # 3. Separated Server Hosting Infrastructure Panel (AWS, Azure, GCP, VMs, Physical Donut)
-            dbc.Row(
-                dbc.Col(build_server_hosting_panel(data.servers), md=12, className="mb-3"),
-            ),
-
-            # 4. Patch Compliance Speedometer Gauge (Configurable Thresholds)
-            dbc.Row(
-                dbc.Col(
-                    build_patch_panel(
-                        data.patches,
-                        red_limit=ts.get("patch_red", 60.0),
-                        amber_limit=ts.get("patch_amber", 84.0),
-                        green_target=ts.get("patch_green", 85.0),
+            # Multi-Dimensional Slicer Bar
+            dbc.Container(
+                dbc.Row(
+                    dbc.Col(
+                        build_org_slicer(
+                            org_list,
+                            location_opts,
+                            os_opts,
+                            active_org_id=data.active_org_id,
+                            active_location=data.active_location,
+                            active_os_family=data.active_os_family,
+                        ),
+                        width=12,
                     ),
-                    md=12,
                     className="mb-3",
                 ),
+                fluid=True,
             ),
 
-            # 5. Dedicated End-of-Life (EOL) Analytics & Audit DataTable
-            dbc.Row(
-                dbc.Col(build_eol_panel(data.os), md=12, className="mb-3"),
+            # Geographic Map Panel
+            dbc.Container(
+                dbc.Row(
+                    dbc.Col(
+                        build_map_panel(data.map_data, active_region=data.active_region),
+                        width=12,
+                    ),
+                    className="mb-4",
+                ),
+                fluid=True,
             ),
 
-            # 6. Organization Compliance DataTable
-            dbc.Row(
-                dbc.Col(build_compliance_table(data.org_table), md=12, className="mb-4"),
+            # Multi-Tab Navigation Bar
+            dbc.Container(
+                dbc.Row(
+                    dbc.Col(
+                        dbc.Nav(
+                            [
+                                dbc.NavLink(
+                                    [html.Span("📊", style={"marginRight": "6px"}), "Executive Overview"],
+                                    id="nav-tab-executive",
+                                    active=(active_tab == "tab-executive"),
+                                    href="#",
+                                    className="me-2",
+                                    style={"fontWeight": "600", "cursor": "pointer"},
+                                ),
+                                dbc.NavLink(
+                                    [html.Span("⏱️", style={"marginRight": "6px"}), "Patch Operations & SLA Aging"],
+                                    id="nav-tab-patch-ops",
+                                    active=(active_tab == "tab-patch-ops"),
+                                    href="#",
+                                    className="me-2",
+                                    style={"fontWeight": "600", "cursor": "pointer"},
+                                ),
+                                dbc.NavLink(
+                                    [html.Span("🔄", style={"marginRight": "6px"}), "Reboots & Failure Watchlist"],
+                                    id="nav-tab-reboots",
+                                    active=(active_tab == "tab-reboots"),
+                                    href="#",
+                                    className="me-2",
+                                    style={"fontWeight": "600", "cursor": "pointer"},
+                                ),
+                                dbc.NavLink(
+                                    [html.Span("📥", style={"marginRight": "6px"}), "Reports & Excel Export"],
+                                    id="nav-tab-reports",
+                                    active=(active_tab == "tab-reports"),
+                                    href="#",
+                                    style={"fontWeight": "600", "cursor": "pointer"},
+                                ),
+                            ],
+                            pills=True,
+                            className="mb-3",
+                        ),
+                        width=12,
+                    )
+                ),
+                fluid=True,
+            ),
+
+            # Tab Content Area
+            dbc.Container(
+                html.Div(
+                    build_tab_content(
+                        data,
+                        active_tab=active_tab,
+                        eol_days=eol_days,
+                        patch_red=patch_red,
+                        patch_amber=patch_amber,
+                        patch_green=patch_green,
+                    ),
+                    id="tab-content-container",
+                ),
+                fluid=True,
             ),
         ]
     )
 
 
-def build_body(data, active_tab: str = "tab-executive", threshold_settings: dict | None = None) -> list:
-    """Build all content panels from DashboardData."""
-    return [
-        dbc.Container(
-            [
-                # Common Section 1: Excel-style Multi-Dimensional Slicer Bar
-                build_org_slicer(
-                    org_options=data.org_options,
-                    location_options=data.location_options,
-                    os_family_options=data.os_family_options,
-                    active_org_id=data.active_org_id,
-                    active_location=data.active_location,
-                    active_os_family=data.active_os_family,
-                ),
-
-                # Common Section 2: World Map & Regional Slicer
-                build_map_panel(data.map_data, data.active_region),
-
-                # Section 3: Navigation Tabs
-                dbc.Tabs(
-                    [
-                        dbc.Tab(label="📊 Executive Overview", tab_id="tab-executive", label_style={"fontWeight": "600"}),
-                        dbc.Tab(label="⏱️ Patch Operations & SLA Aging", tab_id="tab-patch-ops", label_style={"fontWeight": "600"}),
-                        dbc.Tab(label="🔄 Reboots & Failure Watchlist", tab_id="tab-reboots", label_style={"fontWeight": "600"}),
-                        dbc.Tab(label="📥 Reports & Excel Export", tab_id="tab-reports", label_style={"fontWeight": "600"}),
-                    ],
-                    id="dashboard-tabs",
-                    active_tab=active_tab,
-                    className="mb-3",
-                ),
-
-                # Section 4: Dynamic Tab Content Container
-                html.Div(build_tab_content(data, active_tab=active_tab, threshold_settings=threshold_settings), id="tab-content-container"),
-
-                # Footer
-                html.Div(
-                    [
-                        html.Hr(style={"borderColor": T.BORDER}),
-                        html.Div(
-                            f"NinjaOne Unified Compliance & Patch Operations Toolkit · "
-                            f"Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d')} · Dual Management & Operational Engine",
-                            style={"textAlign": "center", "color": T.TEXT_MUTED,
-                                   "fontSize": "0.75rem", "paddingBottom": "24px"},
-                        ),
-                    ]
-                ),
-            ],
-            fluid=True,
-        )
-    ]
-
+# ---------------------------------------------------------------------------
+# Master Page Layout
+# ---------------------------------------------------------------------------
 
 def build_layout(data) -> html.Div:
     """Assemble the full dashboard page from DashboardData."""
+    is_live = coordinator.is_live
+    base_url = coordinator.base_url
+
     return html.Div(
         [
             # Auto-refresh interval (every 5 minutes)
@@ -252,12 +374,16 @@ def build_layout(data) -> html.Div:
                 "patch_amber": float(os.getenv("PATCH_AMBER_LIMIT", "84.0")),
                 "patch_green": float(os.getenv("PATCH_GREEN_TARGET", "85.0")),
             }),
+            dcc.Store(id="auth-state-store", data={
+                "is_live": is_live,
+                "base_url": base_url,
+            }),
 
             # In-App Settings Modal
             build_settings_modal(),
 
             # Header
-            build_header(data.fetched_at, data.active_filter_label),
+            build_header(data.fetched_at, data.active_filter_label, is_live=is_live, base_url=base_url),
 
             # Main content container
             html.Div(build_body(data, active_tab="tab-executive"), id="dashboard-body"),

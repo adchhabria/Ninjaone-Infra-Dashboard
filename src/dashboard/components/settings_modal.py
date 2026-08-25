@@ -3,7 +3,7 @@ In-App Settings & NinjaOne Governance Modal.
 
 Allows users to configure:
 1. 5 NinjaOne Region Endpoints (US, US2, EU/EMEA, CA, OC/APAC) with editable custom URL.
-2. API Credentials (Client ID & Client Secret).
+2. API Credentials (Client ID & Client Secret) with live authentication testing.
 3. Custom EOL Horizon Threshold (e.g. 90, 180, 365 days).
 4. Patch Coverage Speedometer Gauge Thresholds (Red, Amber, Green).
 """
@@ -47,7 +47,7 @@ def build_settings_modal() -> dbc.Modal:
             dbc.ModalHeader(
                 dbc.ModalTitle([
                     html.Span("⚙️", style={"marginRight": "8px"}),
-                    html.Span("Settings & Governance Configuration"),
+                    html.Span("Settings & NinjaOne Authentication"),
                 ]),
                 style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
             ),
@@ -58,18 +58,53 @@ def build_settings_modal() -> dbc.Modal:
                             # Tab 1: NinjaOne API Connection
                             dbc.Tab(
                                 [
-                                    html.P(
-                                        "Configure your NinjaOne API credentials. Credentials are saved locally to your .env configuration.",
-                                        style={**T.FONT_BODY, "marginTop": "12px", "marginBottom": "16px"},
+                                    dbc.Alert(
+                                        [
+                                            html.Div([
+                                                html.B("🔐 How to Connect with NinjaOne API:"),
+                                                html.Ol([
+                                                    html.Li([
+                                                        "Log in to your NinjaOne web console (e.g., ",
+                                                        html.Code("app.ninjarmm.com", style={"color": T.ACCENT_CYAN}),
+                                                        ", ",
+                                                        html.Code("us2.ninjarmm.com", style={"color": T.ACCENT_CYAN}),
+                                                        ", etc.).",
+                                                    ]),
+                                                    html.Li([
+                                                        "Navigate to ",
+                                                        html.B("Administration (Gear icon) ➔ Apps ➔ API"),
+                                                        ".",
+                                                    ]),
+                                                    html.Li([
+                                                        "Click ",
+                                                        html.B("Add App Client"),
+                                                        " and choose ",
+                                                        html.B("Machine-to-Machine (Client Credentials)"),
+                                                        ".",
+                                                    ]),
+                                                    html.Li([
+                                                        "Enable the ",
+                                                        html.B("Monitoring"),
+                                                        " (and ",
+                                                        html.B("Management"),
+                                                        ") scopes.",
+                                                    ]),
+                                                    html.Li("Copy the generated Client ID and Client Secret and paste below."),
+                                                ], style={"marginBottom": "0", "paddingLeft": "20px"}),
+                                            ]),
+                                        ],
+                                        color="info",
+                                        className="mt-2 mb-3",
+                                        style={"fontSize": "0.82rem", "backgroundColor": "rgba(47, 129, 247, 0.12)", "border": f"1px solid {T.ACCENT_BLUE}"},
                                     ),
-                                    dbc.Label("NinjaOne Region Preset", style=T.FONT_KPI_LABEL),
+                                    dbc.Label("1. Select NinjaOne Region Preset", style=T.FONT_KPI_LABEL),
                                     dbc.Select(
                                         id="settings-region-preset",
                                         options=NINJA_REGIONS,
                                         value=initial_region,
                                         className="mb-2",
                                     ),
-                                    dbc.Label("Instance Base URL (Fully Editable)", style=T.FONT_KPI_LABEL),
+                                    dbc.Label("2. Instance Base URL (Editable)", style=T.FONT_KPI_LABEL),
                                     dbc.Input(
                                         id="settings-base-url",
                                         type="text",
@@ -77,7 +112,7 @@ def build_settings_modal() -> dbc.Modal:
                                         value=current_url,
                                         className="mb-3",
                                     ),
-                                    dbc.Label("Client ID", style=T.FONT_KPI_LABEL),
+                                    dbc.Label("3. Client ID", style=T.FONT_KPI_LABEL),
                                     dbc.Input(
                                         id="settings-client-id",
                                         type="text",
@@ -85,15 +120,29 @@ def build_settings_modal() -> dbc.Modal:
                                         value=current_client_id,
                                         className="mb-3",
                                     ),
-                                    dbc.Label("Client Secret", style=T.FONT_KPI_LABEL),
+                                    dbc.Label("4. Client Secret", style=T.FONT_KPI_LABEL),
                                     dbc.Input(
                                         id="settings-client-secret",
                                         type="password",
                                         placeholder="●●●●●●●●●●●●●●●●" if has_secret else "Enter client secret",
                                         className="mb-3",
                                     ),
+                                    html.Div(
+                                        [
+                                            dbc.Button(
+                                                "⚡ Test API Connection",
+                                                id="settings-test-connection-btn",
+                                                color="info",
+                                                outline=True,
+                                                size="sm",
+                                                className="me-2",
+                                            ),
+                                        ],
+                                        className="mb-2",
+                                    ),
+                                    html.Div(id="settings-test-feedback-container"),
                                 ],
-                                label="🔌 API Connection",
+                                label="🔌 API Connection & Sign In",
                                 tab_id="tab-settings-api",
                             ),
 
@@ -158,7 +207,7 @@ def build_settings_modal() -> dbc.Modal:
                                                             dbc.Input(
                                                                 id="settings-patch-amber-limit",
                                                                 type="number",
-                                                                min=40,
+                                                                min=30,
                                                                 max=95,
                                                                 step=5,
                                                                 value=patch_amber,
@@ -199,7 +248,7 @@ def build_settings_modal() -> dbc.Modal:
             dbc.ModalFooter(
                 [
                     dbc.Button("Cancel", id="settings-cancel-btn", color="secondary", outline=True, size="sm"),
-                    dbc.Button("💾 Save Configuration", id="settings-save-btn", color="primary", size="sm"),
+                    dbc.Button("💾 Save & Connect Live API", id="settings-save-btn", color="primary", size="sm"),
                 ],
                 style={"backgroundColor": T.BG_CARD, "borderTop": f"1px solid {T.BORDER}"},
             ),

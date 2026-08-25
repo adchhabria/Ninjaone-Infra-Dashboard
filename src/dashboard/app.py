@@ -2,10 +2,10 @@
 NinjaOne Dashboard — Application Entry Point.
 
 Usage:
-    # Live mode (connects to NinjaOne via API):
+    # Default (automatically connects to live NinjaOne if credentials configured, or runs in Demo Mode):
     python src/dashboard/app.py
 
-    # Demo mode (uses mock data with full slicer & map interactivity):
+    # Explicit Demo mode:
     python src/dashboard/app.py --demo
 
     # Custom port:
@@ -33,6 +33,7 @@ if _root_dir not in sys.path:
 from src.dashboard import theme as T
 from src.dashboard.callbacks import register_callbacks
 from src.dashboard.layout import build_layout
+from src.metrics.data_provider import coordinator
 
 console = Console()
 
@@ -41,13 +42,13 @@ console = Console()
 # App Factory
 # ---------------------------------------------------------------------------
 
-def create_app(get_data_fn) -> dash.Dash:
+def create_app(get_data_fn=None) -> dash.Dash:
     """
     Create and configure the Dash application.
-
-    Args:
-        get_data_fn: Callable(active_org_id, active_region, active_location, active_os_family) -> DashboardData
     """
+    if get_data_fn is None:
+        get_data_fn = coordinator.get_dashboard_data
+
     app = dash.Dash(
         __name__,
         external_stylesheets=[
@@ -81,7 +82,7 @@ def create_app(get_data_fn) -> dash.Dash:
 
 def main():
     parser = argparse.ArgumentParser(description="NinjaOne IT Compliance Dashboard")
-    parser.add_argument("--demo", action="store_true", help="Run in demo mode with sample dataset")
+    parser.add_argument("--demo", action="store_true", help="Force demo mode with sample dataset")
     parser.add_argument("--port", type=int, default=int(os.getenv("DASH_PORT", 8050)))
     parser.add_argument("--debug", action="store_true",
                         default=os.getenv("DASH_DEBUG", "false").lower() == "true")
@@ -90,24 +91,16 @@ def main():
     console.print("\n[bold cyan]NinjaOne IT Compliance & Infrastructure Dashboard[/bold cyan]")
     console.print("=" * 60)
 
-    if args.demo or os.getenv("DEMO_MODE", "false").lower() == "true":
+    if args.demo:
+        os.environ["DEMO_MODE"] = "true"
         console.print("[yellow]>> Demo Mode Active -- Full interactive mock infrastructure dataset[/yellow]")
-        from scripts.generate_sample_data import get_mock_dashboard_data
-        get_data_fn = get_mock_dashboard_data
     else:
-        console.print("[green]>> Live Mode Active -- Authenticating with NinjaOne Public API[/green]")
-        from dotenv import load_dotenv
-        load_dotenv()
+        if coordinator.is_live:
+            console.print(f"[green]>> Live Mode Active -- Connected to NinjaOne API ({coordinator.base_url})[/green]")
+        else:
+            console.print("[yellow]>> Starting in Demo Mode (Connect anytime via Sign In button)[/yellow]")
 
-        from src.api.client import NinjaOneClient
-        from src.metrics.aggregator import MetricsAggregator
-
-        cache_ttl = int(os.getenv("CACHE_TTL_SECONDS", 300))
-        client = NinjaOneClient.from_env()
-        aggregator = MetricsAggregator(client, cache_ttl=cache_ttl)
-        get_data_fn = aggregator.get_dashboard_data
-
-    app = create_app(get_data_fn)
+    app = create_app(coordinator.get_dashboard_data)
 
     console.print(f"\n[bold green]Dashboard live at:[/bold green] http://localhost:{args.port}")
     console.print("[dim]Press Ctrl+C to exit.[/dim]\n")

@@ -6,7 +6,8 @@ Handles:
 - Instantaneous reactive dashboard body and tab rendering
 - Multi-Sheet Excel workbook generation and download
 - Remediation action triggers (Reboot, Patch rescan)
-- In-App Settings & Governance configuration (5 regions + custom editable URL, EOL horizon, speedometer thresholds)
+- In-App Settings, NinjaOne Authentication (Sign In & Sign Out), and live connection testing
+- Dynamic switching between Live NinjaOne API data and Demo sample dataset
 """
 
 from __future__ import annotations
@@ -20,20 +21,19 @@ from dash import ALL, MATCH, Input, Output, State, ctx, dcc, html, no_update
 from rich.console import Console
 
 from src.dashboard.layout import build_body, build_tab_content
+from src.metrics.data_provider import coordinator
 from src.metrics.excel_export import generate_excel_workbook
 from src.metrics.pdf_export import generate_pdf_report
 
 console = Console()
 
 
-def register_callbacks(app, get_data_fn):
+def register_callbacks(app, get_data_fn=None):
     """
     Register all interactive callbacks for the unified toolkit.
-
-    Args:
-        app:          The Dash application instance.
-        get_data_fn:  Callable(active_org_id, active_region, active_location, active_os_family, approaching_days) -> DashboardData
     """
+    if get_data_fn is None:
+        get_data_fn = coordinator.get_dashboard_data
 
     # -----------------------------------------------------------------------
     # 1. Multi-Dimensional Filter Store, Tabs & Dashboard Body Update
@@ -48,10 +48,14 @@ def register_callbacks(app, get_data_fn):
         Input({"type": "location-slicer-btn", "index": ALL}, "n_clicks"),
         Input({"type": "os-family-slicer-btn", "index": ALL}, "n_clicks"),
         Input("world-map-graph", "clickData"),
-        Input("dashboard-tabs", "active_tab"),
+        Input("nav-tab-executive", "n_clicks"),
+        Input("nav-tab-patch-ops", "n_clicks"),
+        Input("nav-tab-reboots", "n_clicks"),
+        Input("nav-tab-reports", "n_clicks"),
         Input("refresh-btn", "n_clicks"),
         Input("auto-refresh", "n_intervals"),
         Input("threshold-settings-store", "data"),
+        Input("auth-state-store", "data"),
         State("filter-state-store", "data"),
         State("active-tab-store", "data"),
         prevent_initial_call=True,
@@ -61,10 +65,14 @@ def register_callbacks(app, get_data_fn):
         loc_clicks,
         os_clicks,
         map_click_data,
-        active_tab,
+        tab_exec_clicks,
+        tab_patch_clicks,
+        tab_reboot_clicks,
+        tab_report_clicks,
         refresh_clicks,
         auto_refresh_intervals,
         threshold_settings,
+        auth_state,
         current_filter_state,
         current_active_tab,
     ):
@@ -83,8 +91,18 @@ def register_callbacks(app, get_data_fn):
             "patch_green": 85.0,
         }
 
+        # Tab Navigation
+        if triggered_id == "nav-tab-executive":
+            tab_to_show = "tab-executive"
+        elif triggered_id == "nav-tab-patch-ops":
+            tab_to_show = "tab-patch-ops"
+        elif triggered_id == "nav-tab-reboots":
+            tab_to_show = "tab-reboots"
+        elif triggered_id == "nav-tab-reports":
+            tab_to_show = "tab-reports"
+
         # Check pattern-matching button clicks
-        if isinstance(triggered_id, dict):
+        elif isinstance(triggered_id, dict):
             btn_type = triggered_id.get("type")
             btn_idx = triggered_id.get("index")
 
@@ -100,61 +118,64 @@ def register_callbacks(app, get_data_fn):
 
             # B. Location Slicer button clicked
             elif btn_type == "location-slicer-btn":
-                if btn_idx in ["all", "All Locations"]:
-                    filter_state["location"] = "All Locations"
-                else:
-                    filter_state["location"] = btn_idx
+                filter_state["location"] = str(btn_idx)
 
             # C. OS Family Slicer button clicked
             elif btn_type == "os-family-slicer-btn":
-                if btn_idx in ["all", "All OS Families"]:
-                    filter_state["os_family"] = "All OS Families"
-                else:
-                    filter_state["os_family"] = btn_idx
+                filter_state["os_family"] = str(btn_idx)
 
-        # D. World map clicked
+        # D. World Map Marker clicked
         elif triggered_id == "world-map-graph" and map_click_data:
             points = map_click_data.get("points", [])
             if points:
-                clicked_point = points[0]
-                clicked_region = clicked_point.get("customdata")
-                if clicked_region:
-                    filter_state["region"] = clicked_region
+                clicked_pt = points[0]
+                custom = clicked_pt.get("customdata", [])
+                if custom and len(custom) > 0:
+                    clicked_region = custom[0]
+                    if filter_state.get("region") == clicked_region:
+                        filter_state["region"] = "Global / All"
+                    else:
+                        filter_state["region"] = clicked_region
 
-        elif triggered_id == "dashboard-tabs":
-            tab_to_show = active_tab
+        force_refresh = (triggered_id == "refresh-btn")
 
-        # Compute filtered slice across all 4 dimensions with custom EOL horizon
-        org_id_val = filter_state.get("org_id")
-        region_val = filter_state.get("region")
-        location_val = filter_state.get("location")
-        os_family_val = filter_state.get("os_family")
+        # Query metrics using coordinator
         eol_days_val = int(ts_settings.get("eol_days", 180))
+        p_red = float(ts_settings.get("patch_red", 60.0))
+        p_amber = float(ts_settings.get("patch_amber", 84.0))
+        p_green = float(ts_settings.get("patch_green", 85.0))
 
-        try:
-            data = get_data_fn(
-                active_org_id=org_id_val,
-                active_region=region_val,
-                active_location=location_val,
-                active_os_family=os_family_val,
-                approaching_days=eol_days_val,
-            )
-        except TypeError:
-            data = get_data_fn(
-                active_org_id=org_id_val,
-                active_region=region_val,
-                active_location=location_val,
-                active_os_family=os_family_val,
-            )
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            force_refresh=force_refresh,
+            approaching_days=eol_days_val,
+        )
 
-        body = build_body(data, active_tab=tab_to_show, threshold_settings=ts_settings)
-        ts_display = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M UTC')}"
-        filter_label = data.active_filter_label
+        badge_label = data.active_filter_label
+        ts_text = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M UTC')}"
 
-        return body, filter_label, ts_display, filter_state, tab_to_show
+        new_body = build_body(
+            data,
+            active_tab=tab_to_show,
+            eol_days=eol_days_val,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
+        )
+
+        return (
+            new_body,
+            badge_label,
+            ts_text,
+            filter_state,
+            tab_to_show,
+        )
 
     # -----------------------------------------------------------------------
-    # 2. Multi-Sheet Excel Workbook Export Download
+    # 2. Multi-Sheet Excel Workbook Download
     # -----------------------------------------------------------------------
     @app.callback(
         Output("download-excel-data", "data"),
@@ -163,36 +184,23 @@ def register_callbacks(app, get_data_fn):
         State("threshold-settings-store", "data"),
         prevent_initial_call=True,
     )
-    def download_excel_report(n_clicks, filter_state, threshold_settings):
+    def download_excel_workbook(n_clicks, filter_state, threshold_settings):
         if not n_clicks:
             return no_update
 
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
-        org_id_val = filter_state.get("org_id")
-        region_val = filter_state.get("region")
-        location_val = filter_state.get("location")
-        os_family_val = filter_state.get("os_family")
         eol_days_val = int(ts_settings.get("eol_days", 180))
 
-        try:
-            data = get_data_fn(
-                active_org_id=org_id_val,
-                active_region=region_val,
-                active_location=location_val,
-                active_os_family=os_family_val,
-                approaching_days=eol_days_val,
-            )
-        except TypeError:
-            data = get_data_fn(
-                active_org_id=org_id_val,
-                active_region=region_val,
-                active_location=location_val,
-                active_os_family=os_family_val,
-            )
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            approaching_days=eol_days_val,
+        )
 
         excel_bytes = generate_excel_workbook(data)
-
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"NinjaOne_Compliance_Audit_{ts}.xlsx"
         return dcc.send_bytes(excel_bytes, filename=filename)
@@ -213,30 +221,17 @@ def register_callbacks(app, get_data_fn):
 
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
-        org_id_val = filter_state.get("org_id")
-        region_val = filter_state.get("region")
-        location_val = filter_state.get("location")
-        os_family_val = filter_state.get("os_family")
         eol_days_val = int(ts_settings.get("eol_days", 180))
 
-        try:
-            data = get_data_fn(
-                active_org_id=org_id_val,
-                active_region=region_val,
-                active_location=location_val,
-                active_os_family=os_family_val,
-                approaching_days=eol_days_val,
-            )
-        except TypeError:
-            data = get_data_fn(
-                active_org_id=org_id_val,
-                active_region=region_val,
-                active_location=location_val,
-                active_os_family=os_family_val,
-            )
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            approaching_days=eol_days_val,
+        )
 
         pdf_bytes = generate_pdf_report(data)
-
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"NinjaOne_Executive_Compliance_Audit_{ts}.pdf"
         return dcc.send_bytes(pdf_bytes, filename=filename)
@@ -248,28 +243,42 @@ def register_callbacks(app, get_data_fn):
         Output("action-feedback-container", "children"),
         Input("trigger-bulk-reboot-btn", "n_clicks"),
         Input("trigger-bulk-scan-btn", "n_clicks"),
+        State("filter-state-store", "data"),
         prevent_initial_call=True,
     )
-    def handle_remediation_actions(reboot_click, scan_click):
+    def handle_remediation_actions(reboot_clicks, scan_clicks, filter_state):
         triggered = ctx.triggered_id
+        if not triggered:
+            return no_update
+
+        filter_state = filter_state or {}
+        scope = filter_state.get("region", "Global")
+
         if triggered == "trigger-bulk-reboot-btn":
             return dbc.Alert(
-                "⚡ Bulk Reboot signal dispatched to all pending devices via NinjaOne API queue.",
-                color="warning",
+                [
+                    html.B("🚀 Reboot Dispatch Sent! "),
+                    f"Initiated graceful reboot sequence for pending devices under scope: {scope}.",
+                ],
+                color="info",
                 dismissable=True,
                 className="mt-3",
             )
         elif triggered == "trigger-bulk-scan-btn":
             return dbc.Alert(
-                "🔍 Fleet Patch Scan requested across all endpoints. Results will refresh upon completion.",
-                color="info",
+                [
+                    html.B("🔍 Patch Scan Dispatched! "),
+                    f"Triggered instant vulnerability and patch inventory scan for scope: {scope}.",
+                ],
+                color="success",
                 dismissable=True,
                 className="mt-3",
             )
+
         return no_update
 
     # -----------------------------------------------------------------------
-    # 4. Settings: Region Preset Selection Sync to Editable URL Input
+    # 5. Settings: Region Preset Selection Sync to Editable URL Input
     # -----------------------------------------------------------------------
     @app.callback(
         Output("settings-base-url", "value"),
@@ -283,13 +292,71 @@ def register_callbacks(app, get_data_fn):
         return current_url or "https://app.ninjarmm.com"
 
     # -----------------------------------------------------------------------
-    # 5. In-App Settings Modal & Governance Saving
+    # 6. Test Live Connection Handler
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("settings-test-feedback-container", "children"),
+        Input("settings-test-connection-btn", "n_clicks"),
+        State("settings-base-url", "value"),
+        State("settings-client-id", "value"),
+        State("settings-client-secret", "value"),
+        prevent_initial_call=True,
+    )
+    def handle_test_connection(n_clicks, base_url, client_id, client_secret):
+        if not n_clicks:
+            return no_update
+
+        success, msg = coordinator.test_connection(base_url, client_id, client_secret)
+        if success:
+            return dbc.Alert(f"✅ {msg}", color="success", className="mt-2")
+        else:
+            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
+
+    # -----------------------------------------------------------------------
+    # 7. Header Auth Controls & Sign In / Sign Out Sync
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("header-live-badge", "style"),
+        Output("header-live-badge", "children"),
+        Output("header-signout-btn", "style"),
+        Output("header-demo-badge", "style"),
+        Output("header-signin-btn", "style"),
+        Input("auth-state-store", "data"),
+    )
+    def sync_header_auth_display(auth_state):
+        auth_state = auth_state or {}
+        is_live = auth_state.get("is_live", coordinator.is_live)
+        base_url = auth_state.get("base_url", coordinator.base_url)
+        clean_url = (base_url or "app.ninjarmm.com").replace("https://", "").replace("http://", "").rstrip("/")
+
+        if is_live:
+            return (
+                {"fontSize": "0.78rem", "padding": "5px 10px", "display": "inline-block"},
+                f"🟢 Live: {clean_url}",
+                {"fontSize": "0.8rem", "display": "inline-block"},
+                {"display": "none"},
+                {"display": "none"},
+            )
+        else:
+            return (
+                {"display": "none"},
+                no_update,
+                {"display": "none"},
+                {"fontSize": "0.78rem", "padding": "5px 10px", "display": "inline-block"},
+                {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"},
+            )
+
+    # -----------------------------------------------------------------------
+    # 8. In-App Settings Modal, Sign In / Sign Out & Governance Saving
     # -----------------------------------------------------------------------
     @app.callback(
         Output("settings-modal", "is_open"),
         Output("settings-feedback-alert", "children"),
         Output("threshold-settings-store", "data"),
+        Output("auth-state-store", "data"),
         Input("open-settings-btn", "n_clicks"),
+        Input("header-signin-btn", "n_clicks"),
+        Input("header-signout-btn", "n_clicks"),
         Input("settings-cancel-btn", "n_clicks"),
         Input("settings-save-btn", "n_clicks"),
         State("settings-base-url", "value"),
@@ -301,10 +368,13 @@ def register_callbacks(app, get_data_fn):
         State("settings-patch-green-target", "value"),
         State("settings-modal", "is_open"),
         State("threshold-settings-store", "data"),
+        State("auth-state-store", "data"),
         prevent_initial_call=True,
     )
     def manage_settings_modal(
         open_click,
+        signin_click,
+        signout_click,
         cancel_click,
         save_click,
         base_url,
@@ -316,14 +386,20 @@ def register_callbacks(app, get_data_fn):
         patch_green_target,
         is_open,
         current_thresholds,
+        current_auth_state,
     ):
         triggered = ctx.triggered_id
 
-        if triggered == "open-settings-btn":
-            return True, no_update, no_update
+        if triggered in ["open-settings-btn", "header-signin-btn"]:
+            return True, no_update, no_update, no_update
 
         if triggered == "settings-cancel-btn":
-            return False, no_update, no_update
+            return False, no_update, no_update, no_update
+
+        if triggered == "header-signout-btn":
+            coordinator.sign_out()
+            auth_state = {"is_live": False, "base_url": coordinator.base_url}
+            return False, no_update, no_update, auth_state
 
         if triggered == "settings-save-btn":
             # Sanitize inputs
@@ -343,69 +419,23 @@ def register_callbacks(app, get_data_fn):
                 "patch_green": p_green,
             }
 
-            # Write or update .env file
-            env_path = os.path.join(os.getcwd(), ".env")
-            lines = []
-            if os.path.exists(env_path):
-                with open(env_path, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
+            # If user provided API keys, attempt to sign in to live NinjaOne
+            if client_id and client_secret and "●" not in client_secret:
+                success, msg = coordinator.sign_in(url_to_save, client_id, client_secret)
+                if not success:
+                    # Show error alert in modal
+                    return (
+                        True,
+                        dbc.Alert(f"❌ Failed to connect to NinjaOne: {msg}", color="danger", className="mt-2"),
+                        no_update,
+                        no_update,
+                    )
+                auth_state = {"is_live": True, "base_url": url_to_save}
+            else:
+                # Save thresholds only
+                coordinator._save_to_env_file(url_to_save, client_id or "", client_secret or "")
+                auth_state = {"is_live": coordinator.is_live, "base_url": url_to_save}
 
-            keys_written = set()
-            new_lines = []
-            for line in lines:
-                if line.startswith("NINJA_BASE_URL="):
-                    new_lines.append(f"NINJA_BASE_URL={url_to_save}\n")
-                    keys_written.add("NINJA_BASE_URL")
-                elif line.startswith("NINJA_CLIENT_ID=") and client_id:
-                    new_lines.append(f"NINJA_CLIENT_ID={client_id.strip()}\n")
-                    keys_written.add("NINJA_CLIENT_ID")
-                elif line.startswith("NINJA_CLIENT_SECRET=") and client_secret and "●" not in client_secret:
-                    new_lines.append(f"NINJA_CLIENT_SECRET={client_secret.strip()}\n")
-                    keys_written.add("NINJA_CLIENT_SECRET")
-                elif line.startswith("EOL_THRESHOLD_DAYS="):
-                    new_lines.append(f"EOL_THRESHOLD_DAYS={eol_val}\n")
-                    keys_written.add("EOL_THRESHOLD_DAYS")
-                elif line.startswith("PATCH_RED_LIMIT="):
-                    new_lines.append(f"PATCH_RED_LIMIT={p_red}\n")
-                    keys_written.add("PATCH_RED_LIMIT")
-                elif line.startswith("PATCH_AMBER_LIMIT="):
-                    new_lines.append(f"PATCH_AMBER_LIMIT={p_amber}\n")
-                    keys_written.add("PATCH_AMBER_LIMIT")
-                elif line.startswith("PATCH_GREEN_TARGET="):
-                    new_lines.append(f"PATCH_GREEN_TARGET={p_green}\n")
-                    keys_written.add("PATCH_GREEN_TARGET")
-                else:
-                    new_lines.append(line)
+            return False, dbc.Alert("✅ Settings saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state
 
-            if "NINJA_BASE_URL" not in keys_written:
-                new_lines.append(f"NINJA_BASE_URL={url_to_save}\n")
-            if "NINJA_CLIENT_ID" not in keys_written and client_id:
-                new_lines.append(f"NINJA_CLIENT_ID={client_id.strip()}\n")
-            if "NINJA_CLIENT_SECRET" not in keys_written and client_secret and "●" not in client_secret:
-                new_lines.append(f"NINJA_CLIENT_SECRET={client_secret.strip()}\n")
-            if "EOL_THRESHOLD_DAYS" not in keys_written:
-                new_lines.append(f"EOL_THRESHOLD_DAYS={eol_val}\n")
-            if "PATCH_RED_LIMIT" not in keys_written:
-                new_lines.append(f"PATCH_RED_LIMIT={p_red}\n")
-            if "PATCH_AMBER_LIMIT" not in keys_written:
-                new_lines.append(f"PATCH_AMBER_LIMIT={p_amber}\n")
-            if "PATCH_GREEN_TARGET" not in keys_written:
-                new_lines.append(f"PATCH_GREEN_TARGET={p_green}\n")
-
-            with open(env_path, "w", encoding="utf-8") as f:
-                f.writelines(new_lines)
-
-            # Update process environment variables
-            os.environ["NINJA_BASE_URL"] = url_to_save
-            if client_id:
-                os.environ["NINJA_CLIENT_ID"] = client_id.strip()
-            if client_secret and "●" not in client_secret:
-                os.environ["NINJA_CLIENT_SECRET"] = client_secret.strip()
-            os.environ["EOL_THRESHOLD_DAYS"] = str(eol_val)
-            os.environ["PATCH_RED_LIMIT"] = str(p_red)
-            os.environ["PATCH_AMBER_LIMIT"] = str(p_amber)
-            os.environ["PATCH_GREEN_TARGET"] = str(p_green)
-
-            return False, dbc.Alert("✅ Settings & Thresholds saved successfully!", color="success", className="mt-2"), thresholds_data
-
-        return is_open, no_update, no_update
+        return is_open, no_update, no_update, no_update
