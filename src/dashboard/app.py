@@ -22,8 +22,13 @@ import dash
 import dash_bootstrap_components as dbc
 from rich.console import Console
 
-# Ensure project root is on sys.path when running directly
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+# Ensure project root is on sys.path when running directly or frozen
+if getattr(sys, "frozen", False):
+    _root_dir = sys._MEIPASS
+else:
+    _root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
 
 from src.dashboard import theme as T
 from src.dashboard.callbacks import register_callbacks
