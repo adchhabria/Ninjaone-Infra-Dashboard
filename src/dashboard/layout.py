@@ -14,6 +14,7 @@ Assembles:
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -114,8 +115,15 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
     )
 
 
-def build_tab_content(data, active_tab: str = "tab-executive") -> html.Div:
+def build_tab_content(data, active_tab: str = "tab-executive", threshold_settings: dict | None = None) -> html.Div:
     """Renders the content for the currently active navigation tab."""
+    ts = threshold_settings or {
+        "eol_days": 180,
+        "patch_red": 60.0,
+        "patch_amber": 84.0,
+        "patch_green": 85.0,
+    }
+
     if active_tab == "tab-patch-ops":
         return build_sla_panel(data.sla)
     elif active_tab == "tab-reboots":
@@ -143,9 +151,18 @@ def build_tab_content(data, active_tab: str = "tab-executive") -> html.Div:
                 dbc.Col(build_server_hosting_panel(data.servers), md=12, className="mb-3"),
             ),
 
-            # 4. Patch Compliance Speedometer Gauge (Thresholds: 0-60 Red, 61-84 Amber, 85+ Green)
+            # 4. Patch Compliance Speedometer Gauge (Configurable Thresholds)
             dbc.Row(
-                dbc.Col(build_patch_panel(data.patches), md=12, className="mb-3"),
+                dbc.Col(
+                    build_patch_panel(
+                        data.patches,
+                        red_limit=ts.get("patch_red", 60.0),
+                        amber_limit=ts.get("patch_amber", 84.0),
+                        green_target=ts.get("patch_green", 85.0),
+                    ),
+                    md=12,
+                    className="mb-3",
+                ),
             ),
 
             # 5. Dedicated End-of-Life (EOL) Analytics & Audit DataTable
@@ -161,7 +178,7 @@ def build_tab_content(data, active_tab: str = "tab-executive") -> html.Div:
     )
 
 
-def build_body(data, active_tab: str = "tab-executive") -> list:
+def build_body(data, active_tab: str = "tab-executive", threshold_settings: dict | None = None) -> list:
     """Build all content panels from DashboardData."""
     return [
         dbc.Container(
@@ -193,7 +210,7 @@ def build_body(data, active_tab: str = "tab-executive") -> list:
                 ),
 
                 # Section 4: Dynamic Tab Content Container
-                html.Div(build_tab_content(data, active_tab=active_tab), id="tab-content-container"),
+                html.Div(build_tab_content(data, active_tab=active_tab, threshold_settings=threshold_settings), id="tab-content-container"),
 
                 # Footer
                 html.Div(
@@ -229,6 +246,12 @@ def build_layout(data) -> html.Div:
                 "os_family": "All OS Families",
             }),
             dcc.Store(id="active-tab-store", data="tab-executive"),
+            dcc.Store(id="threshold-settings-store", data={
+                "eol_days": int(os.getenv("EOL_THRESHOLD_DAYS", "180")),
+                "patch_red": float(os.getenv("PATCH_RED_LIMIT", "60.0")),
+                "patch_amber": float(os.getenv("PATCH_AMBER_LIMIT", "84.0")),
+                "patch_green": float(os.getenv("PATCH_GREEN_TARGET", "85.0")),
+            }),
 
             # In-App Settings Modal
             build_settings_modal(),

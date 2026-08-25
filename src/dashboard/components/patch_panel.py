@@ -1,7 +1,7 @@
 """
-Patch Compliance Panel — Speedometer gauge with custom SLA thresholds.
+Patch Compliance Panel — Speedometer gauge with customizable SLA thresholds.
 
-Thresholds:
+Default Thresholds:
   - 0 - 60%:   RED
   - 61 - 84%:  AMBER
   - 85 - 100%: GREEN
@@ -15,16 +15,20 @@ from dash import dcc, html
 from src.dashboard import charts, theme as T
 
 
-def build_patch_panel(patch_data: dict) -> dbc.Card:
+def build_patch_panel(
+    patch_data: dict,
+    red_limit: float = 60.0,
+    amber_limit: float = 84.0,
+    green_target: float = 85.0,
+) -> dbc.Card:
     """
-    Renders Patch Compliance gauge with 0-60 Red, 61-84 Amber, 85+ Green thresholds.
-    30-day trend removed as requested.
+    Renders Patch Compliance gauge with configurable thresholds.
     """
     pct = patch_data.get("patch_coverage_pct", 0.0)
-    gauge_fig = charts.patch_gauge(pct)
+    gauge_fig = charts.patch_gauge(pct, red_limit=red_limit, amber_limit=amber_limit, green_target=green_target)
 
-    badge_color = "success" if pct >= 85.0 else "warning" if pct >= 61.0 else "danger"
-    status_text = "🟢 Compliant (≥85%)" if pct >= 85.0 else "🟡 Warning (61-84%)" if pct >= 61.0 else "🔴 Critical (<60%)"
+    badge_color = "success" if pct >= green_target else "warning" if pct > red_limit else "danger"
+    status_text = f"🟢 Compliant (≥{int(green_target)}%)" if pct >= green_target else f"🟡 Warning ({int(red_limit)+1}-{int(amber_limit)}%)" if pct > red_limit else f"🔴 Critical (≤{int(red_limit)}%)"
 
     return dbc.Card(
         [

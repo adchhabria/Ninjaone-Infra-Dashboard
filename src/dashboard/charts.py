@@ -299,17 +299,22 @@ def hosting_role_heatmap(matrix: list[dict]) -> go.Figure:
 # Patch Compliance Gauge (0-60 Red, 61-84 Amber, 85+ Green)
 # ---------------------------------------------------------------------------
 
-def patch_gauge(patch_pct: float) -> go.Figure:
+def patch_gauge(
+    patch_pct: float,
+    red_limit: float = 60.0,
+    amber_limit: float = 84.0,
+    green_target: float = 85.0,
+) -> go.Figure:
     """
     Speedometer gauge — overall patch coverage %.
-    Thresholds:
-      0 - 60%:   RED
-      61 - 84%:  AMBER
-      85 - 100%: GREEN
+    Customizable Thresholds:
+      0 to red_limit:        RED
+      red_limit to amber_limit: AMBER
+      green_target to 100:   GREEN
     """
     color = (
-        T.RAG_GREEN if patch_pct >= 85.0
-        else T.RAG_AMBER if patch_pct >= 61.0
+        T.RAG_GREEN if patch_pct >= green_target
+        else T.RAG_AMBER if patch_pct >= (red_limit + 1.0)
         else T.RAG_RED
     )
 
@@ -318,27 +323,27 @@ def patch_gauge(patch_pct: float) -> go.Figure:
             mode="gauge+number+delta",
             value=patch_pct,
             number=dict(suffix="%", font=dict(size=40, color=color)),
-            delta=dict(reference=85, valueformat=".1f"),
+            delta=dict(reference=green_target, valueformat=".1f"),
             gauge=dict(
                 axis=dict(range=[0, 100], tickcolor=T.TEXT_SECONDARY),
                 bar=dict(color=color, thickness=0.25),
                 bgcolor=T.BG_PRIMARY,
                 bordercolor=T.BORDER,
                 steps=[
-                    dict(range=[0, 60], color="rgba(244,67,54,0.25)"),      # 0-60 RED
-                    dict(range=[60, 84], color="rgba(255,193,7,0.25)"),     # 61-84 AMBER
-                    dict(range=[84, 100], color="rgba(0,200,83,0.25)"),    # 85+ GREEN
+                    dict(range=[0, red_limit], color="rgba(244,67,54,0.25)"),          # RED
+                    dict(range=[red_limit, amber_limit], color="rgba(255,193,7,0.25)"), # AMBER
+                    dict(range=[amber_limit, 100], color="rgba(0,200,83,0.25)"),      # GREEN
                 ],
                 threshold=dict(
                     line=dict(color=T.TEXT_PRIMARY, width=2),
                     thickness=0.75,
-                    value=85,
+                    value=green_target,
                 ),
             ),
         )
     )
     fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=260)
-    return _apply_theme(fig, "Fleet Patch Coverage (Target: ≥85%)")
+    return _apply_theme(fig, f"Fleet Patch Coverage (Target: ≥{int(green_target)}%)")
 
 
 # ---------------------------------------------------------------------------

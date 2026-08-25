@@ -134,9 +134,9 @@ def _classify_linux_version(os_name: str | None) -> str:
     return os_name
 
 
-def _get_eol_info(os_name: str | None) -> dict[str, Any]:
+def _get_eol_info(os_name: str | None, approaching_days: int = 180) -> dict[str, Any]:
     """
-    Returns EOL evaluation for an OS name:
+    Returns EOL evaluation for an OS name with configurable approaching_days:
     {
         'is_eol': bool,
         'eol_date': str or None,
@@ -169,7 +169,7 @@ def _get_eol_info(os_name: str | None) -> dict[str, Any]:
                         "status": "Expired (EOL)",
                         "risk_level": risk,
                     }
-                elif delta_days >= -180:
+                elif delta_days >= -approaching_days:
                     return {
                         "is_eol": False,
                         "eol_date": eol_date_str,
@@ -209,6 +209,7 @@ def _is_eol(os_name: str | None) -> bool:
 def compute_os_metrics(
     devices: list[Device],
     org_name_map: Optional[dict[int, str]] = None,
+    approaching_days: int = 180,
 ) -> dict[str, Any]:
     """
     Compute all OS and EOL compliance metrics with separate Windows & Linux breakdowns.
@@ -219,7 +220,7 @@ def compute_os_metrics(
         os_name = d.os.name if d.os else None
         release_id = d.os.release_id if d.os else None
         family = _classify_os_family(os_name)
-        eol_info = _get_eol_info(os_name)
+        eol_info = _get_eol_info(os_name, approaching_days=approaching_days)
 
         if family == "Windows":
             version_label = _classify_windows_version(os_name, release_id)

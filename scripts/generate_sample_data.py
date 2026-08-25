@@ -187,6 +187,7 @@ def get_mock_dashboard_data(
     active_region: Optional[str] = None,
     active_location: Optional[str] = None,
     active_os_family: Optional[str] = None,
+    approaching_days: int = 180,
 ) -> DashboardData:
     """Returns complete DashboardData computed from realistic mock pool."""
     global _CACHED_RAW_MOCK
@@ -203,6 +204,7 @@ def get_mock_dashboard_data(
         active_region=active_region,
         active_location=active_location,
         active_os_family=active_os_family,
+        approaching_days=approaching_days,
     )
 
 

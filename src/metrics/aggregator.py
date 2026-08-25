@@ -191,6 +191,7 @@ def compute_dashboard_slice(
     active_region: Optional[str] = None,
     active_location: Optional[str] = None,
     active_os_family: Optional[str] = None,
+    approaching_days: int = 180,
 ) -> DashboardData:
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
@@ -232,7 +233,7 @@ def compute_dashboard_slice(
     org_name_map = {o.id: o.name for o in organizations}
 
     # 3. Compute sub-metrics on filtered slice
-    os_metrics = compute_os_metrics(filtered_devices, org_name_map=org_name_map)
+    os_metrics = compute_os_metrics(filtered_devices, org_name_map=org_name_map, approaching_days=approaching_days)
     server_metrics = compute_server_metrics(filtered_devices)
     patch_metrics = compute_patch_metrics(filtered_devices, activities)
     sla_metrics = compute_patch_sla_metrics(filtered_devices, activities, org_name_map=org_name_map)
@@ -397,6 +398,7 @@ class MetricsAggregator:
         active_region: Optional[str] = None,
         active_location: Optional[str] = None,
         active_os_family: Optional[str] = None,
+        approaching_days: int = 180,
     ) -> DashboardData:
         cache_key = "raw_api_payload"
         raw_bundle = self._cache.get(cache_key)
@@ -415,6 +417,7 @@ class MetricsAggregator:
             active_region=active_region,
             active_location=active_location,
             active_os_family=active_os_family,
+            approaching_days=approaching_days,
         )
 
     def _fetch_raw(self) -> tuple[list[Organization], list[Device], list[Activity]]:
