@@ -1,96 +1,16 @@
 """
 Executive PDF Audit Report Generator for NinjaOne Infra Dashboard.
 
-Generates a publication-grade, multi-page PDF compliance and operational audit document
-capturing the exact visual graphics, maps, speedometer gauges, donut charts, and data tables
-as seen on the browser using Playwright headless rendering with a ReportLab fallback.
+Generates a publication-grade, multi-page executive PDF compliance & operational audit document
+containing the exact visual charts, world map, speedometer gauges, donut charts, bar charts,
+and detailed audit data tables identical to the live browser dashboard.
 """
 
 from __future__ import annotations
 
 import io
-import os
-import time
 from datetime import datetime, timezone
 from typing import Any, Optional
-
-from src.metrics.aggregator import DashboardData
-
-
-def generate_pdf_report(data: DashboardData, dashboard_url: str = "http://localhost:8050") -> bytes:
-    """
-    Generates a multi-page executive PDF report.
-    Attempts high-fidelity Playwright browser rendering to capture exact dashboard
-    charts, gauge, map, and tables. Falls back to ReportLab if Playwright is unavailable.
-    """
-    try:
-        pdf_bytes = _generate_playwright_pdf(dashboard_url)
-        if pdf_bytes and len(pdf_bytes) > 5000:
-            return pdf_bytes
-    except Exception as e:
-        print(f"[!] Playwright PDF export fallback triggered: {e}")
-
-    return _generate_reportlab_pdf(data)
-
-
-def _generate_playwright_pdf(url: str = "http://localhost:8050") -> bytes:
-    """
-    Renders the exact live dashboard graphics (charts, gauge, maps, cards, tables)
-    into a multi-page PDF via Playwright headless Chromium.
-    """
-    from playwright.sync_api import sync_playwright
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1600, "height": 1200})
-        page.goto(url, wait_until="networkidle", timeout=25000)
-
-        # Ensure Executive Overview tab is displayed
-        try:
-            page.locator(".nav-link", has_text="Executive Overview").click(timeout=3000)
-            page.wait_for_timeout(2000)
-        except Exception:
-            pass
-
-        # Apply executive print styling
-        page.evaluate("""() => {
-            const style = document.createElement('style');
-            style.innerHTML = `
-                @page {
-                    size: 1600px auto;
-                    margin: 20px;
-                }
-                body {
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    background-color: #0D1117 !important;
-                }
-                .card {
-                    break-inside: avoid !important;
-                    page-break-inside: avoid !important;
-                    margin-bottom: 24px !important;
-                }
-                .sticky-top, header, #open-settings-btn, #refresh-btn {
-                    box-shadow: none !important;
-                }
-            `;
-            document.head.appendChild(style);
-        }""")
-
-        page.wait_for_timeout(1000)
-
-        pdf_bytes = page.pdf(
-            width="1600px",
-            print_background=True,
-            margin={"top": "20px", "bottom": "20px", "left": "20px", "right": "20px"},
-        )
-        browser.close()
-        return pdf_bytes
-
-
-# ---------------------------------------------------------------------------
-# Pure-Python ReportLab Engine (Fallback)
-# ---------------------------------------------------------------------------
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
@@ -98,6 +18,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     HRFlowable,
+    Image,
+    KeepTogether,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -105,6 +27,10 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+
+from src.dashboard import charts, theme as T
+from src.metrics.aggregator import DashboardData
+
 
 PRIMARY_COLOR = colors.HexColor("#0D1117")
 SECONDARY_COLOR = colors.HexColor("#161B22")
@@ -119,6 +45,8 @@ LIGHT_BG = colors.HexColor("#F6F8FA")
 
 
 class MultiPageNumberedCanvas(canvas.Canvas):
+    """Two-pass canvas to draw running headers, footers, and 'Page X of Y'."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -140,6 +68,7 @@ class MultiPageNumberedCanvas(canvas.Canvas):
         self.setFont("Helvetica", 8)
         self.setFillColor(MUTED_TEXT)
 
+        # Header (pages > 1)
         if self._pageNumber > 1:
             self.drawString(40, 580, "NinjaOne IT Infrastructure & Compliance Executive Audit Report")
             self.drawRightString(750, 580, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
@@ -147,24 +76,40 @@ class MultiPageNumberedCanvas(canvas.Canvas):
             self.setLineWidth(0.5)
             self.line(40, 574, 750, 574)
 
+        # Footer (all pages)
         self.setStrokeColor(BORDER_COLOR)
         self.setLineWidth(0.5)
-        self.line(40, 35, 750, 35)
+        self.line(40, 30, 750, 30)
 
-        self.drawString(40, 24, "CONFIDENTIAL — For Internal Management & Compliance Audit Use Only")
-        self.drawRightString(750, 24, f"Page {self._pageNumber} of {page_count}")
+        self.drawString(40, 20, "CONFIDENTIAL — For Internal Management & Compliance Audit Use Only")
+        self.drawRightString(750, 20, f"Page {self._pageNumber} of {page_count}")
         self.restoreState()
 
 
-def _generate_reportlab_pdf(data: DashboardData) -> bytes:
+def _fig_to_image_flowable(fig, width: int = 340, height: int = 180, scale: int = 2) -> Optional[Image]:
+    """Converts a Plotly figure to a ReportLab Image Flowable via Kaleido."""
+    try:
+        img_bytes = fig.to_image(format="png", width=width, height=height, scale=scale, engine="kaleido")
+        buf = io.BytesIO(img_bytes)
+        return Image(buf, width=width, height=height)
+    except Exception as e:
+        print(f"[!] Chart render warning: {e}")
+        return None
+
+
+def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -> bytes:
+    """
+    Generates a high-fidelity multi-page PDF audit report with embedded Plotly charts,
+    world maps, speedometer gauges, and comprehensive compliance data tables.
+    """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(letter),
         leftMargin=40,
         rightMargin=40,
-        topMargin=45,
-        bottomMargin=45,
+        topMargin=40,
+        bottomMargin=40,
     )
 
     styles = getSampleStyleSheet()
@@ -173,30 +118,30 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
         "DocTitle",
         parent=styles["Heading1"],
         fontName="Helvetica-Bold",
-        fontSize=20,
-        leading=24,
+        fontSize=18,
+        leading=22,
         textColor=PRIMARY_COLOR,
-        spaceAfter=4,
+        spaceAfter=3,
     )
 
     subtitle_style = ParagraphStyle(
         "DocSubTitle",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=10,
-        leading=14,
+        fontSize=9.5,
+        leading=13,
         textColor=MUTED_TEXT,
-        spaceAfter=12,
+        spaceAfter=8,
     )
 
     h2_style = ParagraphStyle(
         "Heading2",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=13,
-        leading=16,
+        fontSize=12,
+        leading=15,
         textColor=PRIMARY_COLOR,
-        spaceBefore=12,
+        spaceBefore=8,
         spaceAfter=6,
     )
 
@@ -204,8 +149,8 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
         "Body",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=8.5,
-        leading=11,
+        fontSize=8,
+        leading=10,
         textColor=TEXT_COLOR,
     )
 
@@ -227,20 +172,23 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
 
     story = []
 
+    # =======================================================================
+    # PAGE 1: Executive KPI Summary & World Map
+    # =======================================================================
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     story.append(Paragraph("NinjaOne IT Infrastructure & Compliance Audit Report", title_style))
     story.append(
         Paragraph(
             f"<b>Scope:</b> {data.active_filter_label} &nbsp;|&nbsp; "
             f"<b>Generated:</b> {ts} &nbsp;|&nbsp; "
-            f"<b>Source:</b> Live NinjaOne REST API Platform",
+            f"<b>Platform:</b> Live NinjaOne REST API Operational Engine",
             subtitle_style,
         )
     )
-    story.append(HRFlowable(width="100%", thickness=1.5, color=ACCENT_BLUE, spaceBefore=0, spaceAfter=14))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=ACCENT_BLUE, spaceBefore=0, spaceAfter=10))
 
-    # 1. Executive Summary & KPIs Table
-    story.append(Paragraph("1. Executive Summary & Key Performance Indicators", h2_style))
+    # Executive KPI Table Strip
+    story.append(Paragraph("1. Executive Overview & Fleet Key Performance Indicators", h2_style))
 
     rag_color = RAG_GREEN if data.compliance_rag == "GREEN" else RAG_AMBER if data.compliance_rag == "AMBER" else RAG_RED
     patch_pct = data.patches.get("patch_coverage_pct", 0.0)
@@ -255,12 +203,12 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
             Paragraph("EOL / At-Risk Devices", body_bold),
         ],
         [
-            Paragraph(f"<font size=14><b>{data.total_devices}</b></font>", body_style),
-            Paragraph(f"<font size=14><b>{data.online_pct:.1f}%</b></font>", body_style),
-            Paragraph(f"<font size=14 color='{rag_color.hexval()}'><b>{data.overall_compliance_score:.1f}% ({data.compliance_rag})</b></font>", body_style),
-            Paragraph(f"<font size=14><b>{patch_pct:.1f}%</b></font>", body_style),
-            Paragraph(f"<font size=14><b>{data.total_servers}</b></font>", body_style),
-            Paragraph(f"<font size=14 color='#CF222E'><b>{data.eol_risk_count}</b></font>", body_style),
+            Paragraph(f"<font size=13><b>{data.total_devices}</b></font>", body_style),
+            Paragraph(f"<font size=13><b>{data.online_pct:.1f}%</b></font>", body_style),
+            Paragraph(f"<font size=13 color='{rag_color.hexval()}'><b>{data.overall_compliance_score:.1f}% ({data.compliance_rag})</b></font>", body_style),
+            Paragraph(f"<font size=13><b>{patch_pct:.1f}%</b></font>", body_style),
+            Paragraph(f"<font size=13><b>{data.total_servers}</b></font>", body_style),
+            Paragraph(f"<font size=13 color='#CF222E'><b>{data.eol_risk_count}</b></font>", body_style),
         ],
     ]
 
@@ -273,52 +221,95 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
             ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ])
     )
     story.append(kpi_table)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 10))
 
-    # 2. Patch Operations & SLA Aging
-    story.append(Paragraph("2. Patch Operations & SLA Aging Backlog", h2_style))
+    # World Map Graphic
+    story.append(Paragraph("2. Geographic Infrastructure & Fleet Distribution Map", h2_style))
+    map_fig = charts.world_map_chart(data.map_data, data.active_region)
+    map_img = _fig_to_image_flowable(map_fig, width=710, height=270, scale=2)
+    if map_img:
+        story.append(map_img)
 
+    story.append(PageBreak())
+
+    # =======================================================================
+    # PAGE 2: OS Landscape & Server Fleet Compliance
+    # =======================================================================
+    story.append(Paragraph("3. Operating System Landscape Breakdown (Windows & Linux)", h2_style))
+
+    win_donut_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}))
+    linux_donut_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}))
+
+    win_img = _fig_to_image_flowable(win_donut_fig, width=350, height=200, scale=2)
+    linux_img = _fig_to_image_flowable(linux_donut_fig, width=350, height=200, scale=2)
+
+    if win_img and linux_img:
+        os_charts_table = Table([[win_img, linux_img]], colWidths=[355, 355])
+        os_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
+        story.append(os_charts_table)
+
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("4. Server Infrastructure: Roles & Multi-Cloud Hosting", h2_style))
+
+    srv_bar_fig = charts.server_role_bar(data.servers.get("role_counts", {}))
+    host_donut_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}))
+
+    srv_img = _fig_to_image_flowable(srv_bar_fig, width=350, height=200, scale=2)
+    host_img = _fig_to_image_flowable(host_donut_fig, width=350, height=200, scale=2)
+
+    if srv_img and host_img:
+        server_charts_table = Table([[srv_img, host_img]], colWidths=[355, 355])
+        server_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
+        story.append(server_charts_table)
+
+    story.append(PageBreak())
+
+    # =======================================================================
+    # PAGE 3: Patch Speedometer Gauge & EOL Lifecycle
+    # =======================================================================
+    story.append(Paragraph("5. Patch Compliance Speedometer Gauge & SLA Backlog", h2_style))
+
+    gauge_fig = charts.patch_gauge(patch_pct)
+    gauge_img = _fig_to_image_flowable(gauge_fig, width=350, height=200, scale=2)
+
+    # SLA Table beside Gauge
     sla_counts = data.sla.get("sla_counts", {})
     sla_data = [
         [
             Paragraph("SLA Aging Bracket", header_cell_style),
-            Paragraph("Pending Patches", header_cell_style),
+            Paragraph("Patches", header_cell_style),
             Paragraph("Risk Rating", header_cell_style),
-            Paragraph("Enterprise Policy SLA", header_cell_style),
         ],
         [
             Paragraph("< 7 Days", body_style),
             Paragraph(str(sla_counts.get("< 7 Days (Within SLA)", 0)), body_bold),
             Paragraph("<font color='#2EA043'><b>Within SLA</b></font>", body_style),
-            Paragraph("Standard rollout window", body_style),
         ],
         [
             Paragraph("8 - 30 Days", body_style),
             Paragraph(str(sla_counts.get("8 - 30 Days (Warning)", 0)), body_bold),
             Paragraph("<font color='#D29922'><b>Warning</b></font>", body_style),
-            Paragraph("Requires scheduling intervention", body_style),
         ],
         [
             Paragraph("31 - 90 Days", body_style),
             Paragraph(str(sla_counts.get("31 - 90 Days (High Risk)", 0)), body_bold),
             Paragraph("<font color='#FF9800'><b>High Risk</b></font>", body_style),
-            Paragraph("Action plan required within 48 hours", body_style),
         ],
         [
             Paragraph("> 90 Days", body_style),
             Paragraph(str(sla_counts.get("> 90 Days (SLA Breach)", 0)), body_bold),
-            Paragraph("<font color='#CF222E'><b>CRITICAL SLA BREACH</b></font>", body_style),
-            Paragraph("Immediate remediation required", body_style),
+            Paragraph("<font color='#CF222E'><b>CRITICAL BREACH</b></font>", body_style),
         ],
     ]
 
-    sla_table = Table(sla_data, colWidths=[150, 120, 180, 260])
-    sla_table.setStyle(
+    sla_mini_table = Table(sla_data, colWidths=[130, 80, 130])
+    sla_mini_table.setStyle(
         TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), SECONDARY_COLOR),
             ("BOX", (0, 0), (-1, -1), 1, BORDER_COLOR),
@@ -329,46 +320,34 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ])
     )
-    story.append(sla_table)
-    story.append(Spacer(1, 14))
 
-    # 3. Server Fleet & Hosting
-    story.append(Paragraph("3. Server Fleet & Multi-Cloud Hosting Classification", h2_style))
-    hosting_counts = data.servers.get("hosting_counts", {})
-    hosting_data = [
-        [
-            Paragraph("AWS Cloud", header_cell_style),
-            Paragraph("Microsoft Azure", header_cell_style),
-            Paragraph("Google Cloud (GCP)", header_cell_style),
-            Paragraph("Virtual Machines (VMs)", header_cell_style),
-            Paragraph("Physical Bare-Metal", header_cell_style),
-        ],
-        [
-            Paragraph(f"<b>{hosting_counts.get('AWS', 0)}</b> servers", body_style),
-            Paragraph(f"<b>{hosting_counts.get('Azure', 0)}</b> servers", body_style),
-            Paragraph(f"<b>{hosting_counts.get('GCP', 0)}</b> servers", body_style),
-            Paragraph(f"<b>{hosting_counts.get('Virtual Machine', 0)}</b> servers", body_style),
-            Paragraph(f"<b>{hosting_counts.get('Physical Hardware', 0)}</b> servers", body_style),
-        ],
-    ]
-    host_table = Table(hosting_data, colWidths=[142, 142, 142, 142, 142])
-    host_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), SECONDARY_COLOR),
-            ("BOX", (0, 0), (-1, -1), 1, BORDER_COLOR),
-            ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ])
-    )
-    story.append(host_table)
+    if gauge_img:
+        patch_row_table = Table([[gauge_img, sla_mini_table]], colWidths=[355, 355])
+        patch_row_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
+        story.append(patch_row_table)
+
+    story.append(Spacer(1, 8))
+
+    # EOL Charts
+    story.append(Paragraph("6. End-of-Life (EOL) Analytics & At-Risk OS Versions", h2_style))
+
+    eol_donut_fig = charts.eol_status_donut(data.os.get("eol_status_counts", {}))
+    eol_bar_fig = charts.eol_by_os_bar(data.os.get("eol_by_os", {}))
+
+    eol_donut_img = _fig_to_image_flowable(eol_donut_fig, width=350, height=200, scale=2)
+    eol_bar_img = _fig_to_image_flowable(eol_bar_fig, width=350, height=200, scale=2)
+
+    if eol_donut_img and eol_bar_img:
+        eol_charts_table = Table([[eol_donut_img, eol_bar_img]], colWidths=[355, 355])
+        eol_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
+        story.append(eol_charts_table)
 
     story.append(PageBreak())
 
-    # 4. EOL Ledger
-    story.append(Paragraph("4. End-of-Life (EOL) & Obsolete OS Device Audit Ledger", h2_style))
+    # =======================================================================
+    # PAGE 4: Detailed EOL Device Ledger
+    # =======================================================================
+    story.append(Paragraph("7. Detailed End-of-Life (EOL) Device Inventory & Risk Ledger", h2_style))
     eol_rows = data.os.get("eol_table_data", [])
 
     if eol_rows:
@@ -383,7 +362,7 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
         ]
         eol_table_content = [eol_table_headers]
 
-        for r in eol_rows[:25]:
+        for r in eol_rows[:28]:
             risk_color = "#CF222E" if r.get("risk_level") in ["CRITICAL", "HIGH"] else "#D29922"
             eol_table_content.append([
                 Paragraph(r.get("name", "N/A"), body_bold),
@@ -411,10 +390,12 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
     else:
         story.append(Paragraph("✅ <b>No devices currently operating past End-of-Life date.</b>", body_style))
 
-    story.append(Spacer(1, 14))
+    story.append(PageBreak())
 
-    # 5. Org Compliance Table
-    story.append(Paragraph("5. Organization Compliance & Health Ledger", h2_style))
+    # =======================================================================
+    # PAGE 5: Organization Compliance Ledger
+    # =======================================================================
+    story.append(Paragraph("8. Organization Compliance & Fleet Health Ledger", h2_style))
     org_rows = data.org_table
 
     if org_rows:
@@ -431,7 +412,7 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
         ]
         org_content = [org_headers]
 
-        for org in org_rows[:30]:
+        for org in org_rows[:35]:
             rag = org.get("rag", "RED")
             r_col = "#2EA043" if rag == "GREEN" else "#D29922" if rag == "AMBER" else "#CF222E"
             org_content.append([
@@ -460,5 +441,6 @@ def _generate_reportlab_pdf(data: DashboardData) -> bytes:
         )
         story.append(org_doc_table)
 
+    # Build PDF
     doc.build(story, canvasmaker=MultiPageNumberedCanvas)
     return buffer.getvalue()
