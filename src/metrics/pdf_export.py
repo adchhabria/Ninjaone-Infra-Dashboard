@@ -1,24 +1,103 @@
 """
 Executive PDF Audit Report Generator for NinjaOne Infra Dashboard.
 
-Generates a publication-grade, multi-page PDF compliance and operational audit
-document using ReportLab with custom styling, tables, SLA breakdowns, EOL ledgers,
-and executive KPI summaries.
+Generates a publication-grade, multi-page PDF compliance and operational audit document
+capturing the exact visual graphics, maps, speedometer gauges, donut charts, and data tables
+as seen on the browser using Playwright headless rendering with a ReportLab fallback.
 """
 
 from __future__ import annotations
 
 import io
+import os
+import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
+
+from src.metrics.aggregator import DashboardData
+
+
+def generate_pdf_report(data: DashboardData, dashboard_url: str = "http://localhost:8050") -> bytes:
+    """
+    Generates a multi-page executive PDF report.
+    Attempts high-fidelity Playwright browser rendering to capture exact dashboard
+    charts, gauge, map, and tables. Falls back to ReportLab if Playwright is unavailable.
+    """
+    try:
+        pdf_bytes = _generate_playwright_pdf(dashboard_url)
+        if pdf_bytes and len(pdf_bytes) > 5000:
+            return pdf_bytes
+    except Exception as e:
+        print(f"[!] Playwright PDF export fallback triggered: {e}")
+
+    return _generate_reportlab_pdf(data)
+
+
+def _generate_playwright_pdf(url: str = "http://localhost:8050") -> bytes:
+    """
+    Renders the exact live dashboard graphics (charts, gauge, maps, cards, tables)
+    into a multi-page PDF via Playwright headless Chromium.
+    """
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(viewport={"width": 1600, "height": 1200})
+        page.goto(url, wait_until="networkidle", timeout=25000)
+
+        # Ensure Executive Overview tab is displayed
+        try:
+            page.locator(".nav-link", has_text="Executive Overview").click(timeout=3000)
+            page.wait_for_timeout(2000)
+        except Exception:
+            pass
+
+        # Apply executive print styling
+        page.evaluate("""() => {
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @page {
+                    size: 1600px auto;
+                    margin: 20px;
+                }
+                body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    background-color: #0D1117 !important;
+                }
+                .card {
+                    break-inside: avoid !important;
+                    page-break-inside: avoid !important;
+                    margin-bottom: 24px !important;
+                }
+                .sticky-top, header, #open-settings-btn, #refresh-btn {
+                    box-shadow: none !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }""")
+
+        page.wait_for_timeout(1000)
+
+        pdf_bytes = page.pdf(
+            width="1600px",
+            print_background=True,
+            margin={"top": "20px", "bottom": "20px", "left": "20px", "right": "20px"},
+        )
+        browser.close()
+        return pdf_bytes
+
+
+# ---------------------------------------------------------------------------
+# Pure-Python ReportLab Engine (Fallback)
+# ---------------------------------------------------------------------------
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     HRFlowable,
-    KeepTogether,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -27,14 +106,9 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from src.metrics.aggregator import DashboardData
-
-
-# Color Palette
 PRIMARY_COLOR = colors.HexColor("#0D1117")
 SECONDARY_COLOR = colors.HexColor("#161B22")
 ACCENT_BLUE = colors.HexColor("#2F81F7")
-ACCENT_CYAN = colors.HexColor("#00D8FF")
 TEXT_COLOR = colors.HexColor("#24292F")
 MUTED_TEXT = colors.HexColor("#57606A")
 BORDER_COLOR = colors.HexColor("#D0D7DE")
@@ -44,12 +118,7 @@ RAG_RED = colors.HexColor("#CF222E")
 LIGHT_BG = colors.HexColor("#F6F8FA")
 
 
-from reportlab.pdfgen import canvas
-
-
 class MultiPageNumberedCanvas(canvas.Canvas):
-    """Canvas that performs a two-pass calculation to draw 'Page X of Y' and headers."""
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -71,7 +140,6 @@ class MultiPageNumberedCanvas(canvas.Canvas):
         self.setFont("Helvetica", 8)
         self.setFillColor(MUTED_TEXT)
 
-        # Header (pages > 1)
         if self._pageNumber > 1:
             self.drawString(40, 580, "NinjaOne IT Infrastructure & Compliance Executive Audit Report")
             self.drawRightString(750, 580, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
@@ -79,7 +147,6 @@ class MultiPageNumberedCanvas(canvas.Canvas):
             self.setLineWidth(0.5)
             self.line(40, 574, 750, 574)
 
-        # Footer (all pages)
         self.setStrokeColor(BORDER_COLOR)
         self.setLineWidth(0.5)
         self.line(40, 35, 750, 35)
@@ -89,10 +156,7 @@ class MultiPageNumberedCanvas(canvas.Canvas):
         self.restoreState()
 
 
-def generate_pdf_report(data: DashboardData) -> bytes:
-    """
-    Generates a multi-page executive PDF report from DashboardData and returns raw bytes.
-    """
+def _generate_reportlab_pdf(data: DashboardData) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -163,9 +227,6 @@ def generate_pdf_report(data: DashboardData) -> bytes:
 
     story = []
 
-    # -----------------------------------------------------------------------
-    # Document Header
-    # -----------------------------------------------------------------------
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     story.append(Paragraph("NinjaOne IT Infrastructure & Compliance Audit Report", title_style))
     story.append(
@@ -178,9 +239,7 @@ def generate_pdf_report(data: DashboardData) -> bytes:
     )
     story.append(HRFlowable(width="100%", thickness=1.5, color=ACCENT_BLUE, spaceBefore=0, spaceAfter=14))
 
-    # -----------------------------------------------------------------------
     # 1. Executive Summary & KPIs Table
-    # -----------------------------------------------------------------------
     story.append(Paragraph("1. Executive Summary & Key Performance Indicators", h2_style))
 
     rag_color = RAG_GREEN if data.compliance_rag == "GREEN" else RAG_AMBER if data.compliance_rag == "AMBER" else RAG_RED
@@ -221,9 +280,7 @@ def generate_pdf_report(data: DashboardData) -> bytes:
     story.append(kpi_table)
     story.append(Spacer(1, 14))
 
-    # -----------------------------------------------------------------------
-    # 2. Patch SLA Aging & Failure Triage Summary
-    # -----------------------------------------------------------------------
+    # 2. Patch Operations & SLA Aging
     story.append(Paragraph("2. Patch Operations & SLA Aging Backlog", h2_style))
 
     sla_counts = data.sla.get("sla_counts", {})
@@ -275,9 +332,7 @@ def generate_pdf_report(data: DashboardData) -> bytes:
     story.append(sla_table)
     story.append(Spacer(1, 14))
 
-    # -----------------------------------------------------------------------
-    # 3. Server Hosting Infrastructure
-    # -----------------------------------------------------------------------
+    # 3. Server Fleet & Hosting
     story.append(Paragraph("3. Server Fleet & Multi-Cloud Hosting Classification", h2_style))
     hosting_counts = data.servers.get("hosting_counts", {})
     hosting_data = [
@@ -310,14 +365,9 @@ def generate_pdf_report(data: DashboardData) -> bytes:
     )
     story.append(host_table)
 
-    # -----------------------------------------------------------------------
-    # Page Break for Detailed Audit Ledgers
-    # -----------------------------------------------------------------------
     story.append(PageBreak())
 
-    # -----------------------------------------------------------------------
-    # 4. End-of-Life (EOL) Device Audit Ledger
-    # -----------------------------------------------------------------------
+    # 4. EOL Ledger
     story.append(Paragraph("4. End-of-Life (EOL) & Obsolete OS Device Audit Ledger", h2_style))
     eol_rows = data.os.get("eol_table_data", [])
 
@@ -333,7 +383,7 @@ def generate_pdf_report(data: DashboardData) -> bytes:
         ]
         eol_table_content = [eol_table_headers]
 
-        for r in eol_rows[:25]:  # Top 25 in PDF
+        for r in eol_rows[:25]:
             risk_color = "#CF222E" if r.get("risk_level") in ["CRITICAL", "HIGH"] else "#D29922"
             eol_table_content.append([
                 Paragraph(r.get("name", "N/A"), body_bold),
@@ -363,9 +413,7 @@ def generate_pdf_report(data: DashboardData) -> bytes:
 
     story.append(Spacer(1, 14))
 
-    # -----------------------------------------------------------------------
-    # 5. Organization Compliance Ledger
-    # -----------------------------------------------------------------------
+    # 5. Org Compliance Table
     story.append(Paragraph("5. Organization Compliance & Health Ledger", h2_style))
     org_rows = data.org_table
 
@@ -412,6 +460,5 @@ def generate_pdf_report(data: DashboardData) -> bytes:
         )
         story.append(org_doc_table)
 
-    # Build document
     doc.build(story, canvasmaker=MultiPageNumberedCanvas)
     return buffer.getvalue()
