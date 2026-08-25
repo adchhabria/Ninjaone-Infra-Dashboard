@@ -6,6 +6,7 @@ Allows users to configure:
 2. API Credentials (Client ID & Client Secret) with live authentication testing.
 3. Custom EOL Horizon Threshold (e.g. 90, 180, 365 days).
 4. Patch Coverage Speedometer Gauge Thresholds (Red, Amber, Green).
+5. 🔄 Automatic Software Updates: Check GitHub releases, download & auto-relaunch latest toolkit.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 
 from src.dashboard import theme as T
+from src.utils.updater import CURRENT_VERSION, GITHUB_REPO
 
 
 NINJA_REGIONS = [
@@ -28,7 +30,7 @@ NINJA_REGIONS = [
 
 
 def build_settings_modal() -> dbc.Modal:
-    """Settings modal for configuring NinjaOne API credentials, regions, and governance thresholds."""
+    """Settings modal for configuring NinjaOne API credentials, regions, governance thresholds, and updates."""
     current_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com")
     current_client_id = os.getenv("NINJA_CLIENT_ID", "")
     has_secret = bool(os.getenv("NINJA_CLIENT_SECRET"))
@@ -189,7 +191,7 @@ def build_settings_modal() -> dbc.Modal:
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("🔴 Red Limit (Max %)", style={"fontSize": "0.75rem", "color": T.RAG_RED}),
+                                                             dbc.Label("🔴 Red Limit (Max %)", style={"fontSize": "0.75rem", "color": T.RAG_RED}),
                                                             dbc.Input(
                                                                 id="settings-patch-red-limit",
                                                                 type="number",
@@ -237,6 +239,70 @@ def build_settings_modal() -> dbc.Modal:
                                 ],
                                 label="🎯 Compliance Thresholds",
                                 tab_id="tab-settings-thresholds",
+                            ),
+
+                            # Tab 3: Software Updates & Version Management
+                            dbc.Tab(
+                                [
+                                    html.Div(
+                                        [
+                                            dbc.Card(
+                                                dbc.CardBody(
+                                                    [
+                                                        html.Div(
+                                                            [
+                                                                html.Div(
+                                                                    [
+                                                                        html.Span("📦", style={"fontSize": "1.8rem", "marginRight": "12px"}),
+                                                                        html.Div(
+                                                                            [
+                                                                                html.H6("NinjaOne Infra Dashboard Toolkit", style={"margin": "0", "fontWeight": "700", "color": T.TEXT_PRIMARY}),
+                                                                                html.Span(f"Current Installed Version: v{CURRENT_VERSION}", style={"fontSize": "0.82rem", "color": T.ACCENT_CYAN, "fontWeight": "600"}),
+                                                                            ]
+                                                                        ),
+                                                                    ],
+                                                                    style={"display": "flex", "alignItems": "center"},
+                                                                ),
+                                                                dbc.Badge("Release Channel: GitHub Stable", color="dark", style={"fontSize": "0.75rem", "borderColor": T.BORDER, "border": f"1px solid {T.BORDER}"}),
+                                                            ],
+                                                            style={"display": "flex", "alignItems": "center", "justifyContent": "space-between"},
+                                                        ),
+                                                        html.Hr(style={"borderColor": T.BORDER, "margin": "12px 0"}),
+                                                        html.P(
+                                                            "Check for new releases, feature updates, bug fixes, and security patches directly from the official repository.",
+                                                            style={"fontSize": "0.80rem", "color": T.TEXT_MUTED, "marginBottom": "12px"},
+                                                        ),
+                                                        html.Div(
+                                                            [
+                                                                dbc.Button(
+                                                                    "🔄 Check for Updates",
+                                                                    id="settings-check-update-btn",
+                                                                    color="primary",
+                                                                    size="sm",
+                                                                    className="me-2",
+                                                                    style={"fontWeight": "600"},
+                                                                ),
+                                                                html.A(
+                                                                    "📂 View Releases on GitHub ↗",
+                                                                    href=f"https://github.com/{GITHUB_REPO}/releases",
+                                                                    target="_blank",
+                                                                    style={"fontSize": "0.80rem", "color": T.ACCENT_BLUE, "textDecoration": "none", "marginLeft": "10px"},
+                                                                ),
+                                                            ],
+                                                            style={"display": "flex", "alignItems": "center"},
+                                                        ),
+                                                        # Hidden store for payload URL
+                                                        dcc.Store(id="update-download-url-store"),
+                                                        html.Div(id="settings-update-feedback-container", className="mt-3"),
+                                                    ]
+                                                ),
+                                                style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "marginTop": "14px"},
+                                            ),
+                                        ]
+                                    ),
+                                ],
+                                label="🔄 Software Updates",
+                                tab_id="tab-settings-updates",
                             ),
                         ],
                         active_tab="tab-settings-api",

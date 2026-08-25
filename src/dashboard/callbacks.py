@@ -8,6 +8,7 @@ Handles:
 - Remediation action triggers (Reboot, Patch rescan)
 - In-App Settings, NinjaOne Authentication (Sign In & Sign Out), and live connection testing
 - Dynamic switching between Live NinjaOne API data and Demo sample dataset
+- Software Update Checker, GitHub Releases API integration, and self-updating auto-relaunch
 """
 
 from __future__ import annotations
@@ -20,10 +21,12 @@ import dash_bootstrap_components as dbc
 from dash import ALL, MATCH, Input, Output, State, ctx, dcc, html, no_update
 from rich.console import Console
 
+from src.dashboard import theme as T
 from src.dashboard.layout import build_body, build_tab_content
 from src.metrics.data_provider import coordinator
 from src.metrics.excel_export import generate_excel_workbook
 from src.metrics.pdf_export import generate_pdf_report
+from src.utils.updater import CURRENT_VERSION, check_for_updates, apply_update_and_restart
 
 console = Console()
 
@@ -439,3 +442,131 @@ def register_callbacks(app, get_data_fn=None):
             return False, dbc.Alert("✅ Settings saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state
 
         return is_open, no_update, no_update, no_update
+
+    # -----------------------------------------------------------------------
+    # 9. Check for Updates Callback
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("settings-update-feedback-container", "children"),
+        Output("update-download-url-store", "data"),
+        Input("settings-check-update-btn", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def handle_check_for_updates(n_clicks):
+        if not n_clicks:
+            return no_update, no_update
+
+        res = check_for_updates()
+        if not res.get("success"):
+            return (
+                dbc.Alert(
+                    [
+                        html.B("⚠️ Update Check Notice: "),
+                        html.Span(res.get("message", "Unable to query GitHub API.")),
+                    ],
+                    color="warning",
+                    className="mt-2",
+                ),
+                None,
+            )
+
+        if res.get("update_available"):
+            latest_v = res.get("latest_version")
+            pub = res.get("published_at")
+            notes = res.get("release_notes", "")
+            dl_url = res.get("download_url", "")
+
+            return (
+                dbc.Alert(
+                    [
+                        html.Div(
+                            [
+                                html.Span("🎉 ", style={"fontSize": "1.2rem"}),
+                                html.B(f"New Version Available: {latest_v}"),
+                                html.Span(f" (Released: {pub})", style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginLeft": "6px"}),
+                            ],
+                            className="mb-2",
+                        ),
+                        html.Div(
+                            [
+                                html.B("Release Notes:"),
+                                html.Pre(
+                                    notes[:400] + ("..." if len(notes) > 400 else ""),
+                                    style={
+                                        "fontSize": "0.78rem",
+                                        "backgroundColor": "rgba(0,0,0,0.25)",
+                                        "padding": "8px",
+                                        "borderRadius": "4px",
+                                        "whiteSpace": "pre-wrap",
+                                        "marginTop": "6px",
+                                        "color": T.TEXT_PRIMARY,
+                                    },
+                                ),
+                            ],
+                            className="mb-3",
+                        ) if notes else html.Div(),
+                        html.Div(
+                            [
+                                dbc.Button(
+                                    f"🚀 Download & Install {latest_v} (Auto-Restart)",
+                                    id="trigger-apply-update-btn",
+                                    color="success",
+                                    size="sm",
+                                    className="me-2",
+                                    style={"fontWeight": "600"},
+                                ),
+                                html.A(
+                                    "Manual Download ↗",
+                                    href=res.get("html_url", "#"),
+                                    target="_blank",
+                                    style={"fontSize": "0.80rem", "color": T.ACCENT_CYAN, "textDecoration": "none"},
+                                ),
+                            ],
+                            style={"display": "flex", "alignItems": "center"},
+                        ),
+                        html.Div(id="update-apply-status-container", className="mt-2"),
+                    ],
+                    color="success",
+                    className="mt-2",
+                ),
+                dl_url,
+            )
+        else:
+            return (
+                dbc.Alert(
+                    [
+                        html.Span("✅ ", style={"fontSize": "1.1rem"}),
+                        html.B(f"Toolkit is Up-to-Date (v{CURRENT_VERSION})! "),
+                        "You are currently running the latest official build.",
+                    ],
+                    color="info",
+                    className="mt-2",
+                ),
+                None,
+            )
+
+    # -----------------------------------------------------------------------
+    # 10. Install Update & Auto-Restart Callback
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("update-apply-status-container", "children"),
+        Input("trigger-apply-update-btn", "n_clicks"),
+        State("update-download-url-store", "data"),
+        prevent_initial_call=True,
+    )
+    def handle_install_update(n_clicks, download_url):
+        if not n_clicks or not download_url:
+            return no_update
+
+        success, msg = apply_update_and_restart(download_url)
+        if success:
+            return dbc.Alert(
+                [
+                    html.B("⬇️ Update Downloaded! "),
+                    "Launching updater launcher and restarting the toolkit in 2 seconds...",
+                ],
+                color="info",
+                className="mt-2",
+            )
+        else:
+            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
