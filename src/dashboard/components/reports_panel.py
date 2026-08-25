@@ -1,9 +1,8 @@
 """
 Executive Excel & PDF Report Generation Hub.
 
-Inspired by ninjaone-patch-toolkit:
 Provides single-click multi-sheet Excel workbook (.xlsx) downloads
-and executive PDF presentations.
+and executive PDF audit report (.pdf) downloads matching active slicers.
 """
 
 from __future__ import annotations
@@ -21,8 +20,9 @@ def build_reports_panel(data: DashboardData) -> html.Div:
     """
     return html.Div(
         [
-            # Hidden download trigger component
+            # Hidden download trigger components for in-browser file delivery
             dcc.Download(id="download-excel-data"),
+            dcc.Download(id="download-pdf-data"),
 
             dbc.Row(
                 [
@@ -80,16 +80,26 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                 dbc.CardHeader(
                                     html.Span([
                                         html.Span("📄", style={"marginRight": "8px"}),
-                                        html.Span("Executive PDF & Image Presentation", style=T.FONT_SECTION_TITLE),
-                                        dbc.Badge("PDF / PNG", color="primary", className="ms-2"),
+                                        html.Span("Executive PDF Audit Report (.pdf)", style=T.FONT_SECTION_TITLE),
+                                        dbc.Badge("Direct PDF", color="primary", className="ms-2"),
                                     ]),
                                     style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
                                 ),
                                 dbc.CardBody(
                                     [
                                         html.P(
-                                            "Export a pixel-perfect, C-level executive compliance presentation in PDF or PNG format via Playwright headless rendering engine.",
+                                            "Generates a multi-page, publication-grade executive audit document with styled tables, KPI cards, and SLA breakdown matching your active filters:",
                                             style=T.FONT_BODY,
+                                        ),
+                                        html.Ul(
+                                            [
+                                                html.Li([html.Strong("Executive KPI Matrix: "), "Overall RAG score, device health, fleet patch coverage."]),
+                                                html.Li([html.Strong("Patch SLA Aging: "), "Granular breakdown of within-SLA, warning, and breached patches."]),
+                                                html.Li([html.Strong("Multi-Cloud Hosting: "), "AWS, Azure, GCP, VMs, and physical server inventory."]),
+                                                html.Li([html.Strong("EOL Audit Ledger: "), "Complete list of past-support operating systems with days overdue."]),
+                                                html.Li([html.Strong("Client Scorecards: "), "Organization-by-organization compliance status."]),
+                                            ],
+                                            style={**T.FONT_BODY, "fontSize": "0.85rem", "marginBottom": "20px"},
                                         ),
                                         html.Div(
                                             [
@@ -98,27 +108,10 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                             ],
                                             style={"marginBottom": "15px", "fontSize": "0.9rem"},
                                         ),
-                                        html.P(
-                                            "To generate a PDF report via CLI at any time:",
-                                            style={"fontSize": "0.80rem", "color": T.TEXT_MUTED, "marginBottom": "6px"},
-                                        ),
-                                        html.Pre(
-                                            "python scripts/export_pdf.py --format pdf\npython scripts/export_pdf.py --format png",
-                                            style={
-                                                "backgroundColor": T.BG_PRIMARY,
-                                                "color": T.TEXT_PRIMARY,
-                                                "padding": "10px",
-                                                "borderRadius": "6px",
-                                                "fontSize": "0.80rem",
-                                                "border": f"1px solid {T.BORDER}",
-                                                "marginBottom": "20px",
-                                            },
-                                        ),
                                         dbc.Button(
-                                            "📄 Generate PDF Report",
+                                            "📄 Generate & Download PDF Report (.pdf)",
                                             id="btn-generate-pdf-trigger",
                                             color="primary",
-                                            outline=True,
                                             size="lg",
                                             className="w-100",
                                             style={"fontWeight": "600"},

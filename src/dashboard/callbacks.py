@@ -21,6 +21,7 @@ from rich.console import Console
 
 from src.dashboard.layout import build_body, build_tab_content
 from src.metrics.excel_export import generate_excel_workbook
+from src.metrics.pdf_export import generate_pdf_report
 
 console = Console()
 
@@ -197,7 +198,51 @@ def register_callbacks(app, get_data_fn):
         return dcc.send_bytes(excel_bytes, filename=filename)
 
     # -----------------------------------------------------------------------
-    # 3. Action Triggers: Bulk Scan & Reboot Feedback
+    # 3. Executive PDF Audit Report Download
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("download-pdf-data", "data"),
+        Input("btn-generate-pdf-trigger", "n_clicks"),
+        State("filter-state-store", "data"),
+        State("threshold-settings-store", "data"),
+        prevent_initial_call=True,
+    )
+    def download_pdf_report(n_clicks, filter_state, threshold_settings):
+        if not n_clicks:
+            return no_update
+
+        filter_state = filter_state or {}
+        ts_settings = threshold_settings or {"eol_days": 180}
+        org_id_val = filter_state.get("org_id")
+        region_val = filter_state.get("region")
+        location_val = filter_state.get("location")
+        os_family_val = filter_state.get("os_family")
+        eol_days_val = int(ts_settings.get("eol_days", 180))
+
+        try:
+            data = get_data_fn(
+                active_org_id=org_id_val,
+                active_region=region_val,
+                active_location=location_val,
+                active_os_family=os_family_val,
+                approaching_days=eol_days_val,
+            )
+        except TypeError:
+            data = get_data_fn(
+                active_org_id=org_id_val,
+                active_region=region_val,
+                active_location=location_val,
+                active_os_family=os_family_val,
+            )
+
+        pdf_bytes = generate_pdf_report(data)
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"NinjaOne_Executive_Compliance_Audit_{ts}.pdf"
+        return dcc.send_bytes(pdf_bytes, filename=filename)
+
+    # -----------------------------------------------------------------------
+    # 4. Action Triggers: Bulk Scan & Reboot Feedback
     # -----------------------------------------------------------------------
     @app.callback(
         Output("action-feedback-container", "children"),
