@@ -134,6 +134,14 @@ def build_settings_modal() -> dbc.Modal:
                                                         value=current_client_id,
                                                         className="mb-3",
                                                     ),
+                                                    dbc.Label("4. Redirect URI (Must Match NinjaOne App Client Exactly)", style=T.FONT_KPI_LABEL),
+                                                    dbc.Input(
+                                                        id="settings-redirect-uri",
+                                                        type="text",
+                                                        placeholder="http://localhost:8050/oauth/callback",
+                                                        value=os.getenv("NINJA_REDIRECT_URI", DEFAULT_REDIRECT_URI),
+                                                        className="mb-3",
+                                                    ),
                                                     html.Div(
                                                         [
                                                             dbc.Button(

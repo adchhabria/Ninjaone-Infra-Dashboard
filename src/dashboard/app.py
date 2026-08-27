@@ -64,9 +64,10 @@ def create_app(get_data_fn=None) -> dash.Dash:
     )
 
     # -----------------------------------------------------------------------
-    # OAuth 2.0 PKCE Callback Endpoint
+    # OAuth 2.0 PKCE Callback Endpoint (Supports /oauth/callback and /callback)
     # -----------------------------------------------------------------------
     @app.server.route("/oauth/callback")
+    @app.server.route("/callback")
     def oauth_callback():
         code = request.args.get("code")
         state = request.args.get("state")

@@ -244,7 +244,7 @@ class DataCoordinator:
         self._aggregator = None
         self._auth_method = "none"
 
-    def _save_to_env_file(self, base_url: str, client_id: str, client_secret: str):
+    def _save_to_env_file(self, base_url: str, client_id: str, client_secret: str, redirect_uri: Optional[str] = None):
         env_path = os.path.join(os.getcwd(), ".env")
         lines = []
         if os.path.exists(env_path):
@@ -263,6 +263,9 @@ class DataCoordinator:
             elif line.startswith("NINJA_CLIENT_SECRET="):
                 new_lines.append(f"NINJA_CLIENT_SECRET={client_secret}\n")
                 keys_written.add("NINJA_CLIENT_SECRET")
+            elif redirect_uri and line.startswith("NINJA_REDIRECT_URI="):
+                new_lines.append(f"NINJA_REDIRECT_URI={redirect_uri}\n")
+                keys_written.add("NINJA_REDIRECT_URI")
             elif line.startswith("DEMO_MODE="):
                 new_lines.append(f"DEMO_MODE={'false' if client_id else 'true'}\n")
                 keys_written.add("DEMO_MODE")
@@ -275,6 +278,8 @@ class DataCoordinator:
             new_lines.append(f"NINJA_CLIENT_ID={client_id}\n")
         if "NINJA_CLIENT_SECRET" not in keys_written:
             new_lines.append(f"NINJA_CLIENT_SECRET={client_secret}\n")
+        if redirect_uri and "NINJA_REDIRECT_URI" not in keys_written:
+            new_lines.append(f"NINJA_REDIRECT_URI={redirect_uri}\n")
         if "DEMO_MODE" not in keys_written:
             new_lines.append(f"DEMO_MODE={'false' if client_id else 'true'}\n")
 
