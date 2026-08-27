@@ -29,7 +29,7 @@ class TestPKCEAuth:
             client_id="test_client_id_123",
             redirect_uri="http://localhost:8050/oauth/callback",
         )
-        assert "https://app.ninjarmm.com/oauth/authorize" in auth_url
+        assert "https://app.ninjarmm.com/ws/oauth/authorize" in auth_url
         assert "client_id=test_client_id_123" in auth_url
         assert "response_type=code" in auth_url
         assert "code_challenge=" in auth_url
