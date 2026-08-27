@@ -2,8 +2,9 @@
 NinjaOne OAuth2 API Client.
 
 Handles:
-- OAuth2 Client Credentials flow with automatic token refresh
-- Configurable base URL (US / EU / OC regions)
+- OAuth2 Client Credentials flow (Client ID + Client Secret)
+- OAuth2 PKCE Authorization Code flow (Client ID + Refresh Token) with automatic token refresh
+- Configurable base URL (US, US2, EU, CA, OC regions)
 - Retry with exponential backoff (via tenacity)
 - Rate-limit-aware (respects 429 Retry-After headers)
 - Structured logging via `rich`
@@ -11,8 +12,9 @@ Handles:
 
 from __future__ import annotations
 
+import os
 import time
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 
 import requests
@@ -54,15 +56,26 @@ class NinjaRateLimitError(Exception):
 # ---------------------------------------------------------------------------
 
 class _TokenManager:
-    """Fetches and caches the OAuth2 Bearer token."""
+    """Fetches and caches the OAuth2 Bearer token (supports Client Credentials & PKCE)."""
 
-    def __init__(self, token_url: str, client_id: str, client_secret: str, scopes: list[str]):
+    def __init__(
+        self,
+        token_url: str,
+        client_id: str,
+        client_secret: Optional[str] = None,
+        scopes: Optional[list[str]] = None,
+        auth_method: str = "client_credentials",
+        token_data: Optional[Dict[str, Any]] = None,
+    ):
         self._token_url = token_url
         self._client_id = client_id
-        self._client_secret = client_secret
-        self._scopes = scopes
-        self._access_token: Optional[str] = None
-        self._expires_at: float = 0.0
+        self._client_secret = client_secret or ""
+        self._scopes = scopes or ["monitoring", "management"]
+        self._auth_method = auth_method
+        self._token_data = dict(token_data or {})
+
+        self._access_token: Optional[str] = self._token_data.get("access_token")
+        self._expires_at: float = float(self._token_data.get("expires_at", 0))
 
     def get_token(self) -> str:
         if self._access_token and time.time() < self._expires_at - 30:
@@ -70,6 +83,18 @@ class _TokenManager:
         return self._refresh()
 
     def _refresh(self) -> str:
+        if self._auth_method == "pkce" or self._token_data.get("refresh_token"):
+            from src.api.pkce_auth import pkce_manager
+            success, msg, new_data = pkce_manager.refresh_token(self._token_data)
+            if not success or not new_data:
+                raise NinjaAuthError(f"PKCE Token refresh failed: {msg}")
+            self._token_data = new_data
+            self._access_token = new_data["access_token"]
+            self._expires_at = new_data["expires_at"]
+            console.log("[green]NinjaOne PKCE OAuth token refreshed.[/green]")
+            return self._access_token
+
+        # Standard Client Credentials Flow
         payload = {
             "grant_type": "client_credentials",
             "client_id": self._client_id,
@@ -84,7 +109,7 @@ class _TokenManager:
         data = resp.json()
         self._access_token = data["access_token"]
         self._expires_at = time.time() + data.get("expires_in", 3600)
-        console.log("[green]NinjaOne OAuth token refreshed.[/green]")
+        console.log("[green]NinjaOne OAuth Client Credentials token refreshed.[/green]")
         return self._access_token
 
 
@@ -114,11 +139,6 @@ def _build_session() -> requests.Session:
 class NinjaOneClient:
     """
     Authenticated NinjaOne REST API v2 client.
-
-    Usage::
-
-        client = NinjaOneClient.from_env()
-        devices = client.get("/v2/devices")
     """
 
     DEFAULT_SCOPES = ["monitoring", "management", "control"]
@@ -127,8 +147,10 @@ class NinjaOneClient:
         self,
         base_url: str,
         client_id: str,
-        client_secret: str,
+        client_secret: Optional[str] = None,
         scopes: Optional[list[str]] = None,
+        auth_method: str = "client_credentials",
+        token_data: Optional[Dict[str, Any]] = None,
     ):
         self._base_url = base_url.rstrip("/")
         token_url = f"{self._base_url}/oauth/token"
@@ -137,105 +159,139 @@ class NinjaOneClient:
             client_id=client_id,
             client_secret=client_secret,
             scopes=scopes or self.DEFAULT_SCOPES,
+            auth_method=auth_method,
+            token_data=token_data,
         )
         self._session = _build_session()
 
     # ------------------------------------------------------------------
-    # Factory
+    # Factories
     # ------------------------------------------------------------------
 
     @classmethod
     def from_env(cls) -> "NinjaOneClient":
-        """Instantiate from environment variables (uses python-dotenv)."""
-        import os
+        """Instantiate from environment variables (supports Client Credentials & PKCE)."""
         from dotenv import load_dotenv
-
         load_dotenv()
+
         base_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com")
         client_id = os.getenv("NINJA_CLIENT_ID", "")
         client_secret = os.getenv("NINJA_CLIENT_SECRET", "")
+        auth_method = os.getenv("NINJA_AUTH_METHOD", "client_credentials")
+
+        # Check for PKCE cached token first
+        from src.api.pkce_auth import pkce_manager
+        cached_pkce = pkce_manager.load_cached_token()
+        if cached_pkce and (auth_method == "pkce" or not client_secret):
+            return cls(
+                base_url=cached_pkce.get("base_url") or base_url,
+                client_id=cached_pkce.get("client_id") or client_id,
+                auth_method="pkce",
+                token_data=cached_pkce,
+            )
 
         if not client_id or not client_secret:
             raise NinjaAuthError(
-                "NINJA_CLIENT_ID and NINJA_CLIENT_SECRET must be set in .env"
+                "NinjaOne credentials missing. Provide Client ID & Secret or authenticate with PKCE."
             )
 
-        return cls(base_url=base_url, client_id=client_id, client_secret=client_secret)
+        return cls(
+            base_url=base_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            auth_method="client_credentials",
+        )
+
+    @classmethod
+    def from_pkce(cls, base_url: str, client_id: str, token_data: Dict[str, Any]) -> "NinjaOneClient":
+        """Instantiate directly from PKCE token response."""
+        return cls(
+            base_url=base_url,
+            client_id=client_id,
+            auth_method="pkce",
+            token_data=token_data,
+        )
 
     # ------------------------------------------------------------------
-    # Core Request
+    # HTTP Methods
     # ------------------------------------------------------------------
 
     @retry(
         retry=retry_if_exception_type(NinjaRateLimitError),
-        wait=wait_exponential(multiplier=2, min=5, max=60),
+        wait=wait_exponential(multiplier=2, min=2, max=60),
         stop=stop_after_attempt(5),
         reraise=True,
     )
-    def get(self, path: str, params: Optional[dict] = None) -> Any:
+    def get(self, endpoint: str, params: Optional[dict[str, Any]] = None) -> Any:
         """
         Execute an authenticated GET request.
-
-        Returns:
-            Parsed JSON body (dict or list).
-
-        Raises:
-            NinjaAPIError: on 4xx (except 429)
-            NinjaRateLimitError: on 429 (will be retried by tenacity)
         """
-        url = urljoin(self._base_url + "/", path.lstrip("/"))
-        headers = {"Authorization": f"Bearer {self._tokens.get_token()}"}
+        url = urljoin(self._base_url, endpoint)
+        token = self._tokens.get_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "User-Agent": "NinjaOne-Dashboard/1.0",
+        }
 
-        resp = self._session.get(url, headers=headers, params=params, timeout=30)
-
-        if resp.status_code == 200:
-            return resp.json()
+        resp = self._session.get(url, params=params, headers=headers, timeout=30)
 
         if resp.status_code == 429:
-            retry_after = int(resp.headers.get("Retry-After", 10))
-            console.log(f"[yellow]⚠ Rate limited. Waiting {retry_after}s...[/yellow]")
+            retry_after = int(resp.headers.get("Retry-After", 5))
+            console.log(f"[yellow]Rate limit 429 encountered. Waiting {retry_after}s...[/yellow]")
             time.sleep(retry_after)
-            raise NinjaRateLimitError("Rate limit hit")
+            raise NinjaRateLimitError()
 
         if resp.status_code == 401:
-            # Force token refresh on next call
+            console.log("[yellow]401 received -- forcing token refresh...[/yellow]")
             self._tokens._access_token = None
-            raise NinjaAPIError(resp.status_code, "Unauthorized — check credentials")
+            token = self._tokens.get_token()
+            headers["Authorization"] = f"Bearer {token}"
+            resp = self._session.get(url, params=params, headers=headers, timeout=30)
 
-        raise NinjaAPIError(resp.status_code, resp.text[:500])
+        if not (200 <= resp.status_code < 300):
+            raise NinjaAPIError(resp.status_code, resp.text)
 
-    def paginated_get(self, path: str, page_size: int = 500) -> list[Any]:
+        return resp.json()
+
+    def get_paginated(
+        self,
+        endpoint: str,
+        params: Optional[dict[str, Any]] = None,
+        page_size: int = 100,
+    ) -> list[Any]:
         """
-        Fetch all pages for endpoints that support cursor-based pagination.
-
-        NinjaOne uses `after` (cursor) + `pageSize` query parameters.
+        Fetch all pages of a paginated NinjaOne endpoint.
         """
+        params = dict(params or {})
+        params["pageSize"] = page_size
         results: list[Any] = []
-        after: Optional[int] = None
+        cursor: Optional[str] = None
 
         while True:
-            params: dict[str, Any] = {"pageSize": page_size}
-            if after is not None:
-                params["after"] = after
+            if cursor:
+                params["cursor"] = cursor
+            data = self.get(endpoint, params=params)
 
-            page = self.get(path, params=params)
-
-            if not page:
+            if isinstance(data, list):
+                results.extend(data)
                 break
-
-            if isinstance(page, list):
-                results.extend(page)
-                if len(page) < page_size:
-                    break
-                # Use last item's id as cursor
-                last = page[-1]
-                after = last.get("id") if isinstance(last, dict) else None
-                if after is None:
+            elif isinstance(data, dict):
+                items = (
+                    data.get("devices")
+                    or data.get("results")
+                    or data.get("activities")
+                    or data.get("alerts")
+                    or []
+                )
+                results.extend(items)
+                cursor = data.get("cursor") or data.get("nextCursor")
+                if not cursor or len(items) == 0:
                     break
             else:
-                # Some endpoints return a dict with a results key
-                items = page.get("results") or page.get("devices") or []
-                results.extend(items)
                 break
 
         return results
+
+    # Alias for backward compatibility
+    paginated_get = get_paginated

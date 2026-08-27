@@ -6,14 +6,15 @@ Handles:
 - Instantaneous reactive dashboard body and tab rendering
 - Multi-Sheet Excel workbook generation and download
 - Remediation action triggers (Reboot, Patch rescan)
-- In-App Settings, NinjaOne Authentication (Sign In & Sign Out), and live connection testing
-- Dynamic switching between Live NinjaOne API data and Demo sample dataset
+- In-App Settings, NinjaOne Authentication (PKCE Browser Login & Client Credentials, Sign In & Sign Out)
+- Live connection testing and automatic data switching
 - Software Update Checker, GitHub Releases API integration, and self-updating auto-relaunch
 """
 
 from __future__ import annotations
 
 import os
+import webbrowser
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -295,7 +296,7 @@ def register_callbacks(app, get_data_fn=None):
         return current_url or "https://app.ninjarmm.com"
 
     # -----------------------------------------------------------------------
-    # 6. Test Live Connection Handler
+    # 6. Test Live Connection Handler (M2M Client Credentials)
     # -----------------------------------------------------------------------
     @app.callback(
         Output("settings-test-feedback-container", "children"),
@@ -316,7 +317,65 @@ def register_callbacks(app, get_data_fn=None):
             return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
 
     # -----------------------------------------------------------------------
-    # 7. Header Auth Controls & Sign In / Sign Out Sync
+    # 7. PKCE Browser Login Trigger Callback
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("settings-pkce-feedback-container", "children"),
+        Output("pkce-redirect-location", "href"),
+        Input("settings-pkce-login-btn", "n_clicks"),
+        State("settings-base-url", "value"),
+        State("settings-client-id", "value"),
+        prevent_initial_call=True,
+    )
+    def handle_pkce_browser_login(n_clicks, base_url, client_id):
+        if not n_clicks:
+            return no_update, no_update
+
+        if not client_id or not client_id.strip():
+            return (
+                dbc.Alert(
+                    "❌ Client ID is required for PKCE login. Please enter your NinjaOne Client ID.",
+                    color="danger",
+                    className="mt-2",
+                ),
+                no_update,
+            )
+
+        base_url = (base_url or "https://app.ninjarmm.com").strip().rstrip("/")
+        if not base_url.startswith("http"):
+            base_url = f"https://{base_url}"
+
+        try:
+            auth_url, state = coordinator.initiate_pkce_login(base_url, client_id.strip())
+            # Automatically launch the user's default browser
+            webbrowser.open(auth_url)
+
+            feedback = dbc.Alert(
+                [
+                    html.Div([
+                        html.Span("🚀 ", style={"fontSize": "1.2rem"}),
+                        html.B("NinjaOne Login Window Opened!"),
+                    ]),
+                    html.P(
+                        "Please complete authentication in your browser. The dashboard will automatically refresh with live data once authorized.",
+                        style={"fontSize": "0.82rem", "marginBottom": "6px", "marginTop": "4px"},
+                    ),
+                    html.A(
+                        "Click here if browser did not open automatically ↗",
+                        href=auth_url,
+                        target="_blank",
+                        style={"fontSize": "0.80rem", "color": T.ACCENT_CYAN, "textDecoration": "none"},
+                    ),
+                ],
+                color="info",
+                className="mt-2",
+            )
+            return feedback, no_update
+        except Exception as e:
+            return dbc.Alert(f"❌ Failed to initiate PKCE login: {str(e)}", color="danger", className="mt-2"), no_update
+
+    # -----------------------------------------------------------------------
+    # 8. Header Auth Controls & Sign In / Sign Out Sync
     # -----------------------------------------------------------------------
     @app.callback(
         Output("header-live-badge", "style"),
@@ -333,9 +392,10 @@ def register_callbacks(app, get_data_fn=None):
         clean_url = (base_url or "app.ninjarmm.com").replace("https://", "").replace("http://", "").rstrip("/")
 
         if is_live:
+            method_badge = " (PKCE)" if coordinator.auth_method == "pkce" else ""
             return (
                 {"fontSize": "0.78rem", "padding": "5px 10px", "display": "inline-block"},
-                f"🟢 Live: {clean_url}",
+                f"🟢 Live: {clean_url}{method_badge}",
                 {"fontSize": "0.8rem", "display": "inline-block"},
                 {"display": "none"},
                 {"display": "none"},
@@ -350,7 +410,7 @@ def register_callbacks(app, get_data_fn=None):
             )
 
     # -----------------------------------------------------------------------
-    # 8. In-App Settings Modal, Sign In / Sign Out & Governance Saving
+    # 9. In-App Settings Modal, Sign In / Sign Out & Governance Saving
     # -----------------------------------------------------------------------
     @app.callback(
         Output("settings-modal", "is_open"),
@@ -422,11 +482,10 @@ def register_callbacks(app, get_data_fn=None):
                 "patch_green": p_green,
             }
 
-            # If user provided API keys, attempt to sign in to live NinjaOne
+            # If user provided API keys with Client Secret, attempt M2M sign in
             if client_id and client_secret and "●" not in client_secret:
                 success, msg = coordinator.sign_in(url_to_save, client_id, client_secret)
                 if not success:
-                    # Show error alert in modal
                     return (
                         True,
                         dbc.Alert(f"❌ Failed to connect to NinjaOne: {msg}", color="danger", className="mt-2"),
@@ -435,16 +494,16 @@ def register_callbacks(app, get_data_fn=None):
                     )
                 auth_state = {"is_live": True, "base_url": url_to_save}
             else:
-                # Save thresholds only
+                # Save configuration
                 coordinator._save_to_env_file(url_to_save, client_id or "", client_secret or "")
                 auth_state = {"is_live": coordinator.is_live, "base_url": url_to_save}
 
-            return False, dbc.Alert("✅ Settings saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state
+            return False, dbc.Alert("✅ Configuration saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state
 
         return is_open, no_update, no_update, no_update
 
     # -----------------------------------------------------------------------
-    # 9. Check for Updates Callback
+    # 10. Check for Updates Callback
     # -----------------------------------------------------------------------
     @app.callback(
         Output("settings-update-feedback-container", "children"),
@@ -546,7 +605,7 @@ def register_callbacks(app, get_data_fn=None):
             )
 
     # -----------------------------------------------------------------------
-    # 10. Install Update & Auto-Restart Callback
+    # 11. Install Update & Auto-Restart Callback
     # -----------------------------------------------------------------------
     @app.callback(
         Output("update-apply-status-container", "children"),

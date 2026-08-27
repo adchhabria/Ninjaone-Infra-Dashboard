@@ -20,6 +20,7 @@ import sys
 
 import dash
 import dash_bootstrap_components as dbc
+from flask import render_template_string, request
 from rich.console import Console
 
 # Ensure project root is on sys.path when running directly or frozen
@@ -62,6 +63,99 @@ def create_app(get_data_fn=None) -> dash.Dash:
         ],
     )
 
+    # -----------------------------------------------------------------------
+    # OAuth 2.0 PKCE Callback Endpoint
+    # -----------------------------------------------------------------------
+    @app.server.route("/oauth/callback")
+    def oauth_callback():
+        code = request.args.get("code")
+        state = request.args.get("state")
+        error = request.args.get("error")
+        error_description = request.args.get("error_description", "")
+
+        if error:
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>NinjaOne Login Failed</title>
+                <style>
+                    body {{ font-family: 'Segoe UI', sans-serif; background: #0D1117; color: #E6EDF3; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+                    .card {{ background: #161B22; border: 1px solid #F44336; border-radius: 10px; padding: 30px; text-align: center; max-width: 480px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }}
+                    h2 {{ color: #F44336; margin-top: 0; }}
+                    p {{ font-size: 0.9rem; color: #8B949E; line-height: 1.5; }}
+                    a {{ color: #2F81F7; text-decoration: none; font-weight: bold; }}
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>❌ Authorization Cancelled or Failed</h2>
+                    <p><b>{error}</b>: {error_description}</p>
+                    <p style="margin-top: 20px;"><a href="/">⬅ Return to Dashboard</a></p>
+                </div>
+            </body>
+            </html>
+            """
+            return render_template_string(html_content), 400
+
+        if not code or not state:
+            return "Missing authorization code or state parameter", 400
+
+        success, msg = coordinator.complete_pkce_login(code, state)
+        if success:
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>NinjaOne Authenticated</title>
+                <meta http-equiv="refresh" content="2; url=/" />
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; background: #0D1117; color: #E6EDF3; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    .card { background: #161B22; border: 1px solid #00C853; border-radius: 12px; padding: 36px; text-align: center; max-width: 480px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+                    h2 { color: #00C853; margin-top: 0; }
+                    .spinner { border: 4px solid rgba(255,255,255,0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #2F81F7; animation: spin 1s linear infinite; margin: 20px auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    p { font-size: 0.9rem; color: #8B949E; }
+                    a { color: #2F81F7; text-decoration: none; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>✅ Sign-In Successful!</h2>
+                    <p>Authenticated with NinjaOne via OAuth 2.0 PKCE.</p>
+                    <div class="spinner"></div>
+                    <p style="font-size: 0.85rem; color: #8B949E;">Redirecting to your live dashboard in 2 seconds...</p>
+                    <p style="margin-top: 15px;"><a href="/">Click here if not redirected automatically</a></p>
+                </div>
+            </body>
+            </html>
+            """
+            return render_template_string(html_content)
+        else:
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>NinjaOne Authentication Error</title>
+                <style>
+                    body {{ font-family: 'Segoe UI', sans-serif; background: #0D1117; color: #E6EDF3; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+                    .card {{ background: #161B22; border: 1px solid #F44336; border-radius: 10px; padding: 30px; text-align: center; max-width: 480px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }}
+                    h2 {{ color: #F44336; margin-top: 0; }}
+                    p {{ font-size: 0.9rem; color: #8B949E; line-height: 1.5; }}
+                    a {{ color: #2F81F7; text-decoration: none; font-weight: bold; }}
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>❌ Authentication Error</h2>
+                    <p>{msg}</p>
+                    <p style="margin-top: 20px;"><a href="/">⬅ Return to Dashboard</a></p>
+                </div>
+            </body>
+            </html>
+            """
+            return render_template_string(html_content), 400
+
     def serve_layout():
         data = get_data_fn(
             active_org_id=None,
@@ -96,7 +190,8 @@ def main():
         console.print("[yellow]>> Demo Mode Active -- Full interactive mock infrastructure dataset[/yellow]")
     else:
         if coordinator.is_live:
-            console.print(f"[green]>> Live Mode Active -- Connected to NinjaOne API ({coordinator.base_url})[/green]")
+            method_str = "PKCE Browser Login" if coordinator.auth_method == "pkce" else "Client Credentials"
+            console.print(f"[green]>> Live Mode Active ({method_str}) -- Connected to NinjaOne ({coordinator.base_url})[/green]")
         else:
             console.print("[yellow]>> Starting in Demo Mode (Connect anytime via Sign In button)[/yellow]")
 

@@ -2,11 +2,12 @@
 In-App Settings & NinjaOne Governance Modal.
 
 Allows users to configure:
-1. 5 NinjaOne Region Endpoints (US, US2, EU/EMEA, CA, OC/APAC) with editable custom URL.
-2. API Credentials (Client ID & Client Secret) with live authentication testing.
-3. Custom EOL Horizon Threshold (e.g. 90, 180, 365 days).
-4. Patch Coverage Speedometer Gauge Thresholds (Red, Amber, Green).
-5. 🔄 Automatic Software Updates: Check GitHub releases, download & auto-relaunch latest toolkit.
+1. 🌐 Interactive Browser Login (OAuth 2.0 PKCE — No Client Secret required!).
+2. 🤖 Machine-to-Machine API (Client ID + Client Secret).
+3. 5 NinjaOne Region Endpoints (US, US2, EU/EMEA, CA, OC/APAC) with editable custom URL.
+4. Custom EOL Horizon Threshold (e.g. 90, 180, 365 days).
+5. Patch Coverage Speedometer Gauge Thresholds (Red, Amber, Green).
+6. 🔄 Automatic Software Updates from GitHub Releases.
 """
 
 from __future__ import annotations
@@ -28,12 +29,15 @@ NINJA_REGIONS = [
     {"label": "Custom URL / Dedicated Domain", "value": "custom"},
 ]
 
+DEFAULT_REDIRECT_URI = "http://localhost:8050/oauth/callback"
+
 
 def build_settings_modal() -> dbc.Modal:
     """Settings modal for configuring NinjaOne API credentials, regions, governance thresholds, and updates."""
     current_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com")
     current_client_id = os.getenv("NINJA_CLIENT_ID", "")
     has_secret = bool(os.getenv("NINJA_CLIENT_SECRET"))
+    auth_method = os.getenv("NINJA_AUTH_METHOD", "pkce")
 
     # Threshold defaults
     eol_threshold = int(os.getenv("EOL_THRESHOLD_DAYS", "180"))
@@ -55,94 +59,136 @@ def build_settings_modal() -> dbc.Modal:
             ),
             dbc.ModalBody(
                 [
+                    # Hidden location for PKCE browser redirect
+                    dcc.Location(id="pkce-redirect-location", refresh=True),
+
                     dbc.Tabs(
                         [
-                            # Tab 1: NinjaOne API Connection
+                            # Tab 1: NinjaOne Authentication (PKCE & Client Credentials)
                             dbc.Tab(
                                 [
-                                    dbc.Alert(
+                                    # Auth Method Accordion / Switch
+                                    dbc.Accordion(
                                         [
-                                            html.Div([
-                                                html.B("🔐 How to Connect with NinjaOne API:"),
-                                                html.Ol([
-                                                    html.Li([
-                                                        "Log in to your NinjaOne web console (e.g., ",
-                                                        html.Code("app.ninjarmm.com", style={"color": T.ACCENT_CYAN}),
-                                                        ", ",
-                                                        html.Code("us2.ninjarmm.com", style={"color": T.ACCENT_CYAN}),
-                                                        ", etc.).",
-                                                    ]),
-                                                    html.Li([
-                                                        "Navigate to ",
-                                                        html.B("Administration (Gear icon) ➔ Apps ➔ API"),
-                                                        ".",
-                                                    ]),
-                                                    html.Li([
-                                                        "Click ",
-                                                        html.B("Add App Client"),
-                                                        " and choose ",
-                                                        html.B("Machine-to-Machine (Client Credentials)"),
-                                                        ".",
-                                                    ]),
-                                                    html.Li([
-                                                        "Enable the ",
-                                                        html.B("Monitoring"),
-                                                        " (and ",
-                                                        html.B("Management"),
-                                                        ") scopes.",
-                                                    ]),
-                                                    html.Li("Copy the generated Client ID and Client Secret and paste below."),
-                                                ], style={"marginBottom": "0", "paddingLeft": "20px"}),
-                                            ]),
-                                        ],
-                                        color="info",
-                                        className="mt-2 mb-3",
-                                        style={"fontSize": "0.82rem", "backgroundColor": "rgba(47, 129, 247, 0.12)", "border": f"1px solid {T.ACCENT_BLUE}"},
-                                    ),
-                                    dbc.Label("1. Select NinjaOne Region Preset", style=T.FONT_KPI_LABEL),
-                                    dbc.Select(
-                                        id="settings-region-preset",
-                                        options=NINJA_REGIONS,
-                                        value=initial_region,
-                                        className="mb-2",
-                                    ),
-                                    dbc.Label("2. Instance Base URL (Editable)", style=T.FONT_KPI_LABEL),
-                                    dbc.Input(
-                                        id="settings-base-url",
-                                        type="text",
-                                        placeholder="https://app.ninjarmm.com",
-                                        value=current_url,
-                                        className="mb-3",
-                                    ),
-                                    dbc.Label("3. Client ID", style=T.FONT_KPI_LABEL),
-                                    dbc.Input(
-                                        id="settings-client-id",
-                                        type="text",
-                                        placeholder="e.g. 7f8a9b0c-xxxx-xxxx-xxxx...",
-                                        value=current_client_id,
-                                        className="mb-3",
-                                    ),
-                                    dbc.Label("4. Client Secret", style=T.FONT_KPI_LABEL),
-                                    dbc.Input(
-                                        id="settings-client-secret",
-                                        type="password",
-                                        placeholder="●●●●●●●●●●●●●●●●" if has_secret else "Enter client secret",
-                                        className="mb-3",
-                                    ),
-                                    html.Div(
-                                        [
-                                            dbc.Button(
-                                                "⚡ Test API Connection",
-                                                id="settings-test-connection-btn",
-                                                color="info",
-                                                outline=True,
-                                                size="sm",
-                                                className="me-2",
+                                            # Option A: OAuth 2.0 PKCE Browser Login
+                                            dbc.AccordionItem(
+                                                [
+                                                    dbc.Alert(
+                                                        [
+                                                            html.Div([
+                                                                html.B("🌐 How to Set Up PKCE Browser Login (No Secret Required):"),
+                                                                html.Ol([
+                                                                    html.Li([
+                                                                        "In NinjaOne console, go to ",
+                                                                        html.B("Administration ➔ Apps ➔ API"),
+                                                                        ".",
+                                                                    ]),
+                                                                    html.Li([
+                                                                        "Click ",
+                                                                        html.B("Add App Client"),
+                                                                        " and choose ",
+                                                                        html.B("Native App"),
+                                                                        " or ",
+                                                                        html.B("Single-Page Application (PKCE)"),
+                                                                        ".",
+                                                                    ]),
+                                                                    html.Li([
+                                                                        "Set Redirect URI to: ",
+                                                                        html.Code(DEFAULT_REDIRECT_URI, style={"color": T.ACCENT_CYAN, "fontWeight": "bold"}),
+                                                                    ]),
+                                                                    html.Li([
+                                                                        "Enable ",
+                                                                        html.B("Monitoring"),
+                                                                        " (and ",
+                                                                        html.B("Management"),
+                                                                        ") scopes.",
+                                                                    ]),
+                                                                    html.Li("Copy the generated Client ID and paste below."),
+                                                                ], style={"marginBottom": "0", "paddingLeft": "20px"}),
+                                                            ]),
+                                                        ],
+                                                        color="info",
+                                                        className="mt-2 mb-3",
+                                                        style={"fontSize": "0.82rem", "backgroundColor": "rgba(47, 129, 247, 0.12)", "border": f"1px solid {T.ACCENT_BLUE}"},
+                                                    ),
+                                                    dbc.Label("1. Select NinjaOne Region", style=T.FONT_KPI_LABEL),
+                                                    dbc.Select(
+                                                        id="settings-region-preset",
+                                                        options=NINJA_REGIONS,
+                                                        value=initial_region,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Label("2. Instance Base URL (Editable)", style=T.FONT_KPI_LABEL),
+                                                    dbc.Input(
+                                                        id="settings-base-url",
+                                                        type="text",
+                                                        placeholder="https://app.ninjarmm.com",
+                                                        value=current_url,
+                                                        className="mb-3",
+                                                    ),
+                                                    dbc.Label("3. Client ID (No Client Secret Needed)", style=T.FONT_KPI_LABEL),
+                                                    dbc.Input(
+                                                        id="settings-client-id",
+                                                        type="text",
+                                                        placeholder="e.g. 7f8a9b0c-xxxx-xxxx-xxxx...",
+                                                        value=current_client_id,
+                                                        className="mb-3",
+                                                    ),
+                                                    html.Div(
+                                                        [
+                                                            dbc.Button(
+                                                                "🔐 Sign In with NinjaOne (Browser PKCE)",
+                                                                id="settings-pkce-login-btn",
+                                                                color="success",
+                                                                size="md",
+                                                                className="me-2",
+                                                                style={"fontWeight": "600"},
+                                                            ),
+                                                        ],
+                                                        className="mb-2",
+                                                    ),
+                                                    html.Div(id="settings-pkce-feedback-container"),
+                                                ],
+                                                title="🌐 Recommended: Interactive Browser Login (OAuth 2.0 PKCE — No Secret)",
+                                                item_id="item-pkce",
+                                            ),
+
+                                            # Option B: Headless Machine-to-Machine (Client Secret)
+                                            dbc.AccordionItem(
+                                                [
+                                                    html.P(
+                                                        "For automated headless servers or background daemons using a static Client Secret.",
+                                                        style={"fontSize": "0.80rem", "color": T.TEXT_MUTED, "marginTop": "8px"},
+                                                    ),
+                                                    dbc.Label("Client Secret", style=T.FONT_KPI_LABEL),
+                                                    dbc.Input(
+                                                        id="settings-client-secret",
+                                                        type="password",
+                                                        placeholder="●●●●●●●●●●●●●●●●" if has_secret else "Enter client secret",
+                                                        className="mb-3",
+                                                    ),
+                                                    html.Div(
+                                                        [
+                                                            dbc.Button(
+                                                                "⚡ Test API Connection",
+                                                                id="settings-test-connection-btn",
+                                                                color="info",
+                                                                outline=True,
+                                                                size="sm",
+                                                                className="me-2",
+                                                            ),
+                                                        ],
+                                                        className="mb-2",
+                                                    ),
+                                                    html.Div(id="settings-test-feedback-container"),
+                                                ],
+                                                title="🤖 Advanced: Machine-to-Machine (M2M Client Secret)",
+                                                item_id="item-m2m",
                                             ),
                                         ],
-                                        className="mb-2",
+                                        active_item="item-pkce",
+                                        className="mb-3",
                                     ),
-                                    html.Div(id="settings-test-feedback-container"),
                                 ],
                                 label="🔌 API Connection & Sign In",
                                 tab_id="tab-settings-api",
@@ -314,7 +360,7 @@ def build_settings_modal() -> dbc.Modal:
             dbc.ModalFooter(
                 [
                     dbc.Button("Cancel", id="settings-cancel-btn", color="secondary", outline=True, size="sm"),
-                    dbc.Button("💾 Save & Connect Live API", id="settings-save-btn", color="primary", size="sm"),
+                    dbc.Button("💾 Save Configuration", id="settings-save-btn", color="primary", size="sm"),
                 ],
                 style={"backgroundColor": T.BG_CARD, "borderTop": f"1px solid {T.BORDER}"},
             ),
