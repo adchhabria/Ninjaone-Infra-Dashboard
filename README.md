@@ -61,7 +61,7 @@ An enterprise-grade, C-level infrastructure intelligence and operational patch m
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<YOUR-USERNAME>/ninjaone-infra-dashboard.git
+git clone https://github.com/adchhabria/ninjaone-infra-dashboard.git
 cd ninjaone-infra-dashboard
 
 # 2. Create and activate a virtual environment
