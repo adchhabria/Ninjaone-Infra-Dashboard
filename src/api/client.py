@@ -29,6 +29,8 @@ from urllib3.util.retry import Retry
 
 from rich.console import Console
 
+from src.utils.ssl_helper import get_ssl_verify
+
 console = Console()
 
 # ---------------------------------------------------------------------------
@@ -101,7 +103,7 @@ class _TokenManager:
             "client_secret": self._client_secret,
             "scope": " ".join(self._scopes),
         }
-        resp = requests.post(self._token_url, data=payload, timeout=15)
+        resp = requests.post(self._token_url, data=payload, timeout=15, verify=get_ssl_verify())
         if resp.status_code != 200:
             raise NinjaAuthError(
                 f"Token refresh failed ({resp.status_code}): {resp.text}"
@@ -120,6 +122,7 @@ class _TokenManager:
 def _build_session() -> requests.Session:
     """Create a requests Session with retry/backoff for transient errors."""
     session = requests.Session()
+    session.verify = get_ssl_verify()
     retry_strategy = Retry(
         total=3,
         backoff_factor=1,

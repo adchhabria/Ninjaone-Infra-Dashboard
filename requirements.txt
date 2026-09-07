@@ -5,6 +5,7 @@
 # API & Authentication
 requests>=2.32.0
 requests-oauthlib>=1.3.1
+truststore>=0.10.0
 
 # Data Validation & Modelling
 pydantic>=2.5.3

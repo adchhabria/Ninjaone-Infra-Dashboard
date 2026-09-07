@@ -26,6 +26,8 @@ from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 import requests
 from rich.console import Console
 
+from src.utils.ssl_helper import get_ssl_verify
+
 console = Console()
 
 DEFAULT_SCOPES = ["monitoring", "management", "offline_access"]
@@ -263,12 +265,12 @@ class PKCEAuthManager:
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Accept": "application/json",
             }
-            resp = requests.post(token_endpoint, data=payload, headers=headers, timeout=20)
+            resp = requests.post(token_endpoint, data=payload, headers=headers, timeout=20, verify=get_ssl_verify())
             
             # Fallback to /oauth/token if /ws/oauth/token returned 404
             if resp.status_code == 404:
                 token_endpoint_alt = f"{base_url}/oauth/token"
-                resp = requests.post(token_endpoint_alt, data=payload, headers=headers, timeout=20)
+                resp = requests.post(token_endpoint_alt, data=payload, headers=headers, timeout=20, verify=get_ssl_verify())
 
             if resp.status_code != 200:
                 return False, f"Token exchange failed ({resp.status_code}): {resp.text}", None
@@ -308,10 +310,10 @@ class PKCEAuthManager:
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Accept": "application/json",
             }
-            resp = requests.post(token_endpoint, data=payload, headers=headers, timeout=20)
+            resp = requests.post(token_endpoint, data=payload, headers=headers, timeout=20, verify=get_ssl_verify())
             if resp.status_code == 404:
                 token_endpoint_alt = f"{base_url}/oauth/token"
-                resp = requests.post(token_endpoint_alt, data=payload, headers=headers, timeout=20)
+                resp = requests.post(token_endpoint_alt, data=payload, headers=headers, timeout=20, verify=get_ssl_verify())
 
             if resp.status_code != 200:
                 return False, f"Token refresh failed ({resp.status_code}): {resp.text}", None

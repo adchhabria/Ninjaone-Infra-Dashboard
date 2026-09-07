@@ -326,9 +326,10 @@ def register_callbacks(app, get_data_fn=None):
         State("settings-base-url", "value"),
         State("settings-client-id", "value"),
         State("settings-redirect-uri", "value"),
+        State("settings-ssl-verify", "value"),
         prevent_initial_call=True,
     )
-    def handle_pkce_browser_login(n_clicks, base_url, client_id, redirect_uri):
+    def handle_pkce_browser_login(n_clicks, base_url, client_id, redirect_uri, ssl_verify):
         if not n_clicks:
             return no_update, no_update
 
@@ -347,6 +348,10 @@ def register_callbacks(app, get_data_fn=None):
             base_url = f"https://{base_url}"
 
         redirect_uri = (redirect_uri or "http://localhost:8050/oauth/callback").strip()
+
+        # Apply SSL verification preference
+        if ssl_verify:
+            os.environ["NINJA_SSL_VERIFY"] = str(ssl_verify).lower()
 
         try:
             auth_url, state = coordinator.initiate_pkce_login(base_url, client_id.strip(), redirect_uri=redirect_uri)
@@ -429,6 +434,7 @@ def register_callbacks(app, get_data_fn=None):
         State("settings-client-id", "value"),
         State("settings-client-secret", "value"),
         State("settings-redirect-uri", "value"),
+        State("settings-ssl-verify", "value"),
         State("settings-eol-threshold", "value"),
         State("settings-patch-red-limit", "value"),
         State("settings-patch-amber-limit", "value"),
@@ -448,6 +454,7 @@ def register_callbacks(app, get_data_fn=None):
         client_id,
         client_secret,
         redirect_uri,
+        ssl_verify,
         eol_threshold,
         patch_red_limit,
         patch_amber_limit,
@@ -476,6 +483,8 @@ def register_callbacks(app, get_data_fn=None):
                 url_to_save = f"https://{url_to_save}"
 
             redirect_to_save = (redirect_uri or "http://localhost:8050/oauth/callback").strip()
+            ssl_to_save = str(ssl_verify or "true").lower()
+            os.environ["NINJA_SSL_VERIFY"] = ssl_to_save
 
             eol_val = int(eol_threshold or 180)
             p_red = float(patch_red_limit or 60.0)
@@ -502,7 +511,7 @@ def register_callbacks(app, get_data_fn=None):
                 auth_state = {"is_live": True, "base_url": url_to_save}
             else:
                 # Save configuration
-                coordinator._save_to_env_file(url_to_save, client_id or "", client_secret or "", redirect_uri=redirect_to_save)
+                coordinator._save_to_env_file(url_to_save, client_id or "", client_secret or "", redirect_uri=redirect_to_save, ssl_verify=ssl_to_save)
                 auth_state = {"is_live": coordinator.is_live, "base_url": url_to_save}
 
             return False, dbc.Alert("✅ Configuration saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state

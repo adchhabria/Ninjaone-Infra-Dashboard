@@ -197,6 +197,18 @@ def build_settings_modal() -> dbc.Modal:
                                         active_item="item-pkce",
                                         className="mb-3",
                                     ),
+                                    html.Hr(style={"borderColor": T.BORDER, "margin": "14px 0 10px 0"}),
+                                    dbc.Label("🛡️ SSL Certificate Verification", style=T.FONT_KPI_LABEL),
+                                    dbc.RadioItems(
+                                        id="settings-ssl-verify",
+                                        options=[
+                                            {"label": "🔒 Windows Native Truststore (Default)", "value": "true"},
+                                            {"label": "🔓 Disable SSL Verification (Bypass Zscaler / Corporate Proxy SSL Inspection)", "value": "false"},
+                                        ],
+                                        value=os.getenv("NINJA_SSL_VERIFY", "true").lower(),
+                                        className="mb-2",
+                                        style={"fontSize": "0.82rem"},
+                                    ),
                                 ],
                                 label="🔌 API Connection & Sign In",
                                 tab_id="tab-settings-api",
