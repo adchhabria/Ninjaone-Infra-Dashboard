@@ -27,6 +27,7 @@ from src.dashboard.layout import build_body, build_tab_content
 from src.metrics.data_provider import coordinator
 from src.metrics.excel_export import generate_excel_workbook
 from src.metrics.pdf_export import generate_pdf_report
+from src.reporting.html_export import generate_html_report
 from src.utils.updater import CURRENT_VERSION, check_for_updates, apply_update_and_restart
 
 console = Console()
@@ -215,12 +216,13 @@ def register_callbacks(app, get_data_fn=None):
     @app.callback(
         Output("download-pdf-data", "data"),
         Input("btn-generate-pdf-trigger", "n_clicks"),
+        Input("header-pdf-btn", "n_clicks"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
         prevent_initial_call=True,
     )
-    def download_pdf_report(n_clicks, filter_state, threshold_settings):
-        if not n_clicks:
+    def download_pdf_report(panel_clicks, header_clicks, filter_state, threshold_settings):
+        if not (panel_clicks or header_clicks):
             return no_update
 
         filter_state = filter_state or {}
@@ -235,10 +237,50 @@ def register_callbacks(app, get_data_fn=None):
             approaching_days=eol_days_val,
         )
 
-        pdf_bytes = generate_pdf_report(data)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"NinjaOne_Executive_Compliance_Audit_{ts}.pdf"
-        return dcc.send_bytes(pdf_bytes, filename=filename)
+        try:
+            pdf_bytes = generate_pdf_report(data)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"NinjaOne_Executive_Compliance_Audit_{ts}.pdf"
+            return dcc.send_bytes(pdf_bytes, filename=filename)
+        except Exception as e:
+            console.log(f"[red]Error generating PDF report: {e}[/red]")
+            return no_update
+
+    # -----------------------------------------------------------------------
+    # 3b. Standalone Interactive HTML Report Download & Share
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("download-html-data", "data"),
+        Input("btn-download-html-trigger", "n_clicks"),
+        Input("header-share-btn", "n_clicks"),
+        State("filter-state-store", "data"),
+        State("threshold-settings-store", "data"),
+        prevent_initial_call=True,
+    )
+    def download_html_report(panel_clicks, header_clicks, filter_state, threshold_settings):
+        if not (panel_clicks or header_clicks):
+            return no_update
+
+        filter_state = filter_state or {}
+        ts_settings = threshold_settings or {"eol_days": 180}
+        eol_days_val = int(ts_settings.get("eol_days", 180))
+
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            approaching_days=eol_days_val,
+        )
+
+        try:
+            html_text = generate_html_report(data)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"NinjaOne_Executive_Report_{ts}.html"
+            return dict(content=html_text, filename=filename)
+        except Exception as e:
+            console.log(f"[red]Error generating HTML report: {e}[/red]")
+            return no_update
 
     # -----------------------------------------------------------------------
     # 4. Action Triggers: Bulk Scan & Reboot Feedback

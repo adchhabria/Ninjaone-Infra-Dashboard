@@ -118,6 +118,24 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     style={"display": "inline-flex", "alignItems": "center"},
                                 ),
                                 dbc.Button(
+                                    "📤 Share Report",
+                                    id="header-share-btn",
+                                    color="success",
+                                    outline=True,
+                                    size="sm",
+                                    className="me-2",
+                                    style={"fontSize": "0.8rem"},
+                                ),
+                                dbc.Button(
+                                    "📄 PDF",
+                                    id="header-pdf-btn",
+                                    color="primary",
+                                    outline=True,
+                                    size="sm",
+                                    className="me-2",
+                                    style={"fontSize": "0.8rem"},
+                                ),
+                                dbc.Button(
                                     "⚙️ Settings",
                                     id="open-settings-btn",
                                     color="dark",
@@ -381,6 +399,11 @@ def build_layout(data) -> html.Div:
 
             # In-App Settings Modal
             build_settings_modal(),
+
+            # Persistent Browser Download Components
+            dcc.Download(id="download-excel-data"),
+            dcc.Download(id="download-pdf-data"),
+            dcc.Download(id="download-html-data"),
 
             # Header
             build_header(data.fetched_at, data.active_filter_label, is_live=is_live, base_url=base_url),

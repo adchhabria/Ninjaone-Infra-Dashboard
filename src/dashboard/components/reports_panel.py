@@ -1,14 +1,15 @@
 """
-Executive Excel & PDF Report Generation Hub.
+Executive Excel, PDF & Standalone HTML Report Generation Hub.
 
-Provides single-click multi-sheet Excel workbook (.xlsx) downloads
-and executive PDF audit report (.pdf) downloads matching active slicers.
+Provides single-click multi-sheet Excel workbook (.xlsx),
+executive PDF audit report (.pdf), and standalone interactive HTML report (.html)
+downloads matching active slicers.
 """
 
 from __future__ import annotations
 
 import dash_bootstrap_components as dbc
-from dash import dcc, html
+from dash import html
 
 from src.dashboard import theme as T
 from src.metrics.aggregator import DashboardData
@@ -16,14 +17,10 @@ from src.metrics.aggregator import DashboardData
 
 def build_reports_panel(data: DashboardData) -> html.Div:
     """
-    Renders the report export hub with Excel and PDF download triggers.
+    Renders the report export hub with Excel, PDF, and HTML download triggers.
     """
     return html.Div(
         [
-            # Hidden download trigger components for in-browser file delivery
-            dcc.Download(id="download-excel-data"),
-            dcc.Download(id="download-pdf-data"),
-
             dbc.Row(
                 [
                     # Card 1: Multi-Sheet Excel Export
@@ -69,7 +66,7 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                             ],
                             style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
                         ),
-                        md=6,
+                        md=4,
                         className="mb-3",
                     ),
 
@@ -101,29 +98,67 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                             ],
                                             style={**T.FONT_BODY, "fontSize": "0.85rem", "marginBottom": "20px"},
                                         ),
-                                        html.Div(
-                                            [
-                                                html.Span("Active Scope: ", style={"fontWeight": "600", "color": T.TEXT_SECONDARY}),
-                                                html.Span(data.active_filter_label, style={"color": T.ACCENT_CYAN, "fontWeight": "700"}),
-                                            ],
-                                            style={"marginBottom": "15px", "fontSize": "0.9rem"},
-                                        ),
                                         dbc.Button(
-                                            "📄 Generate & Download PDF Report (.pdf)",
+                                            "📄 Generate & Download PDF (.pdf)",
                                             id="btn-generate-pdf-trigger",
                                             color="primary",
                                             size="lg",
                                             className="w-100",
                                             style={"fontWeight": "600"},
                                         ),
-                                        html.Div(id="pdf-generation-status", style={"marginTop": "10px"}),
                                     ],
                                     style={"padding": "20px"},
                                 ),
                             ],
                             style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
                         ),
-                        md=6,
+                        md=4,
+                        className="mb-3",
+                    ),
+
+                    # Card 3: Standalone Shareable Interactive HTML Report
+                    dbc.Col(
+                        dbc.Card(
+                            [
+                                dbc.CardHeader(
+                                    html.Span([
+                                        html.Span("📤", style={"marginRight": "8px"}),
+                                        html.Span("Standalone Interactive HTML (.html)", style=T.FONT_SECTION_TITLE),
+                                        dbc.Badge("Shareable", color="info", className="ms-2"),
+                                    ]),
+                                    style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                                ),
+                                dbc.CardBody(
+                                    [
+                                        html.P(
+                                            "Generates a standalone, self-contained HTML executive dashboard that can be emailed or shared directly with stakeholders. Opens in any browser:",
+                                            style=T.FONT_BODY,
+                                        ),
+                                        html.Ul(
+                                            [
+                                                html.Li([html.Strong("Zero Installation: "), "Opens instantly in Chrome, Edge, Safari, Firefox."]),
+                                                html.Li([html.Strong("Live Interactive Charts: "), "Embedded Plotly charts with zoom and hover tooltips."]),
+                                                html.Li([html.Strong("Full Audit Tables: "), "Complete client scorecards, EOL hardware & reboot lists."]),
+                                                html.Li([html.Strong("Offline Ready: "), "Does not require a running server or login credentials."]),
+                                                html.Li([html.Strong("Filtered Scope: "), f"Exported for {data.active_filter_label}."]),
+                                            ],
+                                            style={**T.FONT_BODY, "fontSize": "0.85rem", "marginBottom": "20px"},
+                                        ),
+                                        dbc.Button(
+                                            "📤 Export & Share HTML Report (.html)",
+                                            id="btn-download-html-trigger",
+                                            color="info",
+                                            size="lg",
+                                            className="w-100",
+                                            style={"fontWeight": "600"},
+                                        ),
+                                    ],
+                                    style={"padding": "20px"},
+                                ),
+                            ],
+                            style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+                        ),
+                        md=4,
                         className="mb-3",
                     ),
                 ],
