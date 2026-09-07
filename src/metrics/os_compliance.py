@@ -48,6 +48,9 @@ _WINDOWS_EOL: dict[str, str] = {
     "Windows Server 2012": "2023-10-10",
     "Windows Server 2012 R2": "2023-10-10",
     "Windows Server 2016": "2027-01-12",
+    "Windows Server 2019": "2029-01-09",
+    "Windows Server 2022": "2031-10-14",
+    "Windows Server 2025": "2034-10-10",
 }
 
 _LINUX_EOL: dict[str, str] = {
@@ -61,9 +64,28 @@ _LINUX_EOL: dict[str, str] = {
     "Debian 8": "2020-06-30",
     "Debian 9": "2022-06-30",
     "Debian 10": "2024-06-30",
+    "RHEL 7": "2024-06-30",
+    "Red Hat 7": "2024-06-30",
 }
 
 ALL_EOL: dict[str, str] = {**_WINDOWS_EOL, **_LINUX_EOL}
+
+
+def _parse_date_input(val: Any) -> str | None:
+    """
+    Parses date string supporting MM/DD/YYYY (user input) and YYYY-MM-DD (ISO).
+    Returns ISO 'YYYY-MM-DD' string or None if invalid.
+    """
+    if not val or not isinstance(val, str):
+        return None
+    s = val.strip()
+    # 1. Try MM/DD/YYYY
+    for fmt in ("%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt).date().isoformat()
+        except ValueError:
+            pass
+    return None
 
 
 def _classify_os_family(os_name: str | None) -> str:
@@ -134,9 +156,13 @@ def _classify_linux_version(os_name: str | None) -> str:
     return os_name
 
 
-def _get_eol_info(os_name: str | None, approaching_days: int = 180) -> dict[str, Any]:
+def _get_eol_info(
+    os_name: str | None,
+    approaching_days: int = 180,
+    custom_eol_dates: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """
-    Returns EOL evaluation for an OS name with configurable approaching_days:
+    Returns EOL evaluation for an OS name with configurable approaching_days and user custom EOL dates:
     {
         'is_eol': bool,
         'eol_date': str or None,
@@ -155,8 +181,19 @@ def _get_eol_info(os_name: str | None, approaching_days: int = 180) -> dict[str,
         }
 
     today = date.today()
-    for eol_key, eol_date_str in ALL_EOL.items():
+
+    # Build active EOL table with user custom overrides (supporting MM/DD/YYYY and YYYY-MM-DD)
+    active_eol = dict(ALL_EOL)
+    if custom_eol_dates:
+        for k, v in custom_eol_dates.items():
+            parsed_iso = _parse_date_input(v)
+            if parsed_iso:
+                active_eol[k] = parsed_iso
+
+    # Match against active EOL keys (longer keys first for specificity)
+    for eol_key in sorted(active_eol.keys(), key=lambda k: len(k), reverse=True):
         if eol_key.lower() in os_name.lower():
+            eol_date_str = active_eol[eol_key]
             try:
                 eol_date = date.fromisoformat(eol_date_str)
                 delta_days = (today - eol_date).days
@@ -197,9 +234,9 @@ def _get_eol_info(os_name: str | None, approaching_days: int = 180) -> dict[str,
     }
 
 
-def _is_eol(os_name: str | None) -> bool:
+def _is_eol(os_name: str | None, custom_eol_dates: dict[str, str] | None = None) -> bool:
     """Return True if the OS version is past its end-of-life date."""
-    return _get_eol_info(os_name)["is_eol"]
+    return _get_eol_info(os_name, custom_eol_dates=custom_eol_dates)["is_eol"]
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +247,7 @@ def compute_os_metrics(
     devices: list[Device],
     org_name_map: Optional[dict[int, str]] = None,
     approaching_days: int = 180,
+    custom_eol_dates: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     """
     Compute all OS and EOL compliance metrics with separate Windows & Linux breakdowns.
@@ -220,7 +258,7 @@ def compute_os_metrics(
         os_name = d.os.name if d.os else None
         release_id = d.os.release_id if d.os else None
         family = _classify_os_family(os_name)
-        eol_info = _get_eol_info(os_name, approaching_days=approaching_days)
+        eol_info = _get_eol_info(os_name, approaching_days=approaching_days, custom_eol_dates=custom_eol_dates)
 
         if family == "Windows":
             version_label = _classify_windows_version(os_name, release_id)

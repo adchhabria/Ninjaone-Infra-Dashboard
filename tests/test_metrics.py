@@ -119,3 +119,64 @@ class TestDashboardSliceFiltering:
             active_os_family="Linux",
         )
         assert slice_data.total_devices == 1
+
+
+class TestServerComplianceAndCustomEOL:
+    def test_server_patch_and_software_compliance(self):
+        from src.metrics.patch_compliance import compute_patch_metrics
+
+        s1 = Device(
+            id=101,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-PROD-01",
+            approved_patch_count=0,
+            approved_software_count=2,
+            os=OSInfo(name="Windows Server 2022 Standard"),
+        )
+        s2 = Device(
+            id=102,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-PROD-02",
+            approved_patch_count=3,
+            approved_software_count=0,
+            os=OSInfo(name="Windows Server 2022 Standard"),
+        )
+
+        res = compute_patch_metrics([s1, s2], org_name_map={1: "Acme Corp"})
+        assert res["compliant_count"] == 1
+        assert res["non_compliant_count"] == 1
+        assert res["patch_coverage_pct"] == 50.0
+
+        table = res["server_compliance_table"]
+        assert len(table) == 2
+
+        # Check Compliant server (0 patches)
+        srv1 = next(r for r in table if r["device_id"] == 101)
+        assert srv1["approved_patch_count"] == 0
+        assert srv1["approved_software_count"] == 2
+        assert srv1["status"] == "Compliant"
+        assert srv1["is_compliant"] is True
+
+        # Check Non-Compliant server (3 patches)
+        srv2 = next(r for r in table if r["device_id"] == 102)
+        assert srv2["approved_patch_count"] == 3
+        assert srv2["status"] == "Non-Compliant"
+        assert srv2["is_compliant"] is False
+
+    def test_custom_eol_date_mm_dd_yyyy_calculation(self):
+        from src.metrics.os_compliance import _get_eol_info, compute_os_metrics
+
+        # Setting Windows Server 2022 to a past date in MM/DD/YYYY format
+        custom = {"Windows Server 2022": "01/15/2023"}
+        info = _get_eol_info("Windows Server 2022 Datacenter", custom_eol_dates=custom)
+        assert info["is_eol"] is True
+        assert info["status"] == "Expired (EOL)"
+        assert info["days_overdue"] > 0
+
+        # Setting Windows Server 2022 to a future date in MM/DD/YYYY format
+        custom_future = {"Windows Server 2022": "10/14/2035"}
+        info_future = _get_eol_info("Windows Server 2022 Datacenter", custom_eol_dates=custom_future)
+        assert info_future["is_eol"] is False
+        assert info_future["status"] == "Supported"

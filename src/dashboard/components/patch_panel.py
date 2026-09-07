@@ -33,6 +33,14 @@ def build_patch_panel(
     badge_color = "success" if pct >= green_target else "warning" if pct > red_limit else "danger"
     status_text = f"🟢 Compliant (≥{int(green_target)}%)" if pct >= green_target else f"🟡 Warning ({int(red_limit)+1}-{int(amber_limit)}%)" if pct > red_limit else f"🔴 Critical (≤{int(red_limit)}%)"
 
+    max_approved = patch_data.get("max_approved_patches", 0)
+    if max_approved == 0:
+        comp_text = f"✅ Compliant (0 Approved Patches): {compliant_cnt:,}"
+        non_comp_text = f"⚠️ Non-Compliant (≥1 Patches): {non_compliant_cnt:,}"
+    else:
+        comp_text = f"✅ Compliant (≤{max_approved} Approved Patches): {compliant_cnt:,}"
+        non_comp_text = f"⚠️ Non-Compliant (>{max_approved} Patches): {non_compliant_cnt:,}"
+
     return dbc.Card(
         [
             dbc.CardHeader(
@@ -51,13 +59,13 @@ def build_patch_panel(
                             html.Div(
                                 [
                                     dbc.Badge(
-                                        f"✅ Compliant (0 Approved Patches): {compliant_cnt:,}",
+                                        comp_text,
                                         color="success",
                                         className="me-2",
                                         style={"fontSize": "0.78rem", "padding": "5px 10px"},
                                     ),
                                     dbc.Badge(
-                                        f"⚠️ Non-Compliant (≥1 Patches): {non_compliant_cnt:,}",
+                                        non_comp_text,
                                         color="danger" if non_compliant_cnt > 0 else "secondary",
                                         style={"fontSize": "0.78rem", "padding": "5px 10px"},
                                     ),

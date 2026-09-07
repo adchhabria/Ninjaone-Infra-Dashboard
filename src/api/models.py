@@ -156,6 +156,7 @@ class Device(BaseModel):
     location_name: Optional[str] = None
     hosting_type: Optional[str] = None
     approved_patch_count: Optional[int] = None
+    approved_software_count: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -184,6 +185,29 @@ class Device(BaseModel):
                         v = int(cf[k])
                         if v > 0:
                             data["approved_patch_count"] = v
+                            break
+                    except (ValueError, TypeError):
+                        pass
+
+            # Extract approved software count if present
+            for k in [
+                "approvedSoftwareCount",
+                "approved_software_count",
+                "Approved Software Count",
+                "approvedSoftware",
+                "approved_software",
+                "softwarePatchesPending",
+                "totalSoftwarePending",
+                "softwarePending",
+                "software_pending",
+                "pendingSoftware",
+                "softwareUpdates",
+            ]:
+                if k in cf and cf[k] is not None:
+                    try:
+                        v = int(cf[k])
+                        if v >= 0:
+                            data["approved_software_count"] = v
                             break
                     except (ValueError, TypeError):
                         pass

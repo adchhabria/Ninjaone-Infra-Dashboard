@@ -16,4 +16,5 @@ class TestHTMLExport:
         assert "NinjaOne IT Infrastructure & Compliance Executive Audit" in html_out
         assert "Total Endpoints" in html_out
         assert "Organization Compliance Scorecard" in html_out
+        assert "End-of-Life (EOL) Device Ledger" not in html_out
         assert "plotly" in html_out.lower()

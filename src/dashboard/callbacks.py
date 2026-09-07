@@ -149,6 +149,8 @@ def register_callbacks(app, get_data_fn=None):
         p_red = float(ts_settings.get("patch_red", 60.0))
         p_amber = float(ts_settings.get("patch_amber", 84.0))
         p_green = float(ts_settings.get("patch_green", 85.0))
+        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
         data = coordinator.get_dashboard_data(
             active_org_id=filter_state.get("org_id"),
@@ -157,6 +159,8 @@ def register_callbacks(app, get_data_fn=None):
             active_os_family=filter_state.get("os_family"),
             force_refresh=force_refresh,
             approaching_days=eol_days_val,
+            custom_eol_dates=c_eol_dates,
+            server_patch_threshold=srv_threshold,
         )
 
         badge_label = data.active_filter_label
@@ -196,6 +200,8 @@ def register_callbacks(app, get_data_fn=None):
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
+        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
         data = coordinator.get_dashboard_data(
             active_org_id=filter_state.get("org_id"),
@@ -203,6 +209,8 @@ def register_callbacks(app, get_data_fn=None):
             active_location=filter_state.get("location"),
             active_os_family=filter_state.get("os_family"),
             approaching_days=eol_days_val,
+            custom_eol_dates=c_eol_dates,
+            server_patch_threshold=srv_threshold,
         )
 
         excel_bytes = generate_excel_workbook(data)
@@ -513,6 +521,17 @@ def register_callbacks(app, get_data_fn=None):
         State("settings-patch-red-limit", "value"),
         State("settings-patch-amber-limit", "value"),
         State("settings-patch-green-target", "value"),
+        State("settings-server-patch-threshold", "value"),
+        State("settings-eol-win2008", "value"),
+        State("settings-eol-win2012", "value"),
+        State("settings-eol-win2016", "value"),
+        State("settings-eol-win2019", "value"),
+        State("settings-eol-win2022", "value"),
+        State("settings-eol-win2025", "value"),
+        State("settings-eol-ubuntu", "value"),
+        State("settings-eol-rhel", "value"),
+        State("settings-eol-centos", "value"),
+        State("settings-eol-debian", "value"),
         State("settings-modal", "is_open"),
         State("threshold-settings-store", "data"),
         State("auth-state-store", "data"),
@@ -533,6 +552,17 @@ def register_callbacks(app, get_data_fn=None):
         patch_red_limit,
         patch_amber_limit,
         patch_green_target,
+        server_patch_threshold,
+        eol_win2008,
+        eol_win2012,
+        eol_win2016,
+        eol_win2019,
+        eol_win2022,
+        eol_win2025,
+        eol_ubuntu,
+        eol_rhel,
+        eol_centos,
+        eol_debian,
         is_open,
         current_thresholds,
         current_auth_state,
@@ -564,12 +594,28 @@ def register_callbacks(app, get_data_fn=None):
             p_red = float(patch_red_limit or 60.0)
             p_amber = float(patch_amber_limit or 84.0)
             p_green = float(patch_green_target or 85.0)
+            srv_threshold = int(server_patch_threshold if server_patch_threshold is not None else 0)
+
+            custom_eol = {
+                "Windows Server 2008": eol_win2008 or "01/14/2020",
+                "Windows Server 2012": eol_win2012 or "10/10/2023",
+                "Windows Server 2016": eol_win2016 or "01/12/2027",
+                "Windows Server 2019": eol_win2019 or "01/09/2029",
+                "Windows Server 2022": eol_win2022 or "10/14/2031",
+                "Windows Server 2025": eol_win2025 or "10/10/2034",
+                "Ubuntu": eol_ubuntu or "04/30/2025",
+                "RHEL": eol_rhel or "06/30/2024",
+                "CentOS": eol_centos or "06/30/2024",
+                "Debian": eol_debian or "06/30/2026",
+            }
 
             thresholds_data = {
                 "eol_days": eol_val,
                 "patch_red": p_red,
                 "patch_amber": p_amber,
                 "patch_green": p_green,
+                "server_patch_threshold": srv_threshold,
+                "custom_eol_dates": custom_eol,
             }
 
             # If user provided API keys with Client Secret, attempt M2M sign in

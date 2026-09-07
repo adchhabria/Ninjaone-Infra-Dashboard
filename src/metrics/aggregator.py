@@ -192,6 +192,8 @@ def compute_dashboard_slice(
     active_location: Optional[str] = None,
     active_os_family: Optional[str] = None,
     approaching_days: int = 180,
+    custom_eol_dates: Optional[dict[str, str]] = None,
+    server_patch_threshold: int = 0,
 ) -> DashboardData:
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
@@ -233,9 +235,19 @@ def compute_dashboard_slice(
     org_name_map = {o.id: o.name for o in organizations}
 
     # 3. Compute sub-metrics on filtered slice
-    os_metrics = compute_os_metrics(filtered_devices, org_name_map=org_name_map, approaching_days=approaching_days)
+    os_metrics = compute_os_metrics(
+        filtered_devices,
+        org_name_map=org_name_map,
+        approaching_days=approaching_days,
+        custom_eol_dates=custom_eol_dates,
+    )
     server_metrics = compute_server_metrics(filtered_devices, org_name_map=org_name_map)
-    patch_metrics = compute_patch_metrics(filtered_devices, activities)
+    patch_metrics = compute_patch_metrics(
+        filtered_devices,
+        activities,
+        org_name_map=org_name_map,
+        max_approved_patches=server_patch_threshold,
+    )
     sla_metrics = compute_patch_sla_metrics(filtered_devices, activities, org_name_map=org_name_map)
 
     # 4. KPI Summary
@@ -265,7 +277,7 @@ def compute_dashboard_slice(
         p_row = patch_map.get(org.id, {})
         p_pct = p_row.get("patch_pct", 0.0)
 
-        eol_devs = [d for d in org_devs if d.os and d.os.name and _is_eol(d.os.name)]
+        eol_devs = [d for d in org_devs if d.os and d.os.name and _is_eol(d.os.name, custom_eol_dates=custom_eol_dates)]
         os_pct = round(((dev_count - len(eol_devs)) / dev_count) * 100, 1) if dev_count > 0 else 100.0
 
         score = _compute_overall_score(p_pct, os_pct, onl_pct)
@@ -399,6 +411,8 @@ class MetricsAggregator:
         active_location: Optional[str] = None,
         active_os_family: Optional[str] = None,
         approaching_days: int = 180,
+        custom_eol_dates: Optional[dict[str, str]] = None,
+        server_patch_threshold: int = 0,
     ) -> DashboardData:
         cache_key = "raw_api_payload"
         raw_bundle = self._cache.get(cache_key)
@@ -418,6 +432,8 @@ class MetricsAggregator:
             active_location=active_location,
             active_os_family=active_os_family,
             approaching_days=approaching_days,
+            custom_eol_dates=custom_eol_dates,
+            server_patch_threshold=server_patch_threshold,
         )
 
     def _fetch_raw(self) -> tuple[list[Organization], list[Device], list[Activity]]:

@@ -64,21 +64,6 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
         </tr>
         """
 
-    # Build EOL Rows HTML
-    eol_rows_html = ""
-    for e in data.os.get("eol_devices", []):
-        is_past = e.get("is_past_eol", True)
-        status_badge = '<span class="badge rag-red">PAST EOL</span>' if is_past else '<span class="badge rag-amber">APPROACHING EOL</span>'
-        eol_rows_html += f"""
-        <tr>
-            <td><strong>{e.get('name', 'N/A')}</strong></td>
-            <td>{e.get('org_name', 'N/A')}</td>
-            <td>{e.get('os', 'N/A')}</td>
-            <td>{e.get('eol_date', 'N/A')}</td>
-            <td>{e.get('days_overdue', 0)} days</td>
-            <td>{status_badge}</td>
-        </tr>
-        """
 
     # Build Reboot Rows HTML
     reboot_rows_html = ""
@@ -329,29 +314,6 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
             </div>
         </div>
 
-        <!-- Section 3: EOL Ledger -->
-        {f'''
-        <div class="table-card">
-            <h5 class="mb-3 text-white">⚠️ End-of-Life (EOL) Device Ledger</h5>
-            <div class="table-responsive">
-                <table class="table table-hover table-bordered mb-0">
-                    <thead>
-                        <tr>
-                            <th>Device Name</th>
-                            <th>Organization</th>
-                            <th>OS Name</th>
-                            <th>EOL Date</th>
-                            <th>Days Overdue</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {eol_rows_html}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        ''' if eol_rows_html else ''}
 
         <!-- Footer -->
         <div class="text-center text-secondary mt-5" style="font-size: 0.8rem;">

@@ -228,7 +228,7 @@ def build_tab_content(
         return html.Div(
             [
                 dbc.Row(
-                    dbc.Col(build_sla_panel(data.sla), width=12),
+                    dbc.Col(build_sla_panel(data.sla, data.patches), width=12),
                     className="mb-4",
                 ),
             ]
@@ -390,6 +390,19 @@ def build_layout(data) -> html.Div:
                 "patch_red": float(os.getenv("PATCH_RED_LIMIT", "60.0")),
                 "patch_amber": float(os.getenv("PATCH_AMBER_LIMIT", "84.0")),
                 "patch_green": float(os.getenv("PATCH_GREEN_TARGET", "85.0")),
+                "server_patch_threshold": 0,
+                "custom_eol_dates": {
+                    "Windows Server 2008": "01/14/2020",
+                    "Windows Server 2012": "10/10/2023",
+                    "Windows Server 2016": "01/12/2027",
+                    "Windows Server 2019": "01/09/2029",
+                    "Windows Server 2022": "10/14/2031",
+                    "Windows Server 2025": "10/10/2034",
+                    "Ubuntu": "04/30/2025",
+                    "RHEL": "06/30/2024",
+                    "CentOS": "06/30/2024",
+                    "Debian": "06/30/2026",
+                },
             }),
             dcc.Store(id="auth-state-store", data={
                 "is_live": is_live,

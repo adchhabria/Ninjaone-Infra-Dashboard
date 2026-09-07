@@ -79,7 +79,20 @@ def build_single_exe():
 
     if generated_exe.exists():
         print(f"\n[*] Copying standalone executable to project root: {target_root_exe}")
-        shutil.copy2(generated_exe, target_root_exe)
+        try:
+            shutil.copy2(generated_exe, target_root_exe)
+        except PermissionError:
+            old_exe = root / "Ninjaone-Infra-Dashboard.old.exe"
+            if old_exe.exists():
+                try:
+                    old_exe.unlink()
+                except Exception:
+                    pass
+            try:
+                target_root_exe.rename(old_exe)
+                shutil.copy2(generated_exe, target_root_exe)
+            except Exception as e:
+                print(f"[!] Notice: Root exe is locked, but fresh binary is ready at {generated_exe}: {e}")
 
     if (root / ".env.example").exists() and not (root / ".env").exists():
         shutil.copy2(root / ".env.example", root / ".env")
