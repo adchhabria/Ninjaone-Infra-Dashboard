@@ -765,3 +765,121 @@ def register_callbacks(app, get_data_fn=None):
             )
         else:
             return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
+
+    # -----------------------------------------------------------------------
+    # 12. Automated Update Checker & Prompt Modal Callbacks
+    # -----------------------------------------------------------------------
+    def _build_update_prompt_content(res: dict):
+        latest_v = res.get("latest_version", "New Version")
+        cur_v = res.get("current_version", f"v{CURRENT_VERSION}")
+        pub = res.get("published_at", "")
+        notes = res.get("release_notes", "")
+        return html.Div(
+            [
+                dbc.Alert(
+                    [
+                        html.H5(f"🎉 New Version Available: {latest_v}", className="alert-heading mb-1", style={"fontWeight": "bold"}),
+                        html.Div(f"You are currently running {cur_v}. A newer release is published on GitHub (Released: {pub}).", style={"fontSize": "0.85rem"}),
+                    ],
+                    color="primary",
+                    style={"backgroundColor": "rgba(47, 129, 247, 0.15)", "border": f"1px solid {T.ACCENT_BLUE}"},
+                ),
+                html.Div(
+                    [
+                        html.B("Release Notes:"),
+                        html.Pre(
+                            notes[:600] + ("..." if len(notes) > 600 else ""),
+                            style={
+                                "fontSize": "0.78rem",
+                                "backgroundColor": "rgba(0,0,0,0.3)",
+                                "padding": "10px",
+                                "borderRadius": "4px",
+                                "whiteSpace": "pre-wrap",
+                                "marginTop": "6px",
+                                "maxHeight": "200px",
+                                "overflowY": "auto",
+                                "color": T.TEXT_PRIMARY,
+                            },
+                        ),
+                    ],
+                    className="mb-3",
+                ) if notes else html.Div(),
+                html.P(
+                    "Clicking 'Update & Restart Now' will automatically download the updated executable, synchronize all repository files (git pull), and restart the application seamlessly.",
+                    style={"fontSize": "0.80rem", "color": T.TEXT_MUTED},
+                ),
+            ]
+        )
+
+    @app.callback(
+        Output("update-prompt-modal", "is_open"),
+        Output("update-prompt-content", "children"),
+        Output("auto-update-info-store", "data"),
+        Output("header-update-badge-btn", "style"),
+        Output("header-update-badge-btn", "children"),
+        Input("auto-update-check-interval", "n_intervals"),
+        Input("header-update-badge-btn", "n_clicks"),
+        Input("update-prompt-dismiss-btn", "n_clicks"),
+        State("update-prompt-modal", "is_open"),
+        State("auto-update-info-store", "data"),
+        prevent_initial_call=False,
+    )
+    def manage_update_prompt(n_intervals, header_clicks, dismiss_clicks, is_open, cached_update_info):
+        trigger = ctx.triggered_id if hasattr(ctx, "triggered_id") else None
+        if not trigger and ctx.triggered:
+            trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+
+        # User clicked dismiss button
+        if trigger == "update-prompt-dismiss-btn":
+            badge_style = {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"} if (cached_update_info and cached_update_info.get("update_available")) else {"display": "none"}
+            badge_text = f"🚀 Update {cached_update_info.get('latest_version')}" if cached_update_info else "🚀 Update Available"
+            return False, no_update, no_update, badge_style, badge_text
+
+        # User clicked header badge to reopen
+        if trigger == "header-update-badge-btn":
+            if cached_update_info:
+                content = _build_update_prompt_content(cached_update_info)
+                return True, content, no_update, no_update, no_update
+            return True, no_update, no_update, no_update, no_update
+
+        # Periodic check or initial load
+        try:
+            res = check_for_updates()
+            if res.get("success") and res.get("update_available"):
+                latest_v = res.get("latest_version")
+                content = _build_update_prompt_content(res)
+                badge_style = {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"}
+                badge_text = f"🚀 Update {latest_v}"
+                return True, content, res, badge_style, badge_text
+            else:
+                return False, no_update, res, {"display": "none"}, "🚀 Update Available"
+        except Exception:
+            return False, no_update, no_update, {"display": "none"}, "🚀 Update Available"
+
+    @app.callback(
+        Output("update-prompt-status", "children"),
+        Input("update-prompt-confirm-btn", "n_clicks"),
+        State("auto-update-info-store", "data"),
+        prevent_initial_call=True,
+    )
+    def handle_modal_install_update(n_clicks, update_info):
+        if not n_clicks or not update_info:
+            return no_update
+
+        dl_url = update_info.get("download_url")
+        if not dl_url:
+            return dbc.Alert("No download asset found in the latest release.", color="danger", className="mt-2")
+
+        success, msg = apply_update_and_restart(dl_url)
+        if success:
+            return dbc.Alert(
+                [
+                    html.B("⬇️ Update in Progress! "),
+                    "Downloaded new version. Synchronizing repository files and restarting dashboard in 2 seconds...",
+                ],
+                color="info",
+                className="mt-2",
+            )
+        else:
+            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
+

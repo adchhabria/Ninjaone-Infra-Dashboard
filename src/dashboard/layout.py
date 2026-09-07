@@ -137,6 +137,14 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     style={"fontSize": "0.8rem"},
                                 ),
                                 dbc.Button(
+                                    "🚀 Update Available",
+                                    id="header-update-badge-btn",
+                                    color="warning",
+                                    size="sm",
+                                    className="me-2",
+                                    style={"fontSize": "0.8rem", "fontWeight": "600", "display": "none"},
+                                ),
+                                dbc.Button(
                                     "⚙️ Settings",
                                     id="open-settings-btn",
                                     color="dark",
@@ -411,6 +419,50 @@ def build_layout(data) -> html.Div:
 
             # In-App Settings Modal
             build_settings_modal(),
+
+            # Auto-Update Periodic Checker & Notification Modal
+            dcc.Interval(id="auto-update-check-interval", interval=60 * 60 * 1000, n_intervals=0),
+            dcc.Store(id="auto-update-info-store"),
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(
+                        dbc.ModalTitle("🚀 New Toolkit Version Available!"),
+                        close_button=True,
+                        style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                    ),
+                    dbc.ModalBody(
+                        [
+                            html.Div(id="update-prompt-content"),
+                            html.Div(id="update-prompt-status", className="mt-3"),
+                        ],
+                        style={"backgroundColor": T.BG_PRIMARY, "color": T.TEXT_PRIMARY, "padding": "20px"},
+                    ),
+                    dbc.ModalFooter(
+                        [
+                            dbc.Button(
+                                "Remind Me Later",
+                                id="update-prompt-dismiss-btn",
+                                color="secondary",
+                                outline=True,
+                                size="sm",
+                                className="me-auto",
+                            ),
+                            dbc.Button(
+                                "🚀 Update & Restart Now",
+                                id="update-prompt-confirm-btn",
+                                color="success",
+                                size="sm",
+                                style={"fontWeight": "600"},
+                            ),
+                        ],
+                        style={"backgroundColor": T.BG_CARD, "borderTop": f"1px solid {T.BORDER}"},
+                    ),
+                ],
+                id="update-prompt-modal",
+                is_open=False,
+                centered=True,
+                size="lg",
+            ),
 
             # Persistent Browser Download Components
             dcc.Download(id="download-excel-data"),

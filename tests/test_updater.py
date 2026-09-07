@@ -58,11 +58,11 @@ class TestUpdater:
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.read.return_value = b"""{
-            "tag_name": "v1.0.0",
-            "name": "Initial Release",
-            "body": "Initial production release.",
-            "published_at": "2026-08-01T12:00:00Z",
-            "html_url": "https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases/tag/v1.0.0",
+            "tag_name": "v1.0.11",
+            "name": "Latest Release",
+            "body": "Current production release.",
+            "published_at": "2026-09-08T12:00:00Z",
+            "html_url": "https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases/tag/v1.0.11",
             "assets": []
         }"""
         mock_urlopen.return_value.__enter__.return_value = mock_response
@@ -70,4 +70,5 @@ class TestUpdater:
         res = check_for_updates()
         assert res["success"] is True
         assert res["update_available"] is False
-        assert res["latest_version"] == "v1.0.0"
+        assert res["latest_version"] == "v1.0.11"
+

@@ -217,22 +217,25 @@ def build_settings_modal() -> dbc.Modal:
                             # Tab 2: Compliance & Governance Thresholds
                             dbc.Tab(
                                 [
-                                    html.P(
-                                        "Customize lifecycle alerts and compliance thresholds for your organization.",
-                                        style={**T.FONT_BODY, "marginTop": "12px", "marginBottom": "16px"},
+                                    dbc.Alert(
+                                        [
+                                            html.B("Criteria: "),
+                                            "Extracts Approved Patch Count and Approved Software Count for each server. If approved_patch_count == 0 compliant; Otherwise it will be a Non-Compliant.",
+                                        ],
+                                        color="info",
+                                        className="mt-3 mb-3",
+                                        style={"fontSize": "0.82rem", "backgroundColor": "rgba(47, 129, 247, 0.12)", "border": f"1px solid {T.ACCENT_BLUE}"},
                                     ),
 
-                                    # 1. Server Compliance Criteria
+                                    # 1. Server Compliance Definition
                                     html.Div(
                                         [
-                                            dbc.Label("🖥️ Server Compliance Definition", style=T.FONT_KPI_LABEL),
-                                            html.P("Define compliant vs non-compliant server metrics based on Approved Patches.",
-                                                   style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "8px"}),
+                                            dbc.Label("1. Server Compliance Definition", style=T.FONT_KPI_LABEL),
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Max Approved Patches Allowed for Compliance", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Approved Patch count for Compliance (default: 0)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
                                                             dbc.InputGroup(
                                                                 [
                                                                     dbc.Input(
@@ -243,11 +246,14 @@ def build_settings_modal() -> dbc.Modal:
                                                                         step=1,
                                                                         value=0,
                                                                     ),
-                                                                    dbc.InputGroupText("Patches (Default: 0 = Compliant)"),
+                                                                    dbc.InputGroupText("Approved Patches"),
                                                                 ],
+                                                                className="mb-1",
                                                             ),
-                                                            html.Span("Rule: Servers with ≤ this approved patch count are Compliant. Exceeding this count marks them Non-Compliant.",
-                                                                      style={"fontSize": "0.72rem", "color": T.TEXT_MUTED}),
+                                                            html.Span(
+                                                                "Servers with Approved Patch Count 0 are evaluated as Compliant; and ≥1 are evaluated as Non-Compliant devices.",
+                                                                style={"fontSize": "0.74rem", "color": T.TEXT_MUTED},
+                                                            ),
                                                         ],
                                                         md=12,
                                                     ),
@@ -259,11 +265,11 @@ def build_settings_modal() -> dbc.Modal:
 
                                     html.Hr(style={"borderColor": T.BORDER}),
 
-                                    # 2. Server OS End-of-Life (EOL) Dates (MM/DD/YYYY)
+                                    # 2. OS Server EOL Dates (MM/DD/YYYY format)
                                     html.Div(
                                         [
-                                            dbc.Label("📅 Server OS End-of-Life (EOL) Dates (MM/DD/YYYY)", style=T.FONT_KPI_LABEL),
-                                            html.P("Enter lifecycle dates in MM/DD/YYYY format for server operating systems. The dashboard calculates EOL status dynamically.",
+                                            dbc.Label("2. OS Server EOL Dates (MM/DD/YYYY format)", style=T.FONT_KPI_LABEL),
+                                            html.P("User input fields in Settings > Compliance Thresholds for server operating systems (Windows Server 2008, 2012, 2016, 2019, 2022, 2025; Ubuntu Server LTS, RHEL, CentOS, Debian).",
                                                    style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "8px"}),
                                             dbc.Row(
                                                 [

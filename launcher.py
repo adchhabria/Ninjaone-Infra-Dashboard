@@ -45,6 +45,33 @@ from src.dashboard.app import create_app
 from src.metrics.data_provider import coordinator
 
 
+def sync_local_git_repo():
+    """Quietly updates local files via git pull origin main if running inside a git repo."""
+    try:
+        import subprocess
+        if getattr(sys, "frozen", False):
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+
+        git_dir = os.path.join(app_dir, ".git")
+        if os.path.exists(git_dir):
+            startupinfo = None
+            if sys.platform == "win32":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = 0  # SW_HIDE
+            subprocess.run(
+                ["git", "pull", "origin", "main"],
+                cwd=app_dir,
+                capture_output=True,
+                startupinfo=startupinfo,
+                timeout=10,
+            )
+    except Exception:
+        pass
+
+
 def launch_browser(url: str = "http://localhost:8050"):
     """Wait briefly for server spin-up and open the default browser."""
     time.sleep(1.5)
@@ -56,6 +83,9 @@ def launch_browser(url: str = "http://localhost:8050"):
 
 def main():
     hide_console()
+
+    # Synchronize local repository files in background if launched in a git clone
+    threading.Thread(target=sync_local_git_repo, daemon=True).start()
 
     # Load environment variables
     from dotenv import load_dotenv

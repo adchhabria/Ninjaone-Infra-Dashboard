@@ -19,7 +19,7 @@ import urllib.request
 from typing import Callable, Optional
 from packaging import version
 
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.0.11"
 GITHUB_REPO = "adchhabria/Ninjaone-Infra-Dashboard"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RAW_VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
@@ -192,7 +192,9 @@ def apply_update_and_restart(download_url: str) -> tuple[bool, str]:
         batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
         current_pid = os.getpid()
 
-        # Batch script: Wait for current process to exit, copy new file over old file, launch new file, clean up
+        target_dir = os.path.dirname(current_target)
+
+        # Batch script: Wait for current process to exit, copy new file over old file, sync git repo, launch new file, clean up
         batch_content = f"""@echo off
 chcp 65001 > nul
 echo ========================================================
@@ -211,6 +213,13 @@ if %ERRORLEVEL% NEQ 0 (
     echo Update failed to overwrite file. Retrying in 2 seconds...
     timeout /t 2 /nobreak > nul
     copy /Y "{downloaded_file}" "{current_target}" > nul
+)
+
+:: Sync local repository files if running in git folder
+cd /d "{target_dir}"
+if exist ".git" (
+    echo Syncing local files from GitHub...
+    git pull origin main > nul 2>&1
 )
 
 echo Starting updated NinjaOne Dashboard...
