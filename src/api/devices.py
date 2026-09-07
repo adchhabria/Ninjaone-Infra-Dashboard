@@ -14,7 +14,7 @@ def get_all_devices(client: NinjaOneClient) -> list[Device]:
     return [Device.model_validate(d) for d in raw if isinstance(d, dict)]
 
 
-def get_devices_detailed(client: NinjaOneClient, page_size: int = 200) -> list[Device]:
+def get_devices_detailed(client: NinjaOneClient, page_size: int = 500) -> list[Device]:
     """
     Fetch detailed device info including OS, system info, and custom fields.
     Uses /v2/devices-detailed which is heavier — cached aggressively.

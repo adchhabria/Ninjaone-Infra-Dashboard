@@ -85,3 +85,25 @@ def test_paginated_get_single_page(client):
     )
     result = client.paginated_get("/v2/devices", page_size=500)
     assert len(result) == 5
+
+
+@responses_lib.activate
+def test_paginated_get_multi_page(client):
+    _mock_token(responses_lib)
+    # Page 1: 3 items (page_size=3)
+    responses_lib.add(
+        responses_lib.GET,
+        f"{MOCK_BASE}/v2/devices",
+        json=[{"id": 1, "name": "d1"}, {"id": 2, "name": "d2"}, {"id": 3, "name": "d3"}],
+        status=200,
+    )
+    # Page 2: 2 items (last page)
+    responses_lib.add(
+        responses_lib.GET,
+        f"{MOCK_BASE}/v2/devices",
+        json=[{"id": 4, "name": "d4"}, {"id": 5, "name": "d5"}],
+        status=200,
+    )
+    result = client.paginated_get("/v2/devices", page_size=3)
+    assert len(result) == 5
+    assert [d["id"] for d in result] == [1, 2, 3, 4, 5]
