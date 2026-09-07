@@ -251,20 +251,18 @@ def server_role_bar(role_counts: dict[str, int]) -> go.Figure:
 
 def hosting_donut(hosting_counts: dict[str, int], filter_mode: str = "all") -> go.Figure:
     """Donut chart for hosting types supporting filter_mode: 'all', 'onprem', 'cloud'."""
-    filtered_counts = {}
+    CANONICAL_HOSTING = ["Azure Server", "AWS Server", "VM Server", "Physical Server"]
     if filter_mode == "cloud":
-        for k in ["Azure Server", "AWS Server"]:
-            if k in hosting_counts and hosting_counts[k] > 0:
-                filtered_counts[k] = hosting_counts[k]
+        target_keys = ["Azure Server", "AWS Server"]
         title = "Cloud Infrastructure (Azure & AWS)"
     elif filter_mode == "onprem":
-        for k in ["Physical Server", "VM Server"]:
-            if k in hosting_counts and hosting_counts[k] > 0:
-                filtered_counts[k] = hosting_counts[k]
+        target_keys = ["Physical Server", "VM Server"]
         title = "On-Premise Infrastructure (Physical & VMs)"
     else:
-        filtered_counts = {k: v for k, v in hosting_counts.items() if v > 0}
+        target_keys = CANONICAL_HOSTING
         title = "All Devices Hosting Infrastructure"
+
+    filtered_counts = {k: hosting_counts[k] for k in target_keys if hosting_counts.get(k, 0) > 0}
 
     if not filtered_counts:
         return _empty_figure(f"No devices found for {filter_mode.title()} filter")

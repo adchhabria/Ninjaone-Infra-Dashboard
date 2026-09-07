@@ -234,7 +234,7 @@ def compute_dashboard_slice(
 
     # 3. Compute sub-metrics on filtered slice
     os_metrics = compute_os_metrics(filtered_devices, org_name_map=org_name_map, approaching_days=approaching_days)
-    server_metrics = compute_server_metrics(filtered_devices)
+    server_metrics = compute_server_metrics(filtered_devices, org_name_map=org_name_map)
     patch_metrics = compute_patch_metrics(filtered_devices, activities)
     sla_metrics = compute_patch_sla_metrics(filtered_devices, activities, org_name_map=org_name_map)
 

@@ -40,6 +40,7 @@ def build_single_exe():
         "PyInstaller",
         "--name=Ninjaone-Infra-Dashboard",
         "--onefile",  # Single standalone .exe file
+        "--noconsole",  # Run silently without CMD window in background
         "--clean",
         f"--add-data={root / 'config.yaml'}{os.pathsep}.",
         f"--add-data={root / '.env.example'}{os.pathsep}.",

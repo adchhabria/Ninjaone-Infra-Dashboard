@@ -150,9 +150,11 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                 country=cc,
                 location_name=loc_name,
                 hosting_type=hosting_val,
+                approved_patch_count=total_pending,
                 lastSeen=datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 72)),
                 os=OSInfo(name=os_name, releaseId=rid),
                 custom_fields={
+                    "approvedPatchCount": total_pending,
                     "criticalPatchesPending": crit_patches,
                     "totalPatchesPending": total_pending,
                     "patchStatus": "PENDING" if crit_patches > 0 else "OK",

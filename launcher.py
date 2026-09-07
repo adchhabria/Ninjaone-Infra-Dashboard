@@ -1,7 +1,7 @@
 """
 Desktop Launcher for Standalone NinjaOne Dashboard Executable.
 
-Starts the local Dash server in a worker thread and immediately opens
+Starts the local Dash server silently in the background and opens
 the user's default web browser to the dashboard URL.
 """
 
@@ -13,6 +13,26 @@ import threading
 import time
 import webbrowser
 
+# Safely handle stdout/stderr in windowless (--noconsole) mode on Windows
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
+
+def hide_console():
+    """Hides the console window immediately upon startup in Windows."""
+    try:
+        import ctypes
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 0)  # 0 = SW_HIDE
+    except Exception:
+        pass
+
+
+hide_console()
+
 # Ensure bundle directory is in path
 if getattr(sys, "frozen", False):
     bundle_dir = sys._MEIPASS  # type: ignore
@@ -22,49 +42,32 @@ else:
 sys.path.insert(0, bundle_dir)
 
 from src.dashboard.app import create_app
+from src.metrics.data_provider import coordinator
 
 
 def launch_browser(url: str = "http://localhost:8050"):
     """Wait briefly for server spin-up and open the default browser."""
-    time.sleep(1.8)
-    webbrowser.open(url)
+    time.sleep(1.5)
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass
 
 
 def main():
-    print("=" * 60)
-    print("⚡ NinjaOne IT Compliance & Infrastructure Dashboard")
-    print("=" * 60)
-    print("Starting local dashboard engine...")
+    hide_console()
 
-    # Load environment or fallback to demo mode if credentials are unset
+    # Load environment variables
     from dotenv import load_dotenv
     load_dotenv()
 
-    client_id = os.getenv("NINJA_CLIENT_ID")
-    client_secret = os.getenv("NINJA_CLIENT_SECRET")
+    # Use unified coordinator for live PKCE/client-credentials & demo dataset
+    app = create_app(coordinator.get_dashboard_data)
 
-    if client_id and client_secret:
-        print("[+] Connecting to live NinjaOne API...")
-        from src.api.client import NinjaOneClient
-        from src.metrics.aggregator import MetricsAggregator
-        client = NinjaOneClient.from_env()
-        aggregator = MetricsAggregator(client)
-        get_data_fn = aggregator.get_dashboard_data
-    else:
-        print("[!] No credentials found in .env — starting in Demo Mode.")
-        print("[!] You can configure your API credentials anytime in the Settings menu in the top right.")
-        from scripts.generate_sample_data import get_mock_dashboard_data
-        get_data_fn = get_mock_dashboard_data
-
-    app = create_app(get_data_fn)
-
-    # Launch browser in separate thread
+    # Launch browser in separate background thread
     threading.Thread(target=launch_browser, daemon=True).start()
 
-    print("\nDashboard available at: http://localhost:8050")
-    print("Opening in your default browser...\n")
-    print("To stop the dashboard, close this window or press Ctrl+C.\n")
-
+    # Run the server silently
     app.run(debug=False, port=8050, host="127.0.0.1")
 
 

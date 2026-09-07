@@ -19,17 +19,15 @@ def get_device_approved_patch_count(device: Device) -> int:
     - 0 means compliant
     - >= 1 means non-compliant
     """
-    # 1. Direct attribute on Device if present
-    if hasattr(device, "approved_patch_count") and getattr(device, "approved_patch_count") is not None:
-        try:
-            return int(getattr(device, "approved_patch_count"))
-        except (ValueError, TypeError):
-            pass
+    # 1. Direct attribute on Device if explicitly set (> 0)
+    attr_val = getattr(device, "approved_patch_count", None)
+    if attr_val is not None and attr_val > 0:
+        return int(attr_val)
 
     cf = device.custom_fields or {}
     refs = device.references or {}
 
-    # 2. Check well-known custom fields
+    # 2. Check well-known custom fields for approved or pending patches
     for key in [
         "approvedPatchCount",
         "approved_patch_count",
@@ -42,17 +40,30 @@ def get_device_approved_patch_count(device: Device) -> int:
         "total_patches_pending",
         "criticalPatchesPending",
         "pendingPatches",
+        "patchesPending",
     ]:
         if key in cf and cf[key] is not None:
             try:
-                return int(cf[key])
+                cnt = int(cf[key])
+                if cnt > 0:
+                    return cnt
             except (ValueError, TypeError):
                 pass
         if key in refs and refs[key] is not None:
             try:
-                return int(refs[key])
+                cnt = int(refs[key])
+                if cnt > 0:
+                    return cnt
             except (ValueError, TypeError):
                 pass
+
+    # 3. Check patch status indicators
+    if cf.get("patchStatus") == "PENDING" or cf.get("criticalPatchesPending", 0) > 0:
+        return max(1, int(cf.get("totalPatchesPending") or cf.get("criticalPatchesPending") or 1))
+
+    # Explicit 0 from attribute or custom field
+    if attr_val == 0:
+        return 0
 
     return 0
 

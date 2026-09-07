@@ -155,7 +155,7 @@ class Device(BaseModel):
     country: Optional[str] = None
     location_name: Optional[str] = None
     hosting_type: Optional[str] = None
-    approved_patch_count: Optional[int] = 0
+    approved_patch_count: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -164,13 +164,27 @@ class Device(BaseModel):
             # Map 'system' to 'systemInfo' if present
             if "system" in data and "systemInfo" not in data and "system_info" not in data:
                 data["systemInfo"] = data["system"]
-            # Extract approved patch count if present
+            # Extract approved/pending patch count if present
             cf = data.get("customFields") or data.get("custom_fields") or {}
-            for k in ["approvedPatchCount", "approved_patch_count", "Approved Patch Count", "approvedPatches"]:
+            for k in [
+                "approvedPatchCount",
+                "approved_patch_count",
+                "Approved Patch Count",
+                "approvedPatches",
+                "approved_patches",
+                "approvedPatchesPending",
+                "approved_patches_pending",
+                "totalPatchesPending",
+                "total_patches_pending",
+                "criticalPatchesPending",
+                "pendingPatches",
+            ]:
                 if k in cf and cf[k] is not None:
                     try:
-                        data["approved_patch_count"] = int(cf[k])
-                        break
+                        v = int(cf[k])
+                        if v > 0:
+                            data["approved_patch_count"] = v
+                            break
                     except (ValueError, TypeError):
                         pass
         return data
