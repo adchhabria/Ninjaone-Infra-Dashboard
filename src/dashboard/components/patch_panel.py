@@ -1,10 +1,9 @@
 """
 Patch Compliance Panel — Speedometer gauge with customizable SLA thresholds.
 
-Default Thresholds:
-  - 0 - 60%:   RED
-  - 61 - 84%:  AMBER
-  - 85 - 100%: GREEN
+Revised Rule:
+- 0 Approved Patches: Compliant
+- ≥1 Approved Patches: Non-Compliant
 """
 
 from __future__ import annotations
@@ -22,9 +21,13 @@ def build_patch_panel(
     green_target: float = 85.0,
 ) -> dbc.Card:
     """
-    Renders Patch Compliance gauge with configurable thresholds.
+    Renders Patch Compliance gauge with configurable thresholds and compliant/non-compliant device tallies.
     """
     pct = patch_data.get("patch_coverage_pct", 0.0)
+    compliant_cnt = patch_data.get("compliant_count", 0)
+    non_compliant_cnt = patch_data.get("non_compliant_count", 0)
+    total_devs = patch_data.get("total_devices", compliant_cnt + non_compliant_cnt)
+
     gauge_fig = charts.patch_gauge(pct, red_limit=red_limit, amber_limit=amber_limit, green_target=green_target)
 
     badge_color = "success" if pct >= green_target else "warning" if pct > red_limit else "danger"
@@ -33,12 +36,39 @@ def build_patch_panel(
     return dbc.Card(
         [
             dbc.CardHeader(
-                html.Span([
-                    html.Span("🔧", style={"marginRight": "8px"}),
-                    html.Span("Patch Management & Compliance Status", style=T.FONT_SECTION_TITLE),
-                    dbc.Badge(f"{pct:.1f}% Coverage", color=badge_color, className="ms-2"),
-                    dbc.Badge(status_text, color="secondary", className="ms-1"),
-                ]),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            html.Span([
+                                html.Span("🔧", style={"marginRight": "8px"}),
+                                html.Span("Patch Management & Compliance Status", style=T.FONT_SECTION_TITLE),
+                                dbc.Badge(f"{pct:.1f}% Coverage", color=badge_color, className="ms-2"),
+                                dbc.Badge(status_text, color="secondary", className="ms-1"),
+                            ]),
+                            md=6,
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                [
+                                    dbc.Badge(
+                                        f"✅ Compliant (0 Approved Patches): {compliant_cnt:,}",
+                                        color="success",
+                                        className="me-2",
+                                        style={"fontSize": "0.78rem", "padding": "5px 10px"},
+                                    ),
+                                    dbc.Badge(
+                                        f"⚠️ Non-Compliant (≥1 Patches): {non_compliant_cnt:,}",
+                                        color="danger" if non_compliant_cnt > 0 else "secondary",
+                                        style={"fontSize": "0.78rem", "padding": "5px 10px"},
+                                    ),
+                                ],
+                                style={"display": "flex", "flexWrap": "wrap", "justifyContent": "flex-end", "alignItems": "center"},
+                            ),
+                            md=6,
+                        ),
+                    ],
+                    align="center",
+                ),
                 style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
             ),
             dbc.CardBody(

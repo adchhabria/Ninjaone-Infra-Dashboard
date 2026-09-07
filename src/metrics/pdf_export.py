@@ -86,7 +86,7 @@ class MultiPageNumberedCanvas(canvas.Canvas):
         self.restoreState()
 
 
-def _fig_to_image_flowable(fig, width: int = 340, height: int = 180, scale: int = 2) -> Optional[Image]:
+def _fig_to_image_flowable(fig, width: int = 340, height: int = 180, scale: int = 1) -> Optional[Image]:
     """Converts a Plotly figure to a ReportLab Image Flowable via Kaleido."""
     try:
         img_bytes = fig.to_image(format="png", width=width, height=height, scale=scale, engine="kaleido")
@@ -231,7 +231,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     # World Map Graphic
     story.append(Paragraph("2. Geographic Infrastructure & Fleet Distribution Map", h2_style))
     map_fig = charts.world_map_chart(data.map_data, data.active_region)
-    map_img = _fig_to_image_flowable(map_fig, width=710, height=270, scale=2)
+    map_img = _fig_to_image_flowable(map_fig, width=710, height=270, scale=1)
     if map_img:
         story.append(map_img)
 
@@ -245,28 +245,32 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     win_donut_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}))
     linux_donut_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}))
 
-    win_img = _fig_to_image_flowable(win_donut_fig, width=350, height=200, scale=2)
-    linux_img = _fig_to_image_flowable(linux_donut_fig, width=350, height=200, scale=2)
+    win_img = _fig_to_image_flowable(win_donut_fig, width=350, height=200, scale=1)
+    linux_img = _fig_to_image_flowable(linux_donut_fig, width=350, height=200, scale=1)
 
     if win_img and linux_img:
         os_charts_table = Table([[win_img, linux_img]], colWidths=[355, 355])
         os_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
         story.append(os_charts_table)
+    elif win_img or linux_img:
+        story.append(win_img or linux_img)
 
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("4. Server Infrastructure: Roles & Multi-Cloud Hosting", h2_style))
+    story.append(Paragraph("4. Server Infrastructure: Multi-Cloud Hosting & Organization Distribution", h2_style))
 
-    srv_bar_fig = charts.server_role_bar(data.servers.get("role_counts", {}))
     host_donut_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}))
+    stacked_bar_fig = charts.hosting_org_stacked_bar(data.servers.get("org_distribution", []))
 
-    srv_img = _fig_to_image_flowable(srv_bar_fig, width=350, height=200, scale=2)
-    host_img = _fig_to_image_flowable(host_donut_fig, width=350, height=200, scale=2)
+    host_img = _fig_to_image_flowable(host_donut_fig, width=350, height=200, scale=1)
+    stacked_img = _fig_to_image_flowable(stacked_bar_fig, width=350, height=200, scale=1)
 
-    if srv_img and host_img:
-        server_charts_table = Table([[srv_img, host_img]], colWidths=[355, 355])
+    if host_img and stacked_img:
+        server_charts_table = Table([[host_img, stacked_img]], colWidths=[355, 355])
         server_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
         story.append(server_charts_table)
+    elif host_img or stacked_img:
+        story.append(host_img or stacked_img)
 
     story.append(PageBreak())
 
@@ -276,7 +280,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     story.append(Paragraph("5. Patch Compliance Speedometer Gauge & SLA Backlog", h2_style))
 
     gauge_fig = charts.patch_gauge(patch_pct)
-    gauge_img = _fig_to_image_flowable(gauge_fig, width=350, height=200, scale=2)
+    gauge_img = _fig_to_image_flowable(gauge_fig, width=350, height=200, scale=1)
 
     # SLA Table beside Gauge
     sla_counts = data.sla.get("sla_counts", {})
@@ -325,6 +329,8 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         patch_row_table = Table([[gauge_img, sla_mini_table]], colWidths=[355, 355])
         patch_row_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
         story.append(patch_row_table)
+    else:
+        story.append(sla_mini_table)
 
     story.append(Spacer(1, 8))
 
@@ -334,13 +340,15 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     eol_donut_fig = charts.eol_status_donut(data.os.get("eol_status_counts", {}))
     eol_bar_fig = charts.eol_by_os_bar(data.os.get("eol_by_os", {}))
 
-    eol_donut_img = _fig_to_image_flowable(eol_donut_fig, width=350, height=200, scale=2)
-    eol_bar_img = _fig_to_image_flowable(eol_bar_fig, width=350, height=200, scale=2)
+    eol_donut_img = _fig_to_image_flowable(eol_donut_fig, width=350, height=200, scale=1)
+    eol_bar_img = _fig_to_image_flowable(eol_bar_fig, width=350, height=200, scale=1)
 
     if eol_donut_img and eol_bar_img:
         eol_charts_table = Table([[eol_donut_img, eol_bar_img]], colWidths=[355, 355])
         eol_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
         story.append(eol_charts_table)
+    elif eol_donut_img or eol_bar_img:
+        story.append(eol_donut_img or eol_bar_img)
 
     story.append(PageBreak())
 

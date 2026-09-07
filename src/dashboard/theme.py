@@ -60,12 +60,17 @@ SEVERITY_COLORS = {
 # ---------------------------------------------------------------------------
 
 HOSTING_COLORS = {
-    "AWS": "#FF9900",
+    "Azure Server": "#0089D6",
     "Azure": "#0089D6",
-    "GCP": "#4285F4",
+    "AWS Server": "#FF9900",
+    "AWS": "#FF9900",
+    "VM Server": "#39C5BB",
+    "Virtual Machines (VMs)": "#39C5BB",
+    "Physical Server": "#8B949E",
     "Physical Hardware": "#8B949E",
-    "Virtual Machines (VMs)": "#A371F7",
-    "On-Prem": "#2F81F7",
+    "On-Premise (Physical & VMs)": "#2F81F7",
+    "Cloud (Azure & AWS)": "#0089D6",
+    "GCP": "#4285F4",
     "N/A": TEXT_MUTED,
 }
 

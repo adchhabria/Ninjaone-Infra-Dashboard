@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +155,25 @@ class Device(BaseModel):
     country: Optional[str] = None
     location_name: Optional[str] = None
     hosting_type: Optional[str] = None
+    approved_patch_count: Optional[int] = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def preprocess_device_dict(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Map 'system' to 'systemInfo' if present
+            if "system" in data and "systemInfo" not in data and "system_info" not in data:
+                data["systemInfo"] = data["system"]
+            # Extract approved patch count if present
+            cf = data.get("customFields") or data.get("custom_fields") or {}
+            for k in ["approvedPatchCount", "approved_patch_count", "Approved Patch Count", "approvedPatches"]:
+                if k in cf and cf[k] is not None:
+                    try:
+                        data["approved_patch_count"] = int(cf[k])
+                        break
+                    except (ValueError, TypeError):
+                        pass
+        return data
 
     @field_validator("approval_status", mode="before")
     @classmethod

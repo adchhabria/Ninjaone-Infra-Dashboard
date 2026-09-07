@@ -26,10 +26,7 @@ from src.dashboard.components.org_slicer import build_org_slicer
 from src.dashboard.components.map_panel import build_map_panel
 from src.dashboard.components.kpi_cards import build_kpi_strip
 from src.dashboard.components.os_panel import build_os_panel
-from src.dashboard.components.server_panel import (
-    build_server_compliance_panel,
-    build_server_hosting_panel,
-)
+from src.dashboard.components.server_panel import build_server_hosting_panel
 from src.dashboard.components.patch_panel import build_patch_panel
 from src.dashboard.components.eol_panel import build_eol_panel
 from src.dashboard.components.compliance_table import build_compliance_table
@@ -124,6 +121,8 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     outline=True,
                                     size="sm",
                                     className="me-2",
+                                    href="/download/html",
+                                    external_link=True,
                                     style={"fontSize": "0.8rem"},
                                 ),
                                 dbc.Button(
@@ -133,6 +132,8 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     outline=True,
                                     size="sm",
                                     className="me-2",
+                                    href="/download/pdf",
+                                    external_link=True,
                                     style={"fontSize": "0.8rem"},
                                 ),
                                 dbc.Button(
@@ -195,12 +196,10 @@ def build_tab_content(
                     dbc.Col(build_kpi_strip(data), width=12),
                     className="mb-4",
                 ),
-                # Row 2: OS Landscape & Server Fleet
+                # Row 2: OS Landscape (Windows and Linux side by side)
                 dbc.Row(
-                    [
-                        dbc.Col(build_os_panel(data.os), lg=6, md=12, className="mb-4"),
-                        dbc.Col(build_server_compliance_panel(data.servers), lg=6, md=12, className="mb-4"),
-                    ]
+                    dbc.Col(build_os_panel(data.os), width=12),
+                    className="mb-4",
                 ),
                 # Row 3: Multi-Cloud Server Hosting
                 dbc.Row(
@@ -239,7 +238,7 @@ def build_tab_content(
         return html.Div(
             [
                 dbc.Row(
-                    dbc.Col(build_reboot_failures_panel(data.reboots), width=12),
+                    dbc.Col(build_reboot_failures_panel(data.sla), width=12),
                     className="mb-4",
                 ),
             ]

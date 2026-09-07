@@ -18,9 +18,10 @@ import argparse
 import os
 import sys
 
+from datetime import datetime
 import dash
 import dash_bootstrap_components as dbc
-from flask import render_template_string, request
+from flask import render_template_string, request, Response
 from rich.console import Console
 
 # Ensure project root is on sys.path when running directly or frozen
@@ -35,6 +36,9 @@ from src.dashboard import theme as T
 from src.dashboard.callbacks import register_callbacks
 from src.dashboard.layout import build_layout
 from src.metrics.data_provider import coordinator
+from src.metrics.pdf_export import generate_pdf_report
+from src.metrics.excel_export import generate_excel_workbook
+from src.reporting.html_export import generate_html_report
 
 console = Console()
 
@@ -156,6 +160,54 @@ def create_app(get_data_fn=None) -> dash.Dash:
             </html>
             """
             return render_template_string(html_content), 400
+
+    # -----------------------------------------------------------------------
+    # Direct Report Download Endpoints
+    # -----------------------------------------------------------------------
+    @app.server.route("/download/pdf")
+    def download_pdf_endpoint():
+        try:
+            data = get_data_fn()
+            pdf_bytes = generate_pdf_report(data)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            return Response(
+                pdf_bytes,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Executive_Compliance_Audit_{ts}.pdf"},
+            )
+        except Exception as e:
+            console.log(f"[red]Error in /download/pdf: {e}[/red]")
+            return f"Error generating PDF: {e}", 500
+
+    @app.server.route("/download/excel")
+    def download_excel_endpoint():
+        try:
+            data = get_data_fn()
+            excel_bytes = generate_excel_workbook(data)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            return Response(
+                excel_bytes,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Compliance_Audit_{ts}.xlsx"},
+            )
+        except Exception as e:
+            console.log(f"[red]Error in /download/excel: {e}[/red]")
+            return f"Error generating Excel: {e}", 500
+
+    @app.server.route("/download/html")
+    def download_html_endpoint():
+        try:
+            data = get_data_fn()
+            html_text = generate_html_report(data)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            return Response(
+                html_text,
+                mimetype="text/html",
+                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Executive_Report_{ts}.html"},
+            )
+        except Exception as e:
+            console.log(f"[red]Error in /download/html: {e}[/red]")
+            return f"Error generating HTML: {e}", 500
 
     def serve_layout():
         data = get_data_fn(

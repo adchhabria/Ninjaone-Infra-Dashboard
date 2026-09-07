@@ -249,10 +249,28 @@ def server_role_bar(role_counts: dict[str, int]) -> go.Figure:
     return _apply_theme(fig, "Server Role Distribution")
 
 
-def hosting_donut(hosting_counts: dict[str, int]) -> go.Figure:
-    """Donut chart — AWS, Azure, GCP, Physical Hardware, VMs."""
-    labels = [k for k, v in hosting_counts.items() if v > 0]
-    values = [hosting_counts[k] for k in labels]
+def hosting_donut(hosting_counts: dict[str, int], filter_mode: str = "all") -> go.Figure:
+    """Donut chart for hosting types supporting filter_mode: 'all', 'onprem', 'cloud'."""
+    filtered_counts = {}
+    if filter_mode == "cloud":
+        for k in ["Azure Server", "AWS Server"]:
+            if k in hosting_counts and hosting_counts[k] > 0:
+                filtered_counts[k] = hosting_counts[k]
+        title = "Cloud Infrastructure (Azure & AWS)"
+    elif filter_mode == "onprem":
+        for k in ["Physical Server", "VM Server"]:
+            if k in hosting_counts and hosting_counts[k] > 0:
+                filtered_counts[k] = hosting_counts[k]
+        title = "On-Premise Infrastructure (Physical & VMs)"
+    else:
+        filtered_counts = {k: v for k, v in hosting_counts.items() if v > 0}
+        title = "All Devices Hosting Infrastructure"
+
+    if not filtered_counts:
+        return _empty_figure(f"No devices found for {filter_mode.title()} filter")
+
+    labels = list(filtered_counts.keys())
+    values = list(filtered_counts.values())
     colors = [T.HOSTING_COLORS.get(l, T.ACCENT_BLUE) for l in labels]
 
     fig = go.Figure(
@@ -263,11 +281,74 @@ def hosting_donut(hosting_counts: dict[str, int]) -> go.Figure:
             marker=dict(colors=colors, line=dict(color=T.BG_PRIMARY, width=2)),
             textinfo="label+percent",
             textfont=dict(color=T.TEXT_PRIMARY, size=11),
-            hovertemplate="<b>%{label}</b><br>%{value} servers<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>%{value} devices (%{percent})<extra></extra>",
         )
     )
-    fig.update_layout(showlegend=True, height=260)
-    return _apply_theme(fig, "Infrastructure Hosting Types")
+    fig.update_layout(showlegend=True, height=270)
+    return _apply_theme(fig, title)
+
+
+def hosting_org_stacked_bar(org_distribution: list[dict], filter_mode: str = "all") -> go.Figure:
+    """
+    Organization-wise stacked bar chart showing device distribution.
+    Supports filter_mode: 'all', 'onprem', 'cloud'.
+    """
+    if not org_distribution:
+        return _empty_figure("No organization hosting data available")
+
+    top_orgs = org_distribution[:15]
+    org_names = [o["org_name"] for o in top_orgs]
+
+    fig = go.Figure()
+
+    if filter_mode in ["all", "cloud"]:
+        fig.add_trace(
+            go.Bar(
+                name="Azure Server",
+                x=org_names,
+                y=[o.get("azure", 0) for o in top_orgs],
+                marker_color=T.HOSTING_COLORS.get("Azure Server", "#0089D6"),
+                hovertemplate="<b>%{x}</b><br>Azure: %{y}<extra></extra>",
+            )
+        )
+        fig.add_trace(
+            go.Bar(
+                name="AWS Server",
+                x=org_names,
+                y=[o.get("aws", 0) for o in top_orgs],
+                marker_color=T.HOSTING_COLORS.get("AWS Server", "#FF9900"),
+                hovertemplate="<b>%{x}</b><br>AWS: %{y}<extra></extra>",
+            )
+        )
+
+    if filter_mode in ["all", "onprem"]:
+        fig.add_trace(
+            go.Bar(
+                name="VM Server",
+                x=org_names,
+                y=[o.get("vm", 0) for o in top_orgs],
+                marker_color=T.HOSTING_COLORS.get("VM Server", "#39C5BB"),
+                hovertemplate="<b>%{x}</b><br>VM: %{y}<extra></extra>",
+            )
+        )
+        fig.add_trace(
+            go.Bar(
+                name="Physical Server",
+                x=org_names,
+                y=[o.get("physical", 0) for o in top_orgs],
+                marker_color=T.HOSTING_COLORS.get("Physical Server", "#8B949E"),
+                hovertemplate="<b>%{x}</b><br>Physical: %{y}<extra></extra>",
+            )
+        )
+
+    fig.update_layout(
+        barmode="stack",
+        height=270,
+        xaxis=dict(tickangle=-30, tickfont=dict(size=10, color=T.TEXT_SECONDARY)),
+        yaxis=dict(title="Device Count"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return _apply_theme(fig, "Organization-wise Hosting Distribution")
 
 
 def hosting_role_heatmap(matrix: list[dict]) -> go.Figure:

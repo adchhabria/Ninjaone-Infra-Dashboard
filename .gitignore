@@ -25,6 +25,7 @@ wheels/
 *.egg
 *.spec
 *.zip
+*.exe
 
 # Secrets & Environment
 .env

@@ -23,17 +23,17 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     # Generate Chart HTMLs
-    win_fig = charts.windows_os_donut(data.os.get("windows_breakdown", {}))
-    win_chart_html = pio.to_html(win_fig, full_html=False, include_plotlyjs="cdn", config={"displayModeBar": False})
+    win_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}))
+    win_chart_html = pio.to_html(win_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
-    lin_fig = charts.linux_os_donut(data.os.get("linux_breakdown", {}))
+    lin_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}))
     lin_chart_html = pio.to_html(lin_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
-
-    role_fig = charts.server_role_bar(data.servers.get("role_counts", {}))
-    role_chart_html = pio.to_html(role_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     host_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}))
     host_chart_html = pio.to_html(host_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
+
+    stacked_fig = charts.hosting_org_stacked_bar(data.servers.get("org_distribution", []))
+    stacked_chart_html = pio.to_html(stacked_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     patch_pct = data.patches.get("patch_coverage_pct", 0.0)
     gauge_fig = charts.patch_gauge(patch_pct)
@@ -100,6 +100,7 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} — {data.active_filter_label}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <style>
         :root {{
             --bg-primary: #0D1117;
@@ -286,14 +287,14 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
         <div class="row g-3 mb-4">
             <div class="col-md-4">
                 <div class="chart-card">
-                    <div class="chart-title">Server Role Specialization</div>
-                    {role_chart_html}
+                    <div class="chart-title">Multi-Cloud Server Hosting Breakdown</div>
+                    {host_chart_html}
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="chart-card">
-                    <div class="chart-title">Multi-Cloud Server Hosting</div>
-                    {host_chart_html}
+                    <div class="chart-title">Organization-Wise Hosting Distribution</div>
+                    {stacked_chart_html}
                 </div>
             </div>
             <div class="col-md-4">

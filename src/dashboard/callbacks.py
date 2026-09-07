@@ -22,7 +22,7 @@ import dash_bootstrap_components as dbc
 from dash import ALL, MATCH, Input, Output, State, ctx, dcc, html, no_update
 from rich.console import Console
 
-from src.dashboard import theme as T
+from src.dashboard import charts, theme as T
 from src.dashboard.layout import build_body, build_tab_content
 from src.metrics.data_provider import coordinator
 from src.metrics.excel_export import generate_excel_workbook
@@ -209,6 +209,38 @@ def register_callbacks(app, get_data_fn=None):
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"NinjaOne_Compliance_Audit_{ts}.xlsx"
         return dcc.send_bytes(excel_bytes, filename=filename)
+
+    # -----------------------------------------------------------------------
+    # 2b. Hosting Infrastructure Filter Radio Toggle
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("hosting-donut-graph", "figure"),
+        Output("hosting-stacked-bar-graph", "figure"),
+        Input("hosting-filter-radio", "value"),
+        State("filter-state-store", "data"),
+        State("threshold-settings-store", "data"),
+        prevent_initial_call=True,
+    )
+    def update_hosting_filter(filter_mode, filter_state, threshold_settings):
+        if not filter_mode:
+            return no_update, no_update
+        filter_state = filter_state or {}
+        ts_settings = threshold_settings or {"eol_days": 180}
+        eol_days_val = int(ts_settings.get("eol_days", 180))
+
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            approaching_days=eol_days_val,
+        )
+        hosting_counts = data.servers.get("hosting_counts", {})
+        org_dist = data.servers.get("org_distribution", [])
+
+        donut_fig = charts.hosting_donut(hosting_counts, filter_mode=filter_mode)
+        bar_fig = charts.hosting_org_stacked_bar(org_dist, filter_mode=filter_mode)
+        return donut_fig, bar_fig
 
     # -----------------------------------------------------------------------
     # 3. Executive PDF Audit Report Download

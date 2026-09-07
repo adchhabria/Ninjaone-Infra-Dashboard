@@ -1,9 +1,13 @@
 """
-Server Compliance & Server Hosting Infrastructure Panels (Separated).
+Hosting Infrastructure Panels — 2 Separate Boxes Side by Side.
 
-Features:
-- Dedicated Server Compliance Panel: Role breakdown, online %, server fleet metrics.
-- Dedicated Server Hosting Panel: Hosting types donut (AWS, Azure, GCP, Physical Hardware, VMs) — role matrix removed.
+Box 1: All Devices with 3 Radio Button Filters:
+       1. All
+       2. On-Premise (Physical & VMs)
+       3. Cloud (Azure & AWS)
+       Shows hosting donut breakdown and summary counters.
+
+Box 2: Organization-wise Stacked Column Bar Graph Display.
 """
 
 from __future__ import annotations
@@ -14,92 +18,129 @@ from dash import dcc, html
 from src.dashboard import charts, theme as T
 
 
-def build_server_compliance_panel(server_data: dict) -> dbc.Card:
+def build_hosting_box_1(server_data: dict, filter_mode: str = "all") -> dbc.Card:
     """
-    Dedicated Server Compliance & Role Distribution Panel.
+    Box 1: Hosting breakdown donut with 3 radio button filters:
+    1. All
+    2. On-Premise (Physical & VMs)
+    3. Cloud (Azure & AWS)
     """
-    role_fig = charts.server_role_bar(server_data.get("role_counts", {}))
-    total_servers = server_data.get("server_count", 0)
-    online_pct = server_data.get("server_online_pct", 100.0)
+    hosting_counts = server_data.get("hosting_counts", {})
+    cloud_total = server_data.get("cloud_total", 0)
+    onprem_total = server_data.get("onprem_total", 0)
+    total_devices = server_data.get("total_devices", sum(hosting_counts.values()))
+
+    cloud_pct = (cloud_total / total_devices * 100) if total_devices > 0 else 0.0
+    onprem_pct = (onprem_total / total_devices * 100) if total_devices > 0 else 0.0
+
+    hosting_fig = charts.hosting_donut(hosting_counts, filter_mode=filter_mode)
 
     return dbc.Card(
         [
             dbc.CardHeader(
-                html.Span([
-                    html.Span("🖧", style={"marginRight": "8px"}),
-                    html.Span("Server Fleet Compliance & Roles", style=T.FONT_SECTION_TITLE),
-                    dbc.Badge(f"{total_servers} Servers", color="primary", className="ms-2"),
-                    dbc.Badge(f"{online_pct:.1f}% Online", color="success" if online_pct >= 85 else "warning", className="ms-1"),
-                ]),
+                [
+                    html.Div(
+                        [
+                            html.Span("☁️", style={"marginRight": "8px"}),
+                            html.Span("Infrastructure Hosting Breakdown", style=T.FONT_SECTION_TITLE),
+                            dbc.Badge(f"{total_devices:,} Total Devices", color="primary", className="ms-2"),
+                        ],
+                        className="d-flex align-items-center mb-2",
+                    ),
+                    # 3 Radio Button Filters
+                    html.Div(
+                        [
+                            dbc.RadioItems(
+                                id="hosting-filter-radio",
+                                options=[
+                                    {"label": "1. All", "value": "all"},
+                                    {"label": "2. On-Premise (Physical & VMs)", "value": "onprem"},
+                                    {"label": "3. Cloud (Azure & AWS)", "value": "cloud"},
+                                ],
+                                value=filter_mode,
+                                inline=True,
+                                style={"fontSize": "0.82rem"},
+                            ),
+                        ],
+                        className="mt-1",
+                    ),
+                ],
                 style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
             ),
             dbc.CardBody(
                 [
-                    dcc.Graph(figure=role_fig, config={"displayModeBar": False}, style={"height": "270px"}),
+                    # Cloud & On-Prem summary indicators
+                    html.Div(
+                        [
+                            dbc.Badge(
+                                f"☁️ Cloud (Azure & AWS): {cloud_total:,} ({cloud_pct:.1f}%)",
+                                color="info",
+                                className="me-2",
+                                style={"fontSize": "0.78rem", "padding": "5px 10px"},
+                            ),
+                            dbc.Badge(
+                                f"🏢 On-Premise (Physical & VMs): {onprem_total:,} ({onprem_pct:.1f}%)",
+                                color="secondary",
+                                style={"fontSize": "0.78rem", "padding": "5px 10px"},
+                            ),
+                        ],
+                        className="mb-2 text-center",
+                    ),
+                    dcc.Graph(
+                        id="hosting-donut-graph",
+                        figure=hosting_fig,
+                        config={"displayModeBar": False},
+                        style={"height": "250px"},
+                    ),
                 ],
-                style={"padding": "12px"},
+                style={"padding": "10px"},
             ),
         ],
         style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
     )
 
 
-def build_server_hosting_panel(server_data: dict) -> dbc.Card:
+def build_hosting_box_2(server_data: dict, filter_mode: str = "all") -> dbc.Card:
     """
-    Dedicated Server Hosting & Cloud Infrastructure Panel.
-    Displays AWS, Azure, GCP, Physical Hardware, and Virtual Machines (VMs).
-    Role matrix table removed as requested.
+    Box 2: Organization-wise Stacked Column Bar Graph Display.
     """
-    hosting_counts = server_data.get("hosting_counts", {})
-    hosting_fig = charts.hosting_donut(hosting_counts)
-    total_hosted = sum(hosting_counts.values())
-
-    # Build summary badges
-    badges = []
-    for h_type, count in hosting_counts.items():
-        if count > 0:
-            color = T.HOSTING_COLORS.get(h_type, T.TEXT_SECONDARY)
-            badges.append(
-                html.Span(
-                    [
-                        html.Span(f"● {h_type}: ", style={"color": color, "fontWeight": "600"}),
-                        html.Span(f"{count} ({count/total_hosted*100:.1f}%)" if total_hosted > 0 else "0", style={"color": T.TEXT_PRIMARY}),
-                    ],
-                    style={"marginRight": "18px", "fontSize": "0.82rem"},
-                )
-            )
+    org_dist = server_data.get("org_distribution", [])
+    bar_fig = charts.hosting_org_stacked_bar(org_dist, filter_mode=filter_mode)
 
     return dbc.Card(
         [
             dbc.CardHeader(
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            html.Span([
-                                html.Span("☁️", style={"marginRight": "8px"}),
-                                html.Span("Server Hosting Infrastructure (Cloud & Virtualization)", style=T.FONT_SECTION_TITLE),
-                                dbc.Badge(f"{total_hosted} Total Servers", color="secondary", className="ms-2"),
-                            ]),
-                            md=6,
-                        ),
-                        dbc.Col(
-                            html.Div(
-                                badges,
-                                style={"display": "flex", "flexWrap": "wrap", "justifyContent": "flex-end", "alignItems": "center"},
-                            ),
-                            md=6,
-                        ),
-                    ],
-                    align="center",
-                ),
+                html.Span([
+                    html.Span("🏢", style={"marginRight": "8px"}),
+                    html.Span("Organization-Wise Hosting Distribution", style=T.FONT_SECTION_TITLE),
+                    dbc.Badge("Stacked Columns", color="secondary", className="ms-2"),
+                ]),
                 style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
             ),
             dbc.CardBody(
                 [
-                    dcc.Graph(figure=hosting_fig, config={"displayModeBar": False}, style={"height": "280px"}),
+                    dcc.Graph(
+                        id="hosting-stacked-bar-graph",
+                        figure=bar_fig,
+                        config={"displayModeBar": False},
+                        style={"height": "285px"},
+                    ),
                 ],
                 style={"padding": "10px"},
             ),
         ],
-        style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "marginBottom": "20px"},
+        style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+    )
+
+
+def build_server_hosting_panel(server_data: dict, filter_mode: str = "all") -> dbc.Row:
+    """
+    Renders Box 1 and Box 2 side by side.
+    """
+    return dbc.Row(
+        [
+            dbc.Col(build_hosting_box_1(server_data, filter_mode=filter_mode), lg=6, md=12, className="mb-3"),
+            dbc.Col(build_hosting_box_2(server_data, filter_mode=filter_mode), lg=6, md=12, className="mb-3"),
+        ],
+        className="g-3",
     )
