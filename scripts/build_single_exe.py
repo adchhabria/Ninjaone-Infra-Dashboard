@@ -42,6 +42,7 @@ def build_single_exe():
         "--onefile",  # Single standalone .exe file
         "--noconsole",  # Run silently without CMD window in background
         "--clean",
+        f"--version-file={root / 'scripts' / 'version_info.txt'}",
         f"--add-data={root / 'config.yaml'}{os.pathsep}.",
         f"--add-data={root / '.env.example'}{os.pathsep}.",
         f"--add-data={root / 'src'}{os.pathsep}src",
@@ -96,6 +97,19 @@ def build_single_exe():
 
     if (root / ".env.example").exists() and not (root / ".env").exists():
         shutil.copy2(root / ".env.example", root / ".env")
+
+    # Apply Authenticode digital signature on Windows
+    if sys.platform == "win32" and target_root_exe.exists():
+        try:
+            print("[*] Applying Authenticode digital signature...")
+            ps_cmd = (
+                f'$cert = Get-ChildItem -Path "Cert:\\CurrentUser\\My" -CodeSigningCert | Select-Object -First 1; '
+                f'if (-not $cert) {{ $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=NinjaOne Infra Dashboard, O=NinjaOne Tools" -CertStoreLocation "Cert:\\CurrentUser\\My" }}; '
+                f'Set-AuthenticodeSignature -FilePath "{target_root_exe}" -Certificate $cert -HashAlgorithm SHA256'
+            )
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], check=False)
+        except Exception as e:
+            print(f"[!] Notice: Could not sign executable: {e}")
 
     print("\n" + "=" * 60)
     print("[+] SUCCESS: Standalone Single Executable Ready!")

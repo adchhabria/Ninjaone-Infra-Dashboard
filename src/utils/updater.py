@@ -300,52 +300,20 @@ def _run_update_download(download_url: str) -> None:
         batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
         current_pid = os.getpid()
 
-        # Batch script: Terminate running PID, move old binary to .old (Windows lock workaround),
-        # copy new payload, sync git repository, relaunch silently, and clean up.
+        # Batch script: Wait for application to exit, move old binary to .old (Windows lock workaround),
+        # copy new payload, sync git repository, relaunch, and clean up.
         batch_content = f"""@echo off
-chcp 65001 > nul
-echo ========================================================
-echo   NinjaOne Infra Dashboard - Auto Updater
-echo ========================================================
-echo Waiting for application to exit...
-
-:: Terminate running PID and any other dashboard process
-taskkill /F /PID {current_pid} > nul 2>&1
-taskkill /F /IM "Ninjaone-Infra-Dashboard.exe" > nul 2>&1
-
-:: Wait a brief moment for OS to release file locks
-timeout /t 1 /nobreak > nul
-
-:: Windows file-lock workaround: Move old exe to .old
+timeout /t 2 /nobreak > nul
 if exist "{current_target}.old" del /F /Q "{current_target}.old" > nul 2>&1
 if exist "{current_target}" move /Y "{current_target}" "{current_target}.old" > nul 2>&1
-
-:: Copy new executable into target location
-echo Installing new executable version...
 copy /Y "{downloaded_file}" "{current_target}" > nul 2>&1
-
-:: If copy failed, wait and retry once
-if not exist "{current_target}" (
-    timeout /t 2 /nobreak > nul
-    copy /Y "{downloaded_file}" "{current_target}" > nul 2>&1
-)
-
-:: Sync local git repository if running in git workspace
 cd /d "{target_dir}"
 if exist ".git" (
-    echo Syncing local files from GitHub repository...
     git pull origin main > nul 2>&1
 )
-
-echo Starting updated NinjaOne Dashboard...
 start "" "{current_target}"
-
-:: Cleanup temporary payload and old binary
 del /F /Q "{downloaded_file}" > nul 2>&1
 del /F /Q "{current_target}.old" > nul 2>&1
-
-:: Self-destruct batch script
-(goto) 2>nul & del "%~f0"
 """
 
         with open(batch_path, "w", encoding="utf-8") as f:
