@@ -28,7 +28,14 @@ from src.metrics.data_provider import coordinator
 from src.metrics.excel_export import generate_excel_workbook
 from src.metrics.pdf_export import generate_pdf_report
 from src.reporting.html_export import generate_html_report
-from src.utils.updater import CURRENT_VERSION, check_for_updates, apply_update_and_restart
+from src.utils.updater import (
+    CURRENT_VERSION,
+    check_for_updates,
+    start_auto_update,
+    get_update_state,
+    reset_update_state,
+    apply_update_and_restart,
+)
 
 console = Console()
 
@@ -703,7 +710,7 @@ def register_callbacks(app, get_data_fn=None):
                         html.Div(
                             [
                                 dbc.Button(
-                                    f"🚀 Download & Install {latest_v} (Auto-Restart)",
+                                    f"🚀 Automatically Update & Restart Now ({latest_v})",
                                     id="trigger-apply-update-btn",
                                     color="success",
                                     size="sm",
@@ -711,7 +718,7 @@ def register_callbacks(app, get_data_fn=None):
                                     style={"fontWeight": "600"},
                                 ),
                                 html.A(
-                                    "Manual Download ↗",
+                                    "Release Notes ↗",
                                     href=res.get("html_url", "#"),
                                     target="_blank",
                                     style={"fontSize": "0.80rem", "color": T.ACCENT_CYAN, "textDecoration": "none"},
@@ -719,7 +726,6 @@ def register_callbacks(app, get_data_fn=None):
                             ],
                             style={"display": "flex", "alignItems": "center"},
                         ),
-                        html.Div(id="update-apply-status-container", className="mt-2"),
                     ],
                     color="success",
                     className="mt-2",
@@ -741,30 +747,41 @@ def register_callbacks(app, get_data_fn=None):
             )
 
     # -----------------------------------------------------------------------
-    # 11. Install Update & Auto-Restart Callback
+    # 11. Install Update & Auto-Restart Callback (Settings Menu)
     # -----------------------------------------------------------------------
     @app.callback(
         Output("update-apply-status-container", "children"),
+        Output("update-progress-interval", "disabled", allow_duplicate=True),
+        Output("trigger-apply-update-btn", "disabled"),
         Input("trigger-apply-update-btn", "n_clicks"),
         State("update-download-url-store", "data"),
         prevent_initial_call=True,
     )
     def handle_install_update(n_clicks, download_url):
         if not n_clicks or not download_url:
-            return no_update
+            return no_update, no_update, no_update
 
-        success, msg = apply_update_and_restart(download_url)
+        success, msg = start_auto_update(download_url)
         if success:
-            return dbc.Alert(
+            progress_initial = html.Div(
                 [
-                    html.B("⬇️ Update Downloaded! "),
-                    "Launching updater launcher and restarting the toolkit in 2 seconds...",
-                ],
-                color="info",
-                className="mt-2",
+                    dbc.Progress(
+                        value=3,
+                        striped=True,
+                        animated=True,
+                        color="primary",
+                        style={"height": "22px"},
+                        className="mb-2",
+                    ),
+                    html.Div(
+                        "Connecting to GitHub and initializing update download...",
+                        style={"fontSize": "0.85rem", "fontWeight": "600", "color": T.ACCENT_BLUE},
+                    ),
+                ]
             )
+            return progress_initial, False, True
         else:
-            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
+            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2"), True, False
 
     # -----------------------------------------------------------------------
     # 12. Automated Update Checker & Prompt Modal Callbacks
@@ -858,28 +875,112 @@ def register_callbacks(app, get_data_fn=None):
 
     @app.callback(
         Output("update-prompt-status", "children"),
+        Output("update-progress-interval", "disabled", allow_duplicate=True),
+        Output("update-prompt-confirm-btn", "disabled"),
         Input("update-prompt-confirm-btn", "n_clicks"),
         State("auto-update-info-store", "data"),
         prevent_initial_call=True,
     )
     def handle_modal_install_update(n_clicks, update_info):
         if not n_clicks or not update_info:
-            return no_update
+            return no_update, no_update, no_update
 
         dl_url = update_info.get("download_url")
         if not dl_url:
-            return dbc.Alert("No download asset found in the latest release.", color="danger", className="mt-2")
+            return dbc.Alert("No download asset found in the latest release.", color="danger", className="mt-2"), True, False
 
-        success, msg = apply_update_and_restart(dl_url)
+        success, msg = start_auto_update(dl_url)
         if success:
-            return dbc.Alert(
+            progress_initial = html.Div(
                 [
-                    html.B("⬇️ Update in Progress! "),
-                    "Downloaded new version. Synchronizing repository files and restarting dashboard in 2 seconds...",
-                ],
-                color="info",
-                className="mt-2",
+                    dbc.Progress(
+                        value=3,
+                        striped=True,
+                        animated=True,
+                        color="primary",
+                        style={"height": "22px"},
+                        className="mb-2",
+                    ),
+                    html.Div(
+                        "Connecting to GitHub and initializing update download...",
+                        style={"fontSize": "0.85rem", "fontWeight": "600", "color": T.ACCENT_BLUE},
+                    ),
+                ]
             )
+            return progress_initial, False, True
         else:
-            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2")
+            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2"), True, False
+
+    # -----------------------------------------------------------------------
+    # 13. Update Progress Polling Callback
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("update-prompt-status", "children", allow_duplicate=True),
+        Output("update-apply-status-container", "children", allow_duplicate=True),
+        Output("update-progress-interval", "disabled", allow_duplicate=True),
+        Input("update-progress-interval", "n_intervals"),
+        prevent_initial_call=True,
+    )
+    def poll_update_progress(n_intervals):
+        st = get_update_state()
+        status = st.get("status", "idle")
+        progress = st.get("progress", 0)
+        dl_mb = st.get("downloaded_mb", 0.0)
+        tot_mb = st.get("total_mb", 0.0)
+        err = st.get("error")
+
+        if status == "downloading":
+            content = html.Div(
+                [
+                    dbc.Progress(
+                        value=progress,
+                        label=f"{progress}%" if progress > 8 else "",
+                        striped=True,
+                        animated=True,
+                        color="primary",
+                        style={"height": "22px"},
+                        className="mb-2",
+                    ),
+                    html.Div(
+                        f"⬇️ Downloading update: {dl_mb:.1f} MB / {tot_mb:.1f} MB ({progress}%)",
+                        style={"fontSize": "0.85rem", "fontWeight": "600", "color": T.ACCENT_BLUE},
+                    ),
+                ]
+            )
+            return content, content, False
+
+        elif status == "restarting":
+            content = html.Div(
+                [
+                    dbc.Progress(
+                        value=100,
+                        label="100%",
+                        color="success",
+                        style={"height": "22px"},
+                        className="mb-2",
+                    ),
+                    dbc.Alert(
+                        [
+                            html.B("✅ Download Complete! "),
+                            "Synchronizing local files and restarting NinjaOne Infra Dashboard in 2 seconds...",
+                        ],
+                        color="success",
+                        className="mb-0",
+                    ),
+                ]
+            )
+            return content, content, False
+
+        elif status == "failed":
+            content = dbc.Alert(
+                [
+                    html.B("❌ Update Failed: "),
+                    html.Span(str(err or "An unknown error occurred during download.")),
+                ],
+                color="danger",
+                className="mb-0",
+            )
+            return content, content, True
+
+        return no_update, no_update, no_update
 

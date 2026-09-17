@@ -489,6 +489,7 @@ def build_settings_modal() -> dbc.Modal:
                                                         # Hidden store for payload URL
                                                         dcc.Store(id="update-download-url-store"),
                                                         html.Div(id="settings-update-feedback-container", className="mt-3"),
+                                                        html.Div(id="update-apply-status-container", className="mt-2"),
                                                     ]
                                                 ),
                                                 style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "marginTop": "14px"},

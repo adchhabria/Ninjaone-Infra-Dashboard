@@ -422,6 +422,7 @@ def build_layout(data) -> html.Div:
 
             # Auto-Update Periodic Checker & Notification Modal
             dcc.Interval(id="auto-update-check-interval", interval=60 * 60 * 1000, n_intervals=0),
+            dcc.Interval(id="update-progress-interval", interval=500, n_intervals=0, disabled=True),
             dcc.Store(id="auto-update-info-store"),
             dbc.Modal(
                 [

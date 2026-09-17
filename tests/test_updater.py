@@ -57,18 +57,51 @@ class TestUpdater:
     def test_check_for_updates_already_latest(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.status = 200
-        mock_response.read.return_value = b"""{
-            "tag_name": "v1.0.12",
+        mock_response.read.return_value = f"""{{
+            "tag_name": "v{CURRENT_VERSION}",
             "name": "Latest Release",
             "body": "Current production release.",
-            "published_at": "2026-09-14T12:00:00Z",
-            "html_url": "https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases/tag/v1.0.12",
+            "published_at": "2026-09-17T12:00:00Z",
+            "html_url": "https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases/tag/v{CURRENT_VERSION}",
             "assets": []
-        }"""
+        }}""".encode("utf-8")
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         res = check_for_updates()
         assert res["success"] is True
         assert res["update_available"] is False
-        assert res["latest_version"] == "v1.0.12"
+        assert res["latest_version"] == f"v{CURRENT_VERSION}"
+
+    def test_update_state_management(self):
+        from src.utils.updater import get_update_state, reset_update_state, _set_update_state
+
+        reset_update_state()
+        state = get_update_state()
+        assert state["status"] == "idle"
+        assert state["progress"] == 0
+
+        _set_update_state(status="downloading", progress=45, downloaded_mb=12.5, total_mb=25.0)
+        state2 = get_update_state()
+        assert state2["status"] == "downloading"
+        assert state2["progress"] == 45
+        assert state2["downloaded_mb"] == 12.5
+
+        reset_update_state()
+        assert get_update_state()["status"] == "idle"
+
+    def test_start_auto_update_empty_url(self):
+        from src.utils.updater import start_auto_update
+        ok, msg = start_auto_update("")
+        assert ok is False
+        assert "No download URL" in msg
+
+    @patch("threading.Thread")
+    def test_start_auto_update_valid_url(self, mock_thread):
+        from src.utils.updater import start_auto_update, reset_update_state
+        reset_update_state()
+        ok, msg = start_auto_update("https://github.com/fake/url.exe")
+        assert ok is True
+        mock_thread.return_value.start.assert_called_once()
+        reset_update_state()
+
 

@@ -14,15 +14,68 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.request
 from typing import Callable, Optional
 from packaging import version
 
-CURRENT_VERSION = "1.0.12"
+CURRENT_VERSION = "1.0.13"
 GITHUB_REPO = "adchhabria/Ninjaone-Infra-Dashboard"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RAW_VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
+
+# Thread-safe global update state
+_UPDATE_STATE = {
+    "status": "idle",  # "idle" | "downloading" | "restarting" | "failed" | "completed"
+    "progress": 0,  # 0 to 100
+    "downloaded_mb": 0.0,
+    "total_mb": 0.0,
+    "error": None,
+    "message": "",
+}
+_UPDATE_LOCK = threading.Lock()
+
+
+def get_update_state() -> dict:
+    """Return a thread-safe snapshot of the current update state."""
+    with _UPDATE_LOCK:
+        return dict(_UPDATE_STATE)
+
+
+def reset_update_state() -> None:
+    """Reset the update state back to idle."""
+    with _UPDATE_LOCK:
+        _UPDATE_STATE["status"] = "idle"
+        _UPDATE_STATE["progress"] = 0
+        _UPDATE_STATE["downloaded_mb"] = 0.0
+        _UPDATE_STATE["total_mb"] = 0.0
+        _UPDATE_STATE["error"] = None
+        _UPDATE_STATE["message"] = ""
+
+
+def _set_update_state(
+    status: Optional[str] = None,
+    progress: Optional[int] = None,
+    downloaded_mb: Optional[float] = None,
+    total_mb: Optional[float] = None,
+    error: Optional[str] = None,
+    message: Optional[str] = None,
+) -> None:
+    """Update internal state under mutex lock."""
+    with _UPDATE_LOCK:
+        if status is not None:
+            _UPDATE_STATE["status"] = status
+        if progress is not None:
+            _UPDATE_STATE["progress"] = progress
+        if downloaded_mb is not None:
+            _UPDATE_STATE["downloaded_mb"] = downloaded_mb
+        if total_mb is not None:
+            _UPDATE_STATE["total_mb"] = total_mb
+        if error is not None:
+            _UPDATE_STATE["error"] = error
+        if message is not None:
+            _UPDATE_STATE["message"] = message
 
 
 def normalize_version(v_str: str) -> str:
@@ -148,10 +201,10 @@ def download_file(url: str, target_path: str, progress_callback: Optional[Callab
     """Download a remote file with progress tracking."""
     headers = {"User-Agent": "NinjaOne-Dashboard-Updater"}
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as response, open(target_path, "wb") as out_file:
+    with urllib.request.urlopen(req, timeout=300) as response, open(target_path, "wb") as out_file:
         total_size = int(response.headers.get("content-length", 0))
         downloaded = 0
-        block_size = 65536
+        block_size = 262144  # 256 KB chunk
 
         while True:
             buffer = response.read(block_size)
@@ -164,14 +217,36 @@ def download_file(url: str, target_path: str, progress_callback: Optional[Callab
     return True
 
 
-def apply_update_and_restart(download_url: str) -> tuple[bool, str]:
+def start_auto_update(download_url: str) -> tuple[bool, str]:
     """
-    Download the update and execute detached Windows batch script to replace
-    the running executable/program and restart the dashboard.
+    Launch asynchronous background update download and self-restart.
+    Does not block the caller or UI thread.
     """
     if not download_url:
-        return False, "No download URL provided for update."
+        return False, "No download URL provided."
 
+    with _UPDATE_LOCK:
+        if _UPDATE_STATE["status"] in ("downloading", "restarting"):
+            return True, "Update already in progress."
+        _UPDATE_STATE["status"] = "downloading"
+        _UPDATE_STATE["progress"] = 2
+        _UPDATE_STATE["downloaded_mb"] = 0.0
+        _UPDATE_STATE["total_mb"] = 0.0
+        _UPDATE_STATE["error"] = None
+        _UPDATE_STATE["message"] = "Initializing update download..."
+
+    t = threading.Thread(target=_run_update_download, args=(download_url,), daemon=True)
+    t.start()
+    return True, "Update download started in background."
+
+
+def apply_update_and_restart(download_url: str) -> tuple[bool, str]:
+    """Compatibility wrapper that initiates asynchronous auto-update."""
+    return start_auto_update(download_url)
+
+
+def _run_update_download(download_url: str) -> None:
+    """Background worker that downloads the asset, writes batch launcher, and restarts."""
     try:
         temp_dir = tempfile.gettempdir()
         downloaded_file = os.path.join(temp_dir, "Ninjaone_Update_Payload.exe")
@@ -185,48 +260,89 @@ def apply_update_and_restart(download_url: str) -> tuple[bool, str]:
                 os.path.join(os.path.dirname(__file__), "..", "..", "Ninjaone-Infra-Dashboard.exe")
             )
 
-        # 1. Download payload
-        download_file(download_url, downloaded_file)
+        target_dir = os.path.dirname(current_target)
+
+        # 1. Download payload with progress tracking
+        headers = {"User-Agent": "NinjaOne-Dashboard-Updater"}
+        req = urllib.request.Request(download_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=300) as response, open(downloaded_file, "wb") as out_file:
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded = 0
+            block_size = 262144  # 256 KB chunk
+            tot_mb = round(total_size / (1024 * 1024), 1) if total_size > 0 else 0.0
+
+            while True:
+                buffer = response.read(block_size)
+                if not buffer:
+                    break
+                downloaded += len(buffer)
+                out_file.write(buffer)
+
+                dl_mb = round(downloaded / (1024 * 1024), 1)
+                pct = int((downloaded / total_size) * 100) if total_size > 0 else 50
+                _set_update_state(
+                    status="downloading",
+                    progress=min(pct, 99),
+                    downloaded_mb=dl_mb,
+                    total_mb=tot_mb,
+                    message=f"Downloading: {dl_mb:.1f} MB / {tot_mb:.1f} MB ({pct}%)",
+                )
+
+        _set_update_state(
+            status="restarting",
+            progress=100,
+            downloaded_mb=tot_mb,
+            total_mb=tot_mb,
+            message="Download complete! Synchronizing files and restarting...",
+        )
 
         # 2. Write self-updating Windows batch script
         batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
         current_pid = os.getpid()
 
-        target_dir = os.path.dirname(current_target)
-
-        # Batch script: Wait for current process to exit, copy new file over old file, sync git repo, launch new file, clean up
+        # Batch script: Terminate running PID, move old binary to .old (Windows lock workaround),
+        # copy new payload, sync git repository, relaunch silently, and clean up.
         batch_content = f"""@echo off
 chcp 65001 > nul
 echo ========================================================
 echo   NinjaOne Infra Dashboard - Auto Updater
 echo ========================================================
-echo Waiting for application (PID: {current_pid}) to close...
+echo Waiting for application to exit...
 
-:: Wait up to 5 seconds for current process to exit
-timeout /t 2 /nobreak > nul
+:: Terminate running PID and any other dashboard process
+taskkill /F /PID {current_pid} > nul 2>&1
+taskkill /F /IM "Ninjaone-Infra-Dashboard.exe" > nul 2>&1
 
-:: Overwrite target executable
-echo Installing new version...
-copy /Y "{downloaded_file}" "{current_target}" > nul
+:: Wait a brief moment for OS to release file locks
+timeout /t 1 /nobreak > nul
 
-if %ERRORLEVEL% NEQ 0 (
-    echo Update failed to overwrite file. Retrying in 2 seconds...
+:: Windows file-lock workaround: Move old exe to .old
+if exist "{current_target}.old" del /F /Q "{current_target}.old" > nul 2>&1
+if exist "{current_target}" move /Y "{current_target}" "{current_target}.old" > nul 2>&1
+
+:: Copy new executable into target location
+echo Installing new executable version...
+copy /Y "{downloaded_file}" "{current_target}" > nul 2>&1
+
+:: If copy failed, wait and retry once
+if not exist "{current_target}" (
     timeout /t 2 /nobreak > nul
-    copy /Y "{downloaded_file}" "{current_target}" > nul
+    copy /Y "{downloaded_file}" "{current_target}" > nul 2>&1
 )
 
-:: Sync local repository files if running in git folder
+:: Sync local git repository if running in git workspace
 cd /d "{target_dir}"
 if exist ".git" (
-    echo Syncing local files from GitHub...
+    echo Syncing local files from GitHub repository...
     git pull origin main > nul 2>&1
 )
 
 echo Starting updated NinjaOne Dashboard...
 start "" "{current_target}"
 
-:: Cleanup temporary downloaded payload
+:: Cleanup temporary payload and old binary
 del /F /Q "{downloaded_file}" > nul 2>&1
+del /F /Q "{current_target}.old" > nul 2>&1
 
 :: Self-destruct batch script
 (goto) 2>nul & del "%~f0"
@@ -236,17 +352,29 @@ del /F /Q "{downloaded_file}" > nul 2>&1
             f.write(batch_content)
 
         # 3. Launch batch updater detached from this process
+        creation_flags = 0
         if sys.platform == "win32":
+            creation_flags = (
+                subprocess.CREATE_NEW_PROCESS_GROUP
+                | subprocess.DETACHED_PROCESS
+                | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            )
             subprocess.Popen(
                 ["cmd.exe", "/c", batch_path],
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+                creationflags=creation_flags,
                 close_fds=True,
                 shell=False,
             )
         else:
             subprocess.Popen(["bash", batch_path], close_fds=True)
 
-        return True, "Update applied! Restarting application..."
+        # 4. Wait 2 seconds so Dash can send the 'restarting' state to the UI, then cleanly exit
+        time.sleep(2.0)
+        os._exit(0)
 
     except Exception as e:
-        return False, f"Failed to apply update: {str(e)}"
+        _set_update_state(
+            status="failed",
+            error=str(e),
+            message=f"Update failed: {str(e)}",
+        )
