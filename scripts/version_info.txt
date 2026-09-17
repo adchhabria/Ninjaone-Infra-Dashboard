@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 13, 0),
-    prodvers=(1, 0, 13, 0),
+    filevers=(1, 0, 14, 0),
+    prodvers=(1, 0, 14, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'NinjaOne Community'),
             StringStruct('FileDescription', 'NinjaOne Infrastructure and Patch Compliance Dashboard'),
-            StringStruct('FileVersion', '1.0.13.0'),
+            StringStruct('FileVersion', '1.0.14.0'),
             StringStruct('InternalName', 'Ninjaone-Infra-Dashboard'),
             StringStruct('LegalCopyright', 'Copyright (C) 2026 NinjaOne Community. All rights reserved.'),
             StringStruct('OriginalFilename', 'Ninjaone-Infra-Dashboard.exe'),
             StringStruct('ProductName', 'NinjaOne Infrastructure Dashboard'),
-            StringStruct('ProductVersion', '1.0.13.0')
+            StringStruct('ProductVersion', '1.0.14.0')
           ]
         )
       ]

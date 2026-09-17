@@ -180,3 +180,31 @@ class TestServerComplianceAndCustomEOL:
         info_future = _get_eol_info("Windows Server 2022 Datacenter", custom_eol_dates=custom_future)
         assert info_future["is_eol"] is False
         assert info_future["status"] == "Supported"
+
+    def test_live_fleet_compliance_calculation_with_1029_non_compliant_of_1704(self):
+        # User scenario: 1029 non-compliant out of 1704 devices
+        devices = []
+        for i in range(1, 676):
+            devices.append(Device(
+                id=i,
+                organizationId=1,
+                nodeClass="WINDOWS_SERVER",
+                displayName=f"SRV-{i}",
+                approved_patch_count=0,
+            ))
+        for i in range(676, 1705):
+            devices.append(Device(
+                id=i,
+                organizationId=1,
+                nodeClass="WINDOWS_SERVER",
+                displayName=f"SRV-{i}",
+                approved_patch_count=1 + (i % 5),
+            ))
+
+        assert len(devices) == 1704
+        res = compute_patch_metrics(devices)
+        assert res["total_devices"] == 1704
+        assert res["compliant_count"] == 675
+        assert res["non_compliant_count"] == 1029
+        assert res["patch_coverage_pct"] == 39.6
+        assert res["patch_coverage_pct"] < 50.0

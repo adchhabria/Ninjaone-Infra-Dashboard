@@ -149,7 +149,7 @@ def register_callbacks(app, get_data_fn=None):
                     else:
                         filter_state["region"] = clicked_region
 
-        force_refresh = (triggered_id == "refresh-btn")
+        force_refresh = (triggered_id in ["refresh-btn", "auto-refresh"])
 
         # Query metrics using coordinator
         eol_days_val = int(ts_settings.get("eol_days", 180))
@@ -171,7 +171,7 @@ def register_callbacks(app, get_data_fn=None):
         )
 
         badge_label = data.active_filter_label
-        ts_text = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M UTC')}"
+        ts_text = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
         new_body = build_body(
             data,

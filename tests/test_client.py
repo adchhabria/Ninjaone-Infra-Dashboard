@@ -107,3 +107,32 @@ def test_paginated_get_multi_page(client):
     result = client.paginated_get("/v2/devices", page_size=3)
     assert len(result) == 5
     assert [d["id"] for d in result] == [1, 2, 3, 4, 5]
+
+
+@responses_lib.activate
+def test_paginated_get_cursor_pagination_multi_page(client):
+    _mock_token(responses_lib)
+    # Page 1: cursor dict with name and offset=3
+    responses_lib.add(
+        responses_lib.GET,
+        f"{MOCK_BASE}/v2/queries/os-patches",
+        json={
+            "cursor": {"name": "cursor-token-abc", "offset": 3, "count": 6},
+            "results": [{"id": 1, "deviceId": 10}, {"id": 2, "deviceId": 20}, {"id": 3, "deviceId": 30}],
+        },
+        status=200,
+    )
+    # Page 2: same cursor name, offset=6 (last page since len == 3 or offset == count)
+    responses_lib.add(
+        responses_lib.GET,
+        f"{MOCK_BASE}/v2/queries/os-patches",
+        json={
+            "cursor": {"name": "cursor-token-abc", "offset": 6, "count": 6},
+            "results": [{"id": 4, "deviceId": 40}, {"id": 5, "deviceId": 50}, {"id": 6, "deviceId": 60}],
+        },
+        status=200,
+    )
+    result = client.paginated_get("/v2/queries/os-patches", page_size=3)
+    assert len(result) == 6
+    assert [p["id"] for p in result] == [1, 2, 3, 4, 5, 6]
+

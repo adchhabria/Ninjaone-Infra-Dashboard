@@ -25,7 +25,7 @@ def get_all_os_patches(client: NinjaOneClient) -> list[dict[str, Any]]:
     """
     # 1. Primary fleet query endpoint
     try:
-        raw = client.get_paginated("/v2/queries/os-patches", page_size=500)
+        raw = client.get_paginated("/v2/queries/os-patches", page_size=1000)
         if raw:
             console.log(f"[green]Successfully retrieved {len(raw)} OS patch records from /v2/queries/os-patches[/green]")
             return [p for p in raw if isinstance(p, dict)]
@@ -34,7 +34,7 @@ def get_all_os_patches(client: NinjaOneClient) -> list[dict[str, Any]]:
 
     # 2. Fallback report endpoint
     try:
-        raw = client.get_paginated("/v2/reports/os-patches/pending-failed-rejected", page_size=500)
+        raw = client.get_paginated("/v2/reports/os-patches/pending-failed-rejected", page_size=1000)
         if raw:
             console.log(f"[green]Successfully retrieved {len(raw)} OS patch records from /v2/reports/os-patches[/green]")
             return [p for p in raw if isinstance(p, dict)]
@@ -51,7 +51,7 @@ def get_all_software_patches(client: NinjaOneClient) -> list[dict[str, Any]]:
     """
     # 1. Primary fleet query endpoint
     try:
-        raw = client.get_paginated("/v2/queries/software-patches", page_size=500)
+        raw = client.get_paginated("/v2/queries/software-patches", page_size=1000)
         if raw:
             console.log(f"[green]Successfully retrieved {len(raw)} software patch records from /v2/queries/software-patches[/green]")
             return [p for p in raw if isinstance(p, dict)]
@@ -60,7 +60,7 @@ def get_all_software_patches(client: NinjaOneClient) -> list[dict[str, Any]]:
 
     # 2. Fallback report endpoint
     try:
-        raw = client.get_paginated("/v2/reports/software-patches/pending-failed-rejected", page_size=500)
+        raw = client.get_paginated("/v2/reports/software-patches/pending-failed-rejected", page_size=1000)
         if raw:
             console.log(f"[green]Successfully retrieved {len(raw)} software patch records from /v2/reports/software-patches[/green]")
             return [p for p in raw if isinstance(p, dict)]
@@ -77,7 +77,7 @@ def get_fleet_patch_counts(client: NinjaOneClient) -> Tuple[Dict[int, int], Dict
     2. sw_approved_counts: mapping from device_id -> approved software patch count
 
     Status Evaluation Rule:
-    - Status == "APPROVED": explicitly approved patch awaiting install.
+    - Status or approvalStatus == "APPROVED": explicitly approved patch awaiting install.
     - Status == "PENDING": pending approval/install (counted if no explicit APPROVED patches exist).
     - Status == "REJECTED": ignored.
     """
@@ -94,10 +94,21 @@ def get_fleet_patch_counts(client: NinjaOneClient) -> Tuple[Dict[int, int], Dict
         except (ValueError, TypeError):
             continue
 
-        status = str(p.get("status", "")).upper()
-        if status == "APPROVED":
+        status = str(p.get("status") or "").upper()
+        approval = str(p.get("approvalStatus") or p.get("approval_status") or p.get("approval") or "").upper()
+        is_approved_flag = p.get("approved") is True or p.get("isApproved") is True
+
+        is_approved = (
+            approval == "APPROVED"
+            or status == "APPROVED"
+            or is_approved_flag
+            or "APPROV" in approval
+            or status == "PENDING_INSTALL"
+        )
+
+        if is_approved:
             approved_os_map[dev_id] = approved_os_map.get(dev_id, 0) + 1
-        elif status != "REJECTED":
+        elif status not in ["REJECTED", "DECLINED", "IGNORED", "EXCLUDED"]:
             pending_os_map[dev_id] = pending_os_map.get(dev_id, 0) + 1
 
     # If any patches in the fleet are marked APPROVED, use exact APPROVED counts.
@@ -123,10 +134,21 @@ def get_fleet_patch_counts(client: NinjaOneClient) -> Tuple[Dict[int, int], Dict
         except (ValueError, TypeError):
             continue
 
-        status = str(sp.get("status", "")).upper()
-        if status == "APPROVED":
+        status = str(sp.get("status") or "").upper()
+        approval = str(sp.get("approvalStatus") or sp.get("approval_status") or sp.get("approval") or "").upper()
+        is_approved_flag = sp.get("approved") is True or sp.get("isApproved") is True
+
+        is_approved = (
+            approval == "APPROVED"
+            or status == "APPROVED"
+            or is_approved_flag
+            or "APPROV" in approval
+            or status == "PENDING_INSTALL"
+        )
+
+        if is_approved:
             approved_sw_map[dev_id] = approved_sw_map.get(dev_id, 0) + 1
-        elif status != "REJECTED":
+        elif status not in ["REJECTED", "DECLINED", "IGNORED", "EXCLUDED"]:
             pending_sw_map[dev_id] = pending_sw_map.get(dev_id, 0) + 1
 
     if approved_sw_map:

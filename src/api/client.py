@@ -262,16 +262,17 @@ class NinjaOneClient:
         endpoint: str,
         params: Optional[dict[str, Any]] = None,
         page_size: int = 500,
-        max_items: int = 50000,
+        max_items: int = 100000,
     ) -> list[Any]:
         """
         Fetch all pages of a paginated NinjaOne endpoint.
-        Handles both cursor-based and ID/after-based pagination for large datasets (e.g. 1700+ devices).
+        Handles both cursor-based (queries) and ID/after-based pagination for large datasets (e.g. 1700+ devices, patch inventory).
         """
         params = dict(params or {})
         params["pageSize"] = page_size
         results: list[Any] = []
         page_num = 0
+        last_offset: Optional[int] = None
 
         while len(results) < max_items:
             page_num += 1
@@ -290,13 +291,18 @@ class NinjaOneClient:
                 # For NinjaOne list endpoints, the next page is fetched with 'after' = last item ID
                 last_item = data[-1]
                 if isinstance(last_item, dict) and "id" in last_item:
+                    if params.get("after") == last_item["id"]:
+                        break
                     params["after"] = last_item["id"]
                 else:
                     break
             elif isinstance(data, dict):
                 items = (
-                    data.get("devices")
-                    or data.get("results")
+                    data.get("results")
+                    or data.get("patches")
+                    or data.get("osPatches")
+                    or data.get("softwarePatches")
+                    or data.get("devices")
                     or data.get("activities")
                     or data.get("alerts")
                     or data.get("data")
@@ -307,17 +313,40 @@ class NinjaOneClient:
                 results.extend(items)
                 console.log(f"[dim]Fetched page {page_num} for {endpoint}: +{len(items)} items (Total: {len(results)})[/dim]")
 
+                # If fewer items than page size returned, this was the last page
+                if len(items) < page_size:
+                    break
+
                 cursor = data.get("cursor") or data.get("nextCursor")
                 if cursor:
-                    cursor_val = cursor.get("name") if isinstance(cursor, dict) else cursor
-                    if not cursor_val or cursor_val == params.get("cursor"):
-                        break
-                    params["cursor"] = cursor_val
+                    if isinstance(cursor, dict):
+                        c_name = cursor.get("name")
+                        c_offset = cursor.get("offset")
+                        c_count = cursor.get("count")
+
+                        if not c_name:
+                            break
+
+                        # Check if total records already retrieved
+                        if c_count is not None and len(results) >= c_count:
+                            break
+
+                        # If offset is tracked in cursor, check for stagnation
+                        if c_offset is not None:
+                            if last_offset is not None and c_offset <= last_offset:
+                                break
+                            last_offset = c_offset
+
+                        params["cursor"] = c_name
+                    elif isinstance(cursor, str):
+                        if params.get("cursor") == cursor:
+                            break
+                        params["cursor"] = cursor
                 elif "after" in data:
                     if data["after"] == params.get("after"):
                         break
                     params["after"] = data["after"]
-                elif len(items) >= page_size and isinstance(items[-1], dict) and "id" in items[-1]:
+                elif isinstance(items[-1], dict) and "id" in items[-1]:
                     if items[-1]["id"] == params.get("after"):
                         break
                     params["after"] = items[-1]["id"]

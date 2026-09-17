@@ -306,6 +306,9 @@ class DataCoordinator:
         Retrieves DashboardData from Live NinjaOne API if authenticated,
         otherwise seamlessly returns the high-fidelity sample dataset.
         """
+        if force_refresh and (not self._is_live or not self._aggregator):
+            self._init_live_client_if_configured()
+
         if self._is_live and self._aggregator:
             try:
                 return self._aggregator.get_dashboard_data(

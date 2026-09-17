@@ -39,7 +39,7 @@ from src.metrics.data_provider import coordinator
 
 def build_header(last_refreshed: datetime | None = None, active_filter_label: str = "Global Overview", is_live: bool = False, base_url: str = "") -> html.Div:
     """Top navigation bar with brand, active filter badge, auth controls, settings, and refresh buttons."""
-    ts = (last_refreshed or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M UTC")
+    ts = (last_refreshed or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M:%S UTC")
     clean_url = (base_url or "app.ninjarmm.com").replace("https://", "").replace("http://", "").rstrip("/")
 
     return html.Div(
@@ -473,8 +473,13 @@ def build_layout(data) -> html.Div:
             # Header
             build_header(data.fetched_at, data.active_filter_label, is_live=is_live, base_url=base_url),
 
-            # Main content container
-            html.Div(build_body(data, active_tab="tab-executive"), id="dashboard-body"),
+            # Main content container with loading feedback
+            dcc.Loading(
+                id="loading-dashboard",
+                type="circle",
+                color=T.ACCENT_CYAN,
+                children=html.Div(build_body(data, active_tab="tab-executive"), id="dashboard-body"),
+            ),
         ],
         style={"backgroundColor": T.BG_PRIMARY, "minHeight": "100vh", "color": T.TEXT_PRIMARY},
     )

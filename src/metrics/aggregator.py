@@ -416,9 +416,13 @@ class MetricsAggregator:
         server_patch_threshold: int = 0,
     ) -> DashboardData:
         cache_key = "raw_api_payload"
-        raw_bundle = self._cache.get(cache_key)
+        if force_refresh:
+            self._cache.clear()
+            raw_bundle = None
+        else:
+            raw_bundle = self._cache.get(cache_key)
 
-        if force_refresh or raw_bundle is None:
+        if raw_bundle is None:
             console.log("[bold cyan]Fetching fresh data from NinjaOne API...[/bold cyan]")
             raw_bundle = self._fetch_raw()
             self._cache.set(cache_key, raw_bundle)
