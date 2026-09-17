@@ -309,10 +309,17 @@ class NinjaOneClient:
 
                 cursor = data.get("cursor") or data.get("nextCursor")
                 if cursor:
-                    params["cursor"] = cursor
+                    cursor_val = cursor.get("name") if isinstance(cursor, dict) else cursor
+                    if not cursor_val or cursor_val == params.get("cursor"):
+                        break
+                    params["cursor"] = cursor_val
                 elif "after" in data:
+                    if data["after"] == params.get("after"):
+                        break
                     params["after"] = data["after"]
                 elif len(items) >= page_size and isinstance(items[-1], dict) and "id" in items[-1]:
+                    if items[-1]["id"] == params.get("after"):
+                        break
                     params["after"] = items[-1]["id"]
                 else:
                     break

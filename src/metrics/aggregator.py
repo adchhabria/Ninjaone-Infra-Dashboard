@@ -20,6 +20,7 @@ from src.api.client import NinjaOneClient
 from src.api.devices import get_devices_detailed
 from src.api.organizations import get_organizations_detailed
 from src.api.activities import get_recent_activities
+from src.api.patches import get_fleet_patch_counts
 from src.api.models import Device, Organization, Activity
 from src.cache.ttl_cache import get_cache
 from src.metrics.os_compliance import compute_os_metrics, _is_eol, _classify_os_family
@@ -440,6 +441,7 @@ class MetricsAggregator:
         orgs = get_organizations_detailed(self._client)
         devices = get_devices_detailed(self._client)
         activities = get_recent_activities(self._client, days=30)
+        os_patch_counts, sw_patch_counts = get_fleet_patch_counts(self._client)
 
         # Enrich organizations with geographic regions and build location dictionary
         org_geo_map = {}
@@ -460,7 +462,7 @@ class MetricsAggregator:
                     if loc_id and loc_name:
                         location_id_map[loc_id] = loc_name
 
-        # Propagate geo and location metadata to devices
+        # Propagate geo and location metadata to devices and assign live patch counts
         for d in devices:
             reg, cc, default_org_name = org_geo_map.get(d.organization_id, ("USA / North America", "USA", "Corporate HQ"))
             d.region = reg
@@ -474,5 +476,16 @@ class MetricsAggregator:
                     d.location_name = str(d.custom_fields.get("location"))
                 else:
                     d.location_name = default_org_name
+
+            # Assign real live patch counts from NinjaOne Patch Management API
+            if d.id in os_patch_counts:
+                d.approved_patch_count = os_patch_counts[d.id]
+            elif getattr(d, "approved_patch_count", None) is None:
+                d.approved_patch_count = 0
+
+            if d.id in sw_patch_counts:
+                d.approved_software_count = sw_patch_counts[d.id]
+            elif getattr(d, "approved_software_count", None) is None:
+                d.approved_software_count = 0
 
         return orgs, devices, activities

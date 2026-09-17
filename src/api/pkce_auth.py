@@ -380,7 +380,11 @@ class PKCEAuthManager:
         refresh_token = os.getenv("NINJA_PKCE_REFRESH_TOKEN")
         base_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com")
         client_id = os.getenv("NINJA_CLIENT_ID", "")
-        expires_at = float(os.getenv("NINJA_PKCE_EXPIRES_AT", "0"))
+        exp_str = (os.getenv("NINJA_PKCE_EXPIRES_AT") or "0").strip()
+        try:
+            expires_at = float(exp_str) if exp_str else 0.0
+        except ValueError:
+            expires_at = 0.0
 
         if access_token or refresh_token:
             return {

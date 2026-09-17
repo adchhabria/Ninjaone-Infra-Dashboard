@@ -19,10 +19,10 @@ def get_device_approved_patch_count(device: Device) -> int:
     - 0 means compliant
     - >= 1 means non-compliant
     """
-    # 1. Direct attribute on Device if explicitly set (> 0)
+    # 1. Direct attribute on Device if explicitly set
     attr_val = getattr(device, "approved_patch_count", None)
-    if attr_val is not None and attr_val > 0:
-        return int(attr_val)
+    if attr_val is not None:
+        return max(0, int(attr_val))
 
     cf = device.custom_fields or {}
     refs = device.references or {}
