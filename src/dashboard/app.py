@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 
 from datetime import datetime
@@ -162,52 +163,85 @@ def create_app(get_data_fn=None) -> dash.Dash:
             return render_template_string(html_content), 400
 
     # -----------------------------------------------------------------------
-    # Direct Report Download Endpoints
     # -----------------------------------------------------------------------
+    # Direct Report Download Endpoints (Supports filter query parameters)
+    # -----------------------------------------------------------------------
+    def _get_filtered_data_from_request():
+        org_id = request.args.get("org_id")
+        if org_id not in [None, "", "all", "None"]:
+            try:
+                org_id = int(org_id)
+            except ValueError:
+                org_id = None
+        else:
+            org_id = None
+
+        region = request.args.get("region")
+        if region in [None, "", "all", "Global / All", "None"]:
+            region = None
+
+        location = request.args.get("location")
+        if location in [None, "", "all", "All Locations", "None"]:
+            location = None
+
+        os_family = request.args.get("os_family")
+        if os_family in [None, "", "all", "All OS Families", "None"]:
+            os_family = None
+
+        return get_data_fn(
+            active_org_id=org_id,
+            active_region=region,
+            active_location=location,
+            active_os_family=os_family,
+        )
+
     @app.server.route("/download/pdf")
     def download_pdf_endpoint():
         try:
-            data = get_data_fn()
+            data = _get_filtered_data_from_request()
             pdf_bytes = generate_pdf_report(data)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            scope = re.sub(r'[^a-zA-Z0-9]+', '_', data.active_filter_label or 'Global_Overview').strip('_') or 'Global_Overview'
             return Response(
                 pdf_bytes,
                 mimetype="application/pdf",
-                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Executive_Compliance_Audit_{ts}.pdf"},
+                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Executive_Compliance_Audit_{scope}_{ts}.pdf"},
             )
         except Exception as e:
             console.log(f"[red]Error in /download/pdf: {e}[/red]")
-            return f"Error generating PDF: {e}", 500
+            return Response(f"Error generating PDF: {e}", status=500, mimetype="text/plain")
 
     @app.server.route("/download/excel")
     def download_excel_endpoint():
         try:
-            data = get_data_fn()
+            data = _get_filtered_data_from_request()
             excel_bytes = generate_excel_workbook(data)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            scope = re.sub(r'[^a-zA-Z0-9]+', '_', data.active_filter_label or 'Global_Overview').strip('_') or 'Global_Overview'
             return Response(
                 excel_bytes,
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Compliance_Audit_{ts}.xlsx"},
+                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Compliance_Audit_{scope}_{ts}.xlsx"},
             )
         except Exception as e:
             console.log(f"[red]Error in /download/excel: {e}[/red]")
-            return f"Error generating Excel: {e}", 500
+            return Response(f"Error generating Excel: {e}", status=500, mimetype="text/plain")
 
     @app.server.route("/download/html")
     def download_html_endpoint():
         try:
-            data = get_data_fn()
+            data = _get_filtered_data_from_request()
             html_text = generate_html_report(data)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            scope = re.sub(r'[^a-zA-Z0-9]+', '_', data.active_filter_label or 'Global_Overview').strip('_') or 'Global_Overview'
             return Response(
                 html_text,
                 mimetype="text/html",
-                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Executive_Report_{ts}.html"},
+                headers={"Content-Disposition": f"attachment; filename=NinjaOne_Executive_Report_{scope}_{ts}.html"},
             )
         except Exception as e:
             console.log(f"[red]Error in /download/html: {e}[/red]")
-            return f"Error generating HTML: {e}", 500
+            return Response(f"Error generating HTML: {e}", status=500, mimetype="text/plain")
 
     def serve_layout():
         data = get_data_fn(

@@ -121,8 +121,6 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     outline=True,
                                     size="sm",
                                     className="me-2",
-                                    href="/download/html",
-                                    external_link=True,
                                     style={"fontSize": "0.8rem"},
                                 ),
                                 dbc.Button(
@@ -132,8 +130,6 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     outline=True,
                                     size="sm",
                                     className="me-2",
-                                    href="/download/pdf",
-                                    external_link=True,
                                     style={"fontSize": "0.8rem"},
                                 ),
                                 dbc.Button(

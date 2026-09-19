@@ -14,6 +14,7 @@ Handles:
 from __future__ import annotations
 
 import os
+import re
 import webbrowser
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -191,7 +192,15 @@ def register_callbacks(app, get_data_fn=None):
         )
 
     # -----------------------------------------------------------------------
-    # 2. Multi-Sheet Excel Workbook Download
+    # Helper to generate scope tag for filenames
+    # -----------------------------------------------------------------------
+    def _get_scope_filename_tag(data) -> str:
+        label = data.active_filter_label or "Global_Overview"
+        clean = re.sub(r'[^a-zA-Z0-9]+', '_', label).strip('_')
+        return clean or "Global_Overview"
+
+    # -----------------------------------------------------------------------
+    # 2. Multi-Sheet Excel Workbook Download (.xlsx)
     # -----------------------------------------------------------------------
     @app.callback(
         Output("download-excel-data", "data"),
@@ -222,8 +231,83 @@ def register_callbacks(app, get_data_fn=None):
 
         excel_bytes = generate_excel_workbook(data)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"NinjaOne_Compliance_Audit_{ts}.xlsx"
+        scope = _get_scope_filename_tag(data)
+        filename = f"NinjaOne_Compliance_Audit_{scope}_{ts}.xlsx"
         return dcc.send_bytes(excel_bytes, filename=filename)
+
+    # -----------------------------------------------------------------------
+    # 2b. Executive PDF Audit Report Download (.pdf)
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("download-pdf-data", "data"),
+        Input("btn-generate-pdf-trigger", "n_clicks"),
+        Input("header-pdf-btn", "n_clicks"),
+        State("filter-state-store", "data"),
+        State("threshold-settings-store", "data"),
+        prevent_initial_call=True,
+    )
+    def download_pdf_audit(btn_tab_clicks, btn_hdr_clicks, filter_state, threshold_settings):
+        if not btn_tab_clicks and not btn_hdr_clicks:
+            return no_update
+
+        filter_state = filter_state or {}
+        ts_settings = threshold_settings or {"eol_days": 180}
+        eol_days_val = int(ts_settings.get("eol_days", 180))
+        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        c_eol_dates = ts_settings.get("custom_eol_dates", None)
+
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            approaching_days=eol_days_val,
+            custom_eol_dates=c_eol_dates,
+            server_patch_threshold=srv_threshold,
+        )
+
+        pdf_bytes = generate_pdf_report(data)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        scope = _get_scope_filename_tag(data)
+        filename = f"NinjaOne_Executive_Compliance_Audit_{scope}_{ts}.pdf"
+        return dcc.send_bytes(pdf_bytes, filename=filename)
+
+    # -----------------------------------------------------------------------
+    # 2c. Standalone Interactive HTML Report Download / Share (.html)
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("download-html-data", "data"),
+        Input("btn-download-html-trigger", "n_clicks"),
+        Input("header-share-btn", "n_clicks"),
+        State("filter-state-store", "data"),
+        State("threshold-settings-store", "data"),
+        prevent_initial_call=True,
+    )
+    def download_html_report(btn_tab_clicks, btn_hdr_clicks, filter_state, threshold_settings):
+        if not btn_tab_clicks and not btn_hdr_clicks:
+            return no_update
+
+        filter_state = filter_state or {}
+        ts_settings = threshold_settings or {"eol_days": 180}
+        eol_days_val = int(ts_settings.get("eol_days", 180))
+        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        c_eol_dates = ts_settings.get("custom_eol_dates", None)
+
+        data = coordinator.get_dashboard_data(
+            active_org_id=filter_state.get("org_id"),
+            active_region=filter_state.get("region"),
+            active_location=filter_state.get("location"),
+            active_os_family=filter_state.get("os_family"),
+            approaching_days=eol_days_val,
+            custom_eol_dates=c_eol_dates,
+            server_patch_threshold=srv_threshold,
+        )
+
+        html_text = generate_html_report(data)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        scope = _get_scope_filename_tag(data)
+        filename = f"NinjaOne_Executive_Report_{scope}_{ts}.html"
+        return dcc.send_string(html_text, filename=filename)
 
     # -----------------------------------------------------------------------
     # 2b. Hosting Infrastructure Filter Radio Toggle
