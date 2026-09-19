@@ -68,13 +68,18 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                     dbc.Col(
                         html.Div(
                             [
-                                html.Span(
-                                    f"Last updated: {ts}",
-                                    id="last-updated-text",
-                                    style={
-                                        "fontSize": "0.75rem", "color": T.TEXT_MUTED,
-                                        "marginRight": "14px", "lineHeight": "34px",
-                                    },
+                                dcc.Loading(
+                                    html.Span(
+                                        f"Last updated: {ts}",
+                                        id="last-updated-text",
+                                        style={
+                                            "fontSize": "0.75rem", "color": T.TEXT_MUTED,
+                                            "marginRight": "14px", "lineHeight": "34px",
+                                        },
+                                    ),
+                                    type="dot",
+                                    color=T.ACCENT_CYAN,
+                                    style={"display": "inline-block", "marginRight": "14px"},
                                 ),
                                 # Persistent Auth Controls
                                 html.Div(
@@ -469,13 +474,8 @@ def build_layout(data) -> html.Div:
             # Header
             build_header(data.fetched_at, data.active_filter_label, is_live=is_live, base_url=base_url),
 
-            # Main content container with loading feedback
-            dcc.Loading(
-                id="loading-dashboard",
-                type="circle",
-                color=T.ACCENT_CYAN,
-                children=html.Div(build_body(data, active_tab="tab-executive"), id="dashboard-body"),
-            ),
+            # Main content container
+            html.Div(build_body(data, active_tab="tab-executive"), id="dashboard-body"),
         ],
         style={"backgroundColor": T.BG_PRIMARY, "minHeight": "100vh", "color": T.TEXT_PRIMARY},
     )

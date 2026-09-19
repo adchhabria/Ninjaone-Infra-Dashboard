@@ -20,7 +20,7 @@ import urllib.request
 from typing import Callable, Optional
 from packaging import version
 
-CURRENT_VERSION = "1.0.15"
+CURRENT_VERSION = "1.0.16"
 GITHUB_REPO = "adchhabria/Ninjaone-Infra-Dashboard"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RAW_VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"

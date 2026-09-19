@@ -49,3 +49,15 @@ class TestFilteredDownloads:
         cd = resp.headers.get("Content-Disposition", "")
         assert ".pdf" in cd
         assert resp.data.startswith(b"%PDF")
+
+    def test_no_duplicate_callback_outputs(self, app):
+        from collections import Counter
+        client = app.server.test_client()
+        resp = client.get("/_dash-dependencies")
+        assert resp.status_code == 200
+        deps = resp.json
+        outputs = [cb.get("output") for cb in deps]
+        counts = Counter(outputs)
+        duplicates = {k: v for k, v in counts.items() if v > 1}
+        assert duplicates == {}, f"Duplicate callback outputs found: {duplicates}"
+
