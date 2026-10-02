@@ -297,10 +297,14 @@ class DataCoordinator:
         active_region: Optional[str] = None,
         active_location: Optional[str] = None,
         active_os_family: Optional[str] = None,
+        active_patch_type: str = "both",
         force_refresh: bool = False,
         approaching_days: int = 180,
         custom_eol_dates: Optional[dict[str, str]] = None,
         server_patch_threshold: int = 0,
+        patch_red: float = 60.0,
+        patch_amber: float = 84.0,
+        patch_green: float = 85.0,
     ) -> DashboardData:
         """
         Retrieves DashboardData from Live NinjaOne API if authenticated,
@@ -316,10 +320,14 @@ class DataCoordinator:
                     active_region=active_region,
                     active_location=active_location,
                     active_os_family=active_os_family,
+                    active_patch_type=active_patch_type,
                     force_refresh=force_refresh,
                     approaching_days=approaching_days,
                     custom_eol_dates=custom_eol_dates,
                     server_patch_threshold=server_patch_threshold,
+                    patch_red=patch_red,
+                    patch_amber=patch_amber,
+                    patch_green=patch_green,
                 )
             except Exception as e:
                 print(f"[!] Live data fetch failed, falling back to sample dataset: {e}")
@@ -330,9 +338,13 @@ class DataCoordinator:
             active_region=active_region,
             active_location=active_location,
             active_os_family=active_os_family,
+            active_patch_type=active_patch_type,
             approaching_days=approaching_days,
             custom_eol_dates=custom_eol_dates,
             server_patch_threshold=server_patch_threshold,
+            patch_red=patch_red,
+            patch_amber=patch_amber,
+            patch_green=patch_green,
         )
 
 

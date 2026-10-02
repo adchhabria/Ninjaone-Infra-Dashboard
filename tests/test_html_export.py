@@ -18,3 +18,24 @@ class TestHTMLExport:
         assert "Organization Compliance Scorecard" in html_out
         assert "End-of-Life (EOL) Device Ledger" not in html_out
         assert "plotly" in html_out.lower()
+
+    def test_html_report_custom_amber_threshold(self):
+        """User requirement: saving compliance threshold to 90% for amber in Settings must reflect in HTML export."""
+        data = get_mock_dashboard_data(patch_red=60.0, patch_amber=90.0, patch_green=92.0)
+        html_out = generate_html_report(data)
+
+        # Gauge steps reflect amber step to 90% and target 92%
+        assert "92%" in html_out
+        assert "90.0" in html_out or "90%" in html_out
+        # KPI card subtitle reflects user's custom target and amber threshold
+        assert "Fleet SLA Target &ge;92% (Amber &le;90%)" in html_out
+
+    def test_html_report_patch_type_scope(self):
+        """Verify that patch_type slicer displays properly in HTML report scope."""
+        data_os = get_mock_dashboard_data(active_patch_type="os")
+        html_os = generate_html_report(data_os)
+        assert "Patches: OS" in html_os
+
+        data_sw = get_mock_dashboard_data(active_patch_type="software")
+        html_sw = generate_html_report(data_sw)
+        assert "Patches: SOFTWARE" in html_sw

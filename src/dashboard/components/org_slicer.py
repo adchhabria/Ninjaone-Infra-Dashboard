@@ -24,12 +24,14 @@ def build_org_slicer(
     active_org_id: Optional[int] = None,
     active_location: Optional[str] = None,
     active_os_family: Optional[str] = None,
+    active_patch_type: str = "both",
 ) -> dbc.Card:
     """
-    Renders an Excel Slicer bar with 3 stacked slicer rows:
+    Renders an Excel Slicer bar with 4 stacked slicer rows:
     - Organization Slicer
     - Location Slicer
     - OS Family Slicer
+    - Patch Scope Slicer (Both, OS, Software)
     """
     # -----------------------------------------------------------------------
     # Row 1: Organization Buttons
@@ -168,6 +170,42 @@ def build_org_slicer(
             )
         )
 
+    # -----------------------------------------------------------------------
+    # Row 4: Patch Scope Buttons (Both, OS, Software)
+    # -----------------------------------------------------------------------
+    patch_type_buttons = []
+    patch_type_options = [
+        {"label": "📦 Both (OS + Software)", "value": "both"},
+        {"label": "💻 OS Patches Only", "value": "os"},
+        {"label": "🧩 Software Patches Only", "value": "software"},
+    ]
+    cur_patch_type = (active_patch_type or "both").lower()
+
+    for opt in patch_type_options:
+        val = opt["value"]
+        label = opt["label"]
+        is_active = (cur_patch_type == val)
+
+        patch_type_buttons.append(
+            dbc.Button(
+                label,
+                id={"type": "patch-type-slicer-btn", "index": val},
+                color="warning" if is_active else "dark",
+                outline=not is_active,
+                size="sm",
+                className="me-2 mb-1",
+                style={
+                    "fontSize": "0.78rem",
+                    "fontWeight": "600" if is_active else "400",
+                    "borderRadius": "20px",
+                    "padding": "4px 11px",
+                    "borderColor": T.RAG_AMBER if is_active else T.BORDER,
+                    "backgroundColor": T.RAG_AMBER if is_active else T.BG_CARD_HOVER,
+                    "color": "#000" if is_active else T.TEXT_PRIMARY,
+                },
+            )
+        )
+
     return dbc.Card(
         dbc.CardBody(
             [
@@ -202,6 +240,18 @@ def build_org_slicer(
                             **T.FONT_KPI_LABEL, "minWidth": "165px", "color": T.ACCENT_TEAL, "lineHeight": "30px",
                         }),
                         html.Div(os_buttons, style={"display": "flex", "flexWrap": "wrap", "alignItems": "center"}),
+                    ],
+                    style={"display": "flex", "flexWrap": "wrap", "alignItems": "center", "marginBottom": "8px"},
+                ),
+                html.Hr(style={"borderColor": T.BORDER, "margin": "6px 0 8px 0"}),
+
+                # Row 4: Patch Scope Slicer
+                html.Div(
+                    [
+                        html.Span("🩹 Patch Scope Slicer", style={
+                            **T.FONT_KPI_LABEL, "minWidth": "165px", "color": T.RAG_AMBER, "lineHeight": "30px",
+                        }),
+                        html.Div(patch_type_buttons, style={"display": "flex", "flexWrap": "wrap", "alignItems": "center"}),
                     ],
                     style={"display": "flex", "flexWrap": "wrap", "alignItems": "center"},
                 ),

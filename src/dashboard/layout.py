@@ -285,6 +285,7 @@ def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, pat
                             active_org_id=data.active_org_id,
                             active_location=data.active_location,
                             active_os_family=data.active_os_family,
+                            active_patch_type=getattr(data, "active_patch_type", "both"),
                         ),
                         width=12,
                     ),
@@ -392,6 +393,7 @@ def build_layout(data) -> html.Div:
                 "region": "Global / All",
                 "location": "All Locations",
                 "os_family": "All OS Families",
+                "patch_type": "both",
             }),
             dcc.Store(id="active-tab-store", data="tab-executive"),
             dcc.Store(id="threshold-settings-store", data={

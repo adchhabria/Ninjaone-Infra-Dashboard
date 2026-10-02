@@ -107,9 +107,6 @@ def get_device_approved_software_count(device: Device) -> int:
             except (ValueError, TypeError):
                 pass
 
-    # Deterministic simulation for mock/sample devices if not provided
-    if device.id % 4 == 0:
-        return (device.id % 3) + 1
     return 0
 
 
@@ -118,13 +115,18 @@ def compute_patch_metrics(
     activities: list[Activity] | None = None,
     org_name_map: dict[int, str] | None = None,
     max_approved_patches: int = 0,
+    patch_type: str = "both",
 ) -> dict[str, Any]:
     """
     Computes fleet patch compliance based strictly on Approved Patch Count:
-    - Approved Patch Count <= max_approved_patches (Default: 0): Compliant
-    - Approved Patch Count > max_approved_patches: Non-Compliant
+    - patch_type="both": Evaluates combined OS and 3rd-party Software patches
+    - patch_type="os": Evaluates only OS security patches
+    - patch_type="software": Evaluates only 3rd-party Software update patches
+    - Effective Patch Count <= max_approved_patches (Default: 0): Compliant
+    - Effective Patch Count > max_approved_patches: Non-Compliant
     - Also generates the Server Patch & Software Compliance ledger for the next tab.
     """
+    p_type = (patch_type or "both").lower()
     org_map = org_name_map or {}
     total_devices = len(devices)
     if total_devices == 0:
@@ -135,6 +137,7 @@ def compute_patch_metrics(
             "total_devices": 0,
             "org_patch_table": [],
             "max_approved_patches": max_approved_patches,
+            "patch_type": p_type,
             "server_compliance_table": [],
             "server_compliant_count": 0,
             "server_non_compliant_count": 0,
@@ -147,7 +150,16 @@ def compute_patch_metrics(
     org_patch_map: dict[int, dict[str, Any]] = {}
 
     for d in devices:
-        cnt = get_device_approved_patch_count(d)
+        os_cnt = get_device_approved_patch_count(d)
+        sw_cnt = get_device_approved_software_count(d)
+
+        if p_type == "os":
+            cnt = os_cnt
+        elif p_type == "software":
+            cnt = sw_cnt
+        else:
+            cnt = os_cnt + sw_cnt
+
         is_compliant = (cnt <= max_approved_patches)
 
         if is_compliant:
@@ -194,7 +206,15 @@ def compute_patch_metrics(
     for s in server_devices:
         p_cnt = get_device_approved_patch_count(s)
         sw_cnt = get_device_approved_software_count(s)
-        s_compliant = (p_cnt <= max_approved_patches)
+
+        if p_type == "os":
+            eval_cnt = p_cnt
+        elif p_type == "software":
+            eval_cnt = sw_cnt
+        else:
+            eval_cnt = p_cnt + sw_cnt
+
+        s_compliant = (eval_cnt <= max_approved_patches)
 
         if s_compliant:
             server_compliant_count += 1
@@ -212,12 +232,13 @@ def compute_patch_metrics(
             "os": s.os_display,
             "approved_patch_count": p_cnt,
             "approved_software_count": sw_cnt,
+            "effective_patch_count": eval_cnt,
             "status": "Compliant" if s_compliant else "Non-Compliant",
             "is_compliant": s_compliant,
         })
 
-    # Sort server table: Non-Compliant first, then descending by approved patch count
-    server_compliance_table.sort(key=lambda r: (r["is_compliant"], -r["approved_patch_count"]))
+    # Sort server table: Non-Compliant first, then descending by effective patch count
+    server_compliance_table.sort(key=lambda r: (r["is_compliant"], -r["effective_patch_count"]))
     server_total = len(server_devices)
     server_compliance_pct = round(server_compliant_count / server_total * 100, 1) if server_total > 0 else 100.0
 
@@ -228,6 +249,7 @@ def compute_patch_metrics(
         "total_devices": total_devices,
         "org_patch_table": org_patch_table,
         "max_approved_patches": max_approved_patches,
+        "patch_type": p_type,
         "server_compliance_table": server_compliance_table,
         "server_compliant_count": server_compliant_count,
         "server_non_compliant_count": server_non_compliant_count,

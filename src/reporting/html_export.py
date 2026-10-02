@@ -16,11 +16,23 @@ from src.dashboard import charts
 from src.metrics.aggregator import DashboardData
 
 
-def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastructure & Compliance Audit Report") -> str:
+def generate_html_report(
+    data: DashboardData,
+    title: str = "NinjaOne Infrastructure & Compliance Audit Report",
+    patch_red: float | None = None,
+    patch_amber: float | None = None,
+    patch_green: float | None = None,
+) -> str:
     """
-    Builds a standalone, responsive, dark-themed HTML executive report matching active dashboard slicers.
+    Builds a standalone, responsive, dark-themed HTML executive report matching active dashboard slicers
+    and dynamic compliance thresholds.
     """
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    # Resolve dynamic compliance thresholds
+    red_limit = float(patch_red if patch_red is not None else getattr(data, "patch_red", 60.0))
+    amber_limit = float(patch_amber if patch_amber is not None else getattr(data, "patch_amber", 84.0))
+    green_target = float(patch_green if patch_green is not None else getattr(data, "patch_green", 85.0))
 
     # Generate Chart HTMLs
     win_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}))
@@ -36,7 +48,12 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
     stacked_chart_html = pio.to_html(stacked_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     patch_pct = data.patches.get("patch_coverage_pct", 0.0)
-    gauge_fig = charts.patch_gauge(patch_pct)
+    gauge_fig = charts.patch_gauge(
+        patch_pct,
+        red_limit=red_limit,
+        amber_limit=amber_limit,
+        green_target=green_target,
+    )
     gauge_chart_html = pio.to_html(gauge_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     sla_counts = data.sla.get("sla_counts", {})
@@ -220,8 +237,8 @@ def generate_html_report(data: DashboardData, title: str = "NinjaOne Infrastruct
             <div class="col-md-2 col-sm-4 col-6">
                 <div class="kpi-card">
                     <div class="kpi-title">Patch Coverage</div>
-                    <div class="kpi-val" style="color: {'var(--rag-green)' if patch_pct >= 85 else 'var(--rag-amber)' if patch_pct >= 60 else 'var(--rag-red)'};">{patch_pct:.1f}%</div>
-                    <small class="text-secondary">Fleet SLA Target ≥85%</small>
+                    <div class="kpi-val" style="color: {'var(--rag-green)' if patch_pct >= green_target else 'var(--rag-amber)' if patch_pct >= (red_limit + 1.0) else 'var(--rag-red)'};">{patch_pct:.1f}%</div>
+                    <small class="text-secondary">Fleet SLA Target &ge;{int(green_target)}% (Amber &le;{int(amber_limit)}%)</small>
                 </div>
             </div>
             <div class="col-md-2 col-sm-4 col-6">

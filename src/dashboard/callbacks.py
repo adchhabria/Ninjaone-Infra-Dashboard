@@ -60,6 +60,7 @@ def register_callbacks(app, get_data_fn=None):
         Input({"type": "org-slicer-btn", "index": ALL}, "n_clicks"),
         Input({"type": "location-slicer-btn", "index": ALL}, "n_clicks"),
         Input({"type": "os-family-slicer-btn", "index": ALL}, "n_clicks"),
+        Input({"type": "patch-type-slicer-btn", "index": ALL}, "n_clicks"),
         Input("world-map-graph", "clickData"),
         Input("nav-tab-executive", "n_clicks"),
         Input("nav-tab-patch-ops", "n_clicks"),
@@ -77,6 +78,7 @@ def register_callbacks(app, get_data_fn=None):
         org_clicks,
         loc_clicks,
         os_clicks,
+        patch_type_clicks,
         map_click_data,
         tab_exec_clicks,
         tab_patch_clicks,
@@ -95,6 +97,7 @@ def register_callbacks(app, get_data_fn=None):
             "region": "Global / All",
             "location": "All Locations",
             "os_family": "All OS Families",
+            "patch_type": "both",
         })
         tab_to_show = current_active_tab or "tab-executive"
         ts_settings = threshold_settings or {
@@ -137,7 +140,11 @@ def register_callbacks(app, get_data_fn=None):
             elif btn_type == "os-family-slicer-btn":
                 filter_state["os_family"] = str(btn_idx)
 
-        # D. World Map Marker clicked
+            # D. Patch Type Slicer button clicked
+            elif btn_type == "patch-type-slicer-btn":
+                filter_state["patch_type"] = str(btn_idx).lower()
+
+        # E. World Map Marker clicked
         elif triggered_id == "world-map-graph" and map_click_data:
             points = map_click_data.get("points", [])
             if points:
@@ -165,10 +172,14 @@ def register_callbacks(app, get_data_fn=None):
             active_region=filter_state.get("region"),
             active_location=filter_state.get("location"),
             active_os_family=filter_state.get("os_family"),
+            active_patch_type=filter_state.get("patch_type", "both"),
             force_refresh=force_refresh,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
             server_patch_threshold=srv_threshold,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
         )
 
         badge_label = data.active_filter_label
@@ -217,6 +228,10 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
         srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        p_red = float(ts_settings.get("patch_red", 60.0))
+        p_amber = float(ts_settings.get("patch_amber", 84.0))
+        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
         data = coordinator.get_dashboard_data(
@@ -224,9 +239,13 @@ def register_callbacks(app, get_data_fn=None):
             active_region=filter_state.get("region"),
             active_location=filter_state.get("location"),
             active_os_family=filter_state.get("os_family"),
+            active_patch_type=p_type,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
             server_patch_threshold=srv_threshold,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
         )
 
         excel_bytes = generate_excel_workbook(data)
@@ -254,6 +273,10 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
         srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        p_red = float(ts_settings.get("patch_red", 60.0))
+        p_amber = float(ts_settings.get("patch_amber", 84.0))
+        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
         data = coordinator.get_dashboard_data(
@@ -261,9 +284,13 @@ def register_callbacks(app, get_data_fn=None):
             active_region=filter_state.get("region"),
             active_location=filter_state.get("location"),
             active_os_family=filter_state.get("os_family"),
+            active_patch_type=p_type,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
             server_patch_threshold=srv_threshold,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
         )
 
         pdf_bytes = generate_pdf_report(data)
@@ -291,6 +318,10 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
         srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
+        p_red = float(ts_settings.get("patch_red", 60.0))
+        p_amber = float(ts_settings.get("patch_amber", 84.0))
+        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
         data = coordinator.get_dashboard_data(
@@ -298,12 +329,21 @@ def register_callbacks(app, get_data_fn=None):
             active_region=filter_state.get("region"),
             active_location=filter_state.get("location"),
             active_os_family=filter_state.get("os_family"),
+            active_patch_type=p_type,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
             server_patch_threshold=srv_threshold,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
         )
 
-        html_text = generate_html_report(data)
+        html_text = generate_html_report(
+            data,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
+        )
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         scope = _get_scope_filename_tag(data)
         filename = f"NinjaOne_Executive_Report_{scope}_{ts}.html"
@@ -332,6 +372,7 @@ def register_callbacks(app, get_data_fn=None):
             active_region=filter_state.get("region"),
             active_location=filter_state.get("location"),
             active_os_family=filter_state.get("os_family"),
+            active_patch_type=filter_state.get("patch_type", "both"),
             approaching_days=eol_days_val,
         )
         hosting_counts = data.servers.get("hosting_counts", {})

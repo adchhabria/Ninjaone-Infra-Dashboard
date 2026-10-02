@@ -279,7 +279,12 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     # =======================================================================
     story.append(Paragraph("5. Patch Compliance Speedometer Gauge & SLA Backlog", h2_style))
 
-    gauge_fig = charts.patch_gauge(patch_pct)
+    gauge_fig = charts.patch_gauge(
+        patch_pct,
+        red_limit=getattr(data, "patch_red", 60.0),
+        amber_limit=getattr(data, "patch_amber", 84.0),
+        green_target=getattr(data, "patch_green", 85.0),
+    )
     gauge_img = _fig_to_image_flowable(gauge_fig, width=350, height=200, scale=1)
 
     # SLA Table beside Gauge

@@ -188,11 +188,34 @@ def create_app(get_data_fn=None) -> dash.Dash:
         if os_family in [None, "", "all", "All OS Families", "None"]:
             os_family = None
 
+        patch_type = request.args.get("patch_type", "both")
+        if patch_type not in ["both", "os", "software"]:
+            patch_type = "both"
+
+        try:
+            p_red = float(request.args.get("patch_red", 60.0))
+        except (ValueError, TypeError):
+            p_red = 60.0
+
+        try:
+            p_amber = float(request.args.get("patch_amber", 84.0))
+        except (ValueError, TypeError):
+            p_amber = 84.0
+
+        try:
+            p_green = float(request.args.get("patch_green", 85.0))
+        except (ValueError, TypeError):
+            p_green = 85.0
+
         return get_data_fn(
             active_org_id=org_id,
             active_region=region,
             active_location=location,
             active_os_family=os_family,
+            active_patch_type=patch_type,
+            patch_red=p_red,
+            patch_amber=p_amber,
+            patch_green=p_green,
         )
 
     @app.server.route("/download/pdf")
@@ -231,7 +254,12 @@ def create_app(get_data_fn=None) -> dash.Dash:
     def download_html_endpoint():
         try:
             data = _get_filtered_data_from_request()
-            html_text = generate_html_report(data)
+            html_text = generate_html_report(
+                data,
+                patch_red=data.patch_red,
+                patch_amber=data.patch_amber,
+                patch_green=data.patch_green,
+            )
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             scope = re.sub(r'[^a-zA-Z0-9]+', '_', data.active_filter_label or 'Global_Overview').strip('_') or 'Global_Overview'
             return Response(
@@ -249,6 +277,7 @@ def create_app(get_data_fn=None) -> dash.Dash:
             active_region="Global / All",
             active_location="All Locations",
             active_os_family="All OS Families",
+            active_patch_type="both",
         )
         return build_layout(data)
 

@@ -41,6 +41,9 @@ def build_patch_panel(
         comp_text = f"✅ Compliant (≤{max_approved} Approved Patches): {compliant_cnt:,}"
         non_comp_text = f"⚠️ Non-Compliant (>{max_approved} Patches): {non_compliant_cnt:,}"
 
+    p_type = str(patch_data.get("patch_type", "both")).lower()
+    scope_badge_text = "📦 OS + Software" if p_type == "both" else "💻 OS Patches Only" if p_type == "os" else "🧩 Software Patches Only"
+
     return dbc.Card(
         [
             dbc.CardHeader(
@@ -52,6 +55,7 @@ def build_patch_panel(
                                 html.Span("Patch Management & Compliance Status", style=T.FONT_SECTION_TITLE),
                                 dbc.Badge(f"{pct:.1f}% Coverage", color=badge_color, className="ms-2"),
                                 dbc.Badge(status_text, color="secondary", className="ms-1"),
+                                dbc.Badge(scope_badge_text, color="info", className="ms-1"),
                             ]),
                             md=6,
                         ),

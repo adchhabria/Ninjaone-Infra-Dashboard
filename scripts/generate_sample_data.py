@@ -138,6 +138,7 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                 crit_patches = random.randint(1, 2)
 
             total_pending = crit_patches + random.randint(0, 3) if crit_patches > 0 else (random.randint(0, 2) if random.random() < 0.2 else 0)
+            sw_pending = (dev_id_counter % 3) if (dev_id_counter % 3 == 0) else 0
 
             device = Device(
                 id=dev_id_counter,
@@ -151,10 +152,12 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                 location_name=loc_name,
                 hosting_type=hosting_val,
                 approved_patch_count=total_pending,
+                approved_software_count=sw_pending,
                 lastSeen=datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 72)),
                 os=OSInfo(name=os_name, releaseId=rid),
                 custom_fields={
                     "approvedPatchCount": total_pending,
+                    "approvedSoftwareCount": sw_pending,
                     "criticalPatchesPending": crit_patches,
                     "totalPatchesPending": total_pending,
                     "patchStatus": "PENDING" if crit_patches > 0 else "OK",
@@ -189,9 +192,13 @@ def get_mock_dashboard_data(
     active_region: Optional[str] = None,
     active_location: Optional[str] = None,
     active_os_family: Optional[str] = None,
+    active_patch_type: str = "both",
     approaching_days: int = 180,
     custom_eol_dates: Optional[dict[str, str]] = None,
     server_patch_threshold: int = 0,
+    patch_red: float = 60.0,
+    patch_amber: float = 84.0,
+    patch_green: float = 85.0,
 ) -> DashboardData:
     """Returns complete DashboardData computed from realistic mock pool."""
     global _CACHED_RAW_MOCK
@@ -208,9 +215,13 @@ def get_mock_dashboard_data(
         active_region=active_region,
         active_location=active_location,
         active_os_family=active_os_family,
+        active_patch_type=active_patch_type,
         approaching_days=approaching_days,
         custom_eol_dates=custom_eol_dates,
         server_patch_threshold=server_patch_threshold,
+        patch_red=patch_red,
+        patch_amber=patch_amber,
+        patch_green=patch_green,
     )
 
 

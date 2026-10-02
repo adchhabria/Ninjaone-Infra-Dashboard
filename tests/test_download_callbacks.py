@@ -32,6 +32,16 @@ class TestFilteredDownloads:
         assert "London" in cd or "Org" in cd
         assert b"London EMEA Hub" in resp.data
 
+    def test_flask_endpoint_filtered_html_with_amber_threshold_and_patch_type(self, app):
+        client = app.server.test_client()
+        # Request with patch_type=os and patch_amber=90
+        resp = client.get("/download/html?patch_type=os&patch_amber=90.0&patch_green=95.0")
+        assert resp.status_code == 200
+        assert "text/html" in resp.content_type
+        html_str = resp.data.decode("utf-8")
+        assert "Patches: OS" in html_str
+        assert "Fleet SLA Target &ge;95% (Amber &le;90%)" in html_str
+
     def test_flask_endpoint_filtered_excel(self, app):
         client = app.server.test_client()
         resp = client.get("/download/excel?org_id=1")

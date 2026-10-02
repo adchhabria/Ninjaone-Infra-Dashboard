@@ -144,26 +144,43 @@ class TestServerComplianceAndCustomEOL:
             os=OSInfo(name="Windows Server 2022 Standard"),
         )
 
-        res = compute_patch_metrics([s1, s2], org_name_map={1: "Acme Corp"})
-        assert res["compliant_count"] == 1
-        assert res["non_compliant_count"] == 1
-        assert res["patch_coverage_pct"] == 50.0
+        # A. OS patches only
+        res_os = compute_patch_metrics([s1, s2], org_name_map={1: "Acme Corp"}, patch_type="os")
+        assert res_os["compliant_count"] == 1
+        assert res_os["non_compliant_count"] == 1
+        assert res_os["patch_coverage_pct"] == 50.0
 
-        table = res["server_compliance_table"]
-        assert len(table) == 2
+        table_os = res_os["server_compliance_table"]
+        srv1_os = next(r for r in table_os if r["device_id"] == 101)
+        assert srv1_os["approved_patch_count"] == 0
+        assert srv1_os["approved_software_count"] == 2
+        assert srv1_os["effective_patch_count"] == 0
+        assert srv1_os["status"] == "Compliant"
+        assert srv1_os["is_compliant"] is True
 
-        # Check Compliant server (0 patches)
-        srv1 = next(r for r in table if r["device_id"] == 101)
-        assert srv1["approved_patch_count"] == 0
-        assert srv1["approved_software_count"] == 2
-        assert srv1["status"] == "Compliant"
-        assert srv1["is_compliant"] is True
+        srv2_os = next(r for r in table_os if r["device_id"] == 102)
+        assert srv2_os["approved_patch_count"] == 3
+        assert srv2_os["effective_patch_count"] == 3
+        assert srv2_os["status"] == "Non-Compliant"
+        assert srv2_os["is_compliant"] is False
 
-        # Check Non-Compliant server (3 patches)
-        srv2 = next(r for r in table if r["device_id"] == 102)
-        assert srv2["approved_patch_count"] == 3
-        assert srv2["status"] == "Non-Compliant"
-        assert srv2["is_compliant"] is False
+        # B. Software patches only
+        res_sw = compute_patch_metrics([s1, s2], org_name_map={1: "Acme Corp"}, patch_type="software")
+        assert res_sw["compliant_count"] == 1
+        assert res_sw["non_compliant_count"] == 1
+        table_sw = res_sw["server_compliance_table"]
+        srv1_sw = next(r for r in table_sw if r["device_id"] == 101)
+        assert srv1_sw["effective_patch_count"] == 2
+        assert srv1_sw["status"] == "Non-Compliant"
+        srv2_sw = next(r for r in table_sw if r["device_id"] == 102)
+        assert srv2_sw["effective_patch_count"] == 0
+        assert srv2_sw["status"] == "Compliant"
+
+        # C. Both (OS + Software)
+        res_both = compute_patch_metrics([s1, s2], org_name_map={1: "Acme Corp"}, patch_type="both")
+        assert res_both["compliant_count"] == 0
+        assert res_both["non_compliant_count"] == 2
+        assert res_both["patch_coverage_pct"] == 0.0
 
     def test_custom_eol_date_mm_dd_yyyy_calculation(self):
         from src.metrics.os_compliance import _get_eol_info, compute_os_metrics

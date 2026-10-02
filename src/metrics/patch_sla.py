@@ -29,11 +29,14 @@ def compute_patch_sla_metrics(
     devices: list[Device],
     activities: list[Activity] | None = None,
     org_name_map: Optional[dict[int, str]] = None,
+    patch_type: str = "both",
 ) -> dict[str, Any]:
     """
     Computes comprehensive patch SLA aging, software classification,
-    reboot watchlist, and failure ledgers strictly across the filtered device fleet.
+    reboot watchlist, and failure ledgers strictly across the filtered device fleet
+    and filtered by patch_type ('both', 'os', 'software').
     """
+    p_filter = (patch_type or "both").lower()
     org_map = org_name_map or {}
     now = datetime.now(timezone.utc)
 
@@ -91,6 +94,11 @@ def compute_patch_sla_metrics(
             for p_idx in range(pending_count):
                 is_crit = (p_idx < crit_pending) if crit_pending > 0 else (p_idx == 0 and (d.id % 3 == 0))
                 is_os = (p_idx % 2 == 0) or d.is_server
+
+                if p_filter == "os" and not is_os:
+                    continue
+                if p_filter == "software" and is_os:
+                    continue
 
                 if is_crit and (d.id % 4 == 0):
                     age_days = 90 + ((d.id + p_idx) % 40) + 1
@@ -165,4 +173,5 @@ def compute_patch_sla_metrics(
         "failed_patches_count": len(failed_patches),
         "sla_breach_count": sla_breach_count,
         "high_risk_count": high_risk_count,
+        "patch_type": p_filter,
     }

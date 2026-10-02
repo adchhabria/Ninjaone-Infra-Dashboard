@@ -113,7 +113,13 @@ class DashboardData:
     active_region: Optional[str] = None
     active_location: Optional[str] = None
     active_os_family: Optional[str] = None
+    active_patch_type: str = "both"
     active_filter_label: str = "Global Overview"
+
+    # Compliance & Speedometer Thresholds
+    patch_red: float = 60.0
+    patch_amber: float = 84.0
+    patch_green: float = 85.0
 
     # KPI Summary
     total_devices: int = 0
@@ -192,9 +198,13 @@ def compute_dashboard_slice(
     active_region: Optional[str] = None,
     active_location: Optional[str] = None,
     active_os_family: Optional[str] = None,
+    active_patch_type: str = "both",
     approaching_days: int = 180,
     custom_eol_dates: Optional[dict[str, str]] = None,
     server_patch_threshold: int = 0,
+    patch_red: float = 60.0,
+    patch_amber: float = 84.0,
+    patch_green: float = 85.0,
 ) -> DashboardData:
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
@@ -248,8 +258,14 @@ def compute_dashboard_slice(
         activities,
         org_name_map=org_name_map,
         max_approved_patches=server_patch_threshold,
+        patch_type=active_patch_type,
     )
-    sla_metrics = compute_patch_sla_metrics(filtered_devices, activities, org_name_map=org_name_map)
+    sla_metrics = compute_patch_sla_metrics(
+        filtered_devices,
+        activities,
+        org_name_map=org_name_map,
+        patch_type=active_patch_type,
+    )
 
     # 4. KPI Summary
     total = len(filtered_devices)
@@ -353,6 +369,8 @@ def compute_dashboard_slice(
         filter_label_parts.append(f"Loc: {active_location}")
     if active_os_family and active_os_family not in ["All OS Families", "all"]:
         filter_label_parts.append(f"OS: {active_os_family}")
+    if active_patch_type and active_patch_type.lower() != "both":
+        filter_label_parts.append(f"Patches: {active_patch_type.upper()}")
 
     filter_label = " · ".join(filter_label_parts) if filter_label_parts else "Global Overview"
 
@@ -367,7 +385,11 @@ def compute_dashboard_slice(
         active_region=active_region,
         active_location=active_location,
         active_os_family=active_os_family,
+        active_patch_type=active_patch_type.lower(),
         active_filter_label=filter_label,
+        patch_red=patch_red,
+        patch_amber=patch_amber,
+        patch_green=patch_green,
         total_devices=total,
         online_devices=online,
         online_pct=online_pct,
@@ -411,9 +433,13 @@ class MetricsAggregator:
         active_region: Optional[str] = None,
         active_location: Optional[str] = None,
         active_os_family: Optional[str] = None,
+        active_patch_type: str = "both",
         approaching_days: int = 180,
         custom_eol_dates: Optional[dict[str, str]] = None,
         server_patch_threshold: int = 0,
+        patch_red: float = 60.0,
+        patch_amber: float = 84.0,
+        patch_green: float = 85.0,
     ) -> DashboardData:
         cache_key = "raw_api_payload"
         if force_refresh:
@@ -436,9 +462,13 @@ class MetricsAggregator:
             active_region=active_region,
             active_location=active_location,
             active_os_family=active_os_family,
+            active_patch_type=active_patch_type,
             approaching_days=approaching_days,
             custom_eol_dates=custom_eol_dates,
             server_patch_threshold=server_patch_threshold,
+            patch_red=patch_red,
+            patch_amber=patch_amber,
+            patch_green=patch_green,
         )
 
     def _fetch_raw(self) -> tuple[list[Organization], list[Device], list[Activity]]:
