@@ -54,3 +54,6 @@ Thumbs.db
 *.log
 scratch/
 temp/
+brag-output/
+.agents/
+.archify/

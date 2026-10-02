@@ -1,175 +1,84 @@
-# Ninjaone Infra Dashboard & Unified Patch Toolkit ⚡
+# NinjaOne Infra Dashboard & Unified Patch Toolkit ⚡
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Dash](https://img.shields.io/badge/Dash-2.16+-00D8FF.svg)](https://dash.plotly.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+[![Release](https://img.shields.io/badge/Release-v1.0.17-brightgreen.svg)](https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases)
 
-An enterprise-grade, C-level infrastructure intelligence and operational patch management toolkit designed specifically for **NinjaOne RMM**. Built for MSPs, enterprise IT infrastructure architects, and compliance officers to monitor multi-tenant device health, SLA aging backlogs, and multi-cloud hosting environments in real time.
-
----
-
-## 🌟 Key Features
-
-### 1. 📊 Executive Overview & Infrastructure Map
-- **Executive KPI Strip**: Total Managed Devices, Online %, Overall Compliance Score (RAG color-coded), Server Fleet, and EOL Devices at Risk.
-- **Triple Excel-Style Slicer Bar**: 1-click stacked filter pills for:
-  - 🏢 **Organizations / Clients**
-  - 📍 **Locations / Branch Sites**
-  - 💻 **OS Families** (*Windows*, *Linux*, *macOS*)
-- **Geographic Infrastructure & Compliance Map**: Dark-themed interactive world map with circle bubble diameters dynamically scaled to each country's device volume, featuring hover-only tooltip inspection.
-- **Operating System Landscape**: Two dedicated side-by-side donut charts for **Windows OS Builds** and **Linux Distributions**.
-- **Server Compliance & Roles**: Dedicated server fleet breakdown (*Domain Controllers*, *File*, *Database*, *Web*, *Application*, and *Backup Servers*).
-- **Server Hosting Infrastructure**: Multi-cloud and virtualization breakdown across **AWS**, **Azure**, **GCP**, **Virtual Machines (VMs / VMware / Hyper-V)**, and **Physical Hardware**.
-- **Patch Management Speedometer Gauge**: Color-coded coverage gauge with exact enterprise SLA thresholds (🔴 `0-60%` Red, 🟡 `61-84%` Amber, 🟢 `85%+` Green).
-- **Dedicated EOL Lifecycle Ledger**: Complete audit table of obsolete OS builds with days overdue, EOL dates, and risk scores (`CRITICAL`, `HIGH`, `MEDIUM`).
-- **Organization Compliance Table**: Multi-tenant client ledger with RAG status and multi-column sorting.
-
-### 2. ⏱️ Patch Operations & SLA Aging Hub *(Inspired by patch-toolkit)*
-- **Patch SLA Aging Backlog**: Bar chart tracking overdue patches across 4 brackets:
-  - 🟢 `< 7 Days` (Within SLA)
-  - 🟡 `8 - 30 Days` (Warning)
-  - 🟠 `31 - 90 Days` (High Risk)
-  - 🔴 `> 90 Days` (Critical SLA Breach)
-- **OS vs 3rd-Party Software Breakdown**: Donut chart tracking Microsoft KBs vs Chrome, Zoom, Adobe, and runtimes.
-- **Fleet Patch Inventory DataTable**: Searchable, sortable ledger with Excel-style column filters.
-
-### 3. 🔄 Reboots & Failure Watchlist
-- **Pending Reboot Ledger**: Endpoints requiring restart to finalize patch installations, with uptime in days and pending patch counts.
-- **Patch Deployment Failure Triage**: Endpoints with failed updates, error codes (e.g. `0x80070002`, `0x80240020`), and attempt counters.
-- **Remediation Action Triggers**: Remote "Bulk Reboot" and "Fleet Patch Rescan" API triggers.
-
-### 4. 📥 Reports & Enterprise Excel Export
-- **Multi-Sheet Excel Workbook (`.xlsx`)**: One-click download with 6 formatted worksheets:
-  1. `Executive Summary`
-  2. `Organization Compliance`
-  3. `EOL Device Ledger`
-  4. `Patch SLA Aging`
-  5. `Needs Reboot`
-  6. `Patch Failures`
-- **Executive PDF Presentation**: Pixel-perfect headless reporting engine.
-
-### 5. 🔍 Excel-Style Table Filtering & Multi-Column Sorting
-- Every table features an interactive **`🔍 Filter...`** row beneath each column header supporting instantaneous text search and comparison queries (`> 30`, `< 60`, `>= 85`).
-- Click any header to sort ascending (`▲`) or descending (`▼`) across multiple columns simultaneously.
+An enterprise-grade infrastructure intelligence and operational patch management toolkit designed for **NinjaOne RMM**. Built for MSPs, IT infrastructure leaders, and compliance auditors to monitor multi-tenant device health, SLA aging backlogs, and multi-cloud hosting environments in real time.
 
 ---
 
-## 🚀 Quick Start (Running Locally)
+## 🎬 Showcase & Architecture
 
-### Option A: Clone & Run with Python (Recommended)
+![NinjaOne Toolkit Architecture](./ninjaone-management-dashboard-toolkit.svg)
 
+| 🎥 Product Walkthrough Video | 🌐 Interactive Architecture Showcase |
+| :--- | :--- |
+| [**Watch Demo Video (`brag.mp4`)**](./brag.mp4) | [**Interactive Architecture (`HTML`)**](./ninjaone-architecture-showcase.html) |
+
+https://github.com/user-attachments/assets/brag.mp4
+
+> 💡 *Click above to open the video walkthrough [brag.mp4](./brag.mp4) or inspect the full interactive [Architecture Showcase](./ninjaone-architecture-showcase.html) in your browser.*
+
+---
+
+## ⚡ Key Advantages & Operational Efficiency
+
+* **⏱️ Zero Setup & Instant Portability**: Available as a single standalone executable (`Ninjaone-Infra-Dashboard.exe`). No Python installation or environment setup required.
+* **🎯 Precision Patch Slicing**: Instantly isolate **OS Patches Only**, **Software Patches Only**, or evaluate **Both** simultaneously with real-time compliance recalculation.
+* **⚡ Live Data Synchronization**: Direct NinjaOne REST API integration with smart TTL caching pulls thousands of devices and patch policies in seconds with zero stale-database lag.
+* **📊 Dynamic SLA Thresholds**: Custom Amber/Red/Green thresholds configured in Settings automatically flow into all dashboard gauges and report exports.
+* **📑 1-Click Multi-Format Export**: Generates filtered, executive-ready audits in **Interactive HTML** (with working filters & gauges), **Multi-Page Vector PDF**, and **6-Sheet Formatted Excel Workbooks**.
+* **🌍 Unified Multi-Tenant Visibility**: Stacked slicers for Organizations, Locations, and OS families paired with an interactive dark-mode global infrastructure map.
+* **🔄 Built-In Auto-Updater**: In-app version checks, background downloads with progress feedback, and seamless zero-lock binary restarts.
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Standalone Binary (Windows)
+Download the latest `Ninjaone-Infra-Dashboard.exe` from [Releases](https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases) and launch. No dependencies needed.
+
+### Option 2: Run from Source
 ```bash
-# 1. Clone the repository
-git clone https://github.com/adchhabria/ninjaone-infra-dashboard.git
-cd ninjaone-infra-dashboard
-
-# 2. Create and activate a virtual environment
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# 3. Install dependencies
+git clone https://github.com/adchhabria/Ninjaone-Infra-Dashboard.git
+cd Ninjaone-Infra-Dashboard
+python -m venv venv && .\venv\Scripts\activate
 pip install -r requirements.txt
 
-# 4. Launch in Interactive Demo Mode (No API keys required to test)
+# Run in Interactive Demo Mode (No API keys required)
 python src/dashboard/app.py --demo
-
-# Or launch the Desktop Browser Launcher:
-python launcher.py
 ```
-Open **[http://localhost:8050](http://localhost:8050)** in your browser.
+Access the dashboard at **[http://localhost:8050](http://localhost:8050)**.
 
 ---
 
-## ⚙️ Connecting to Your Live NinjaOne Tenant
+## ⚙️ NinjaOne Connection
 
-You can connect the dashboard to your live NinjaOne tenant in **under 2 minutes**:
-
-### Step 1: Create an API Client in NinjaOne
-1. In your NinjaOne console, navigate to **Administration > Apps > API**.
-2. Click **Add API Client**.
-3. Set the application type to **Machine-to-Machine (Client Credentials)**.
-4. Select the following scopes:
-   - `monitoring` (Read devices, organizations, alerts)
-   - `management` (Read patch status, software inventory)
-   - `control` (Optional: for reboot & patch scan triggers)
-5. Save and copy your **Client ID** and **Client Secret**.
-
-### Step 2: Configure Credentials in the Dashboard
-- **Method 1 (In-App GUI)**: Open the dashboard, click **⚙️ Settings** in the top-right header, enter your Base URL, Client ID, and Client Secret, and click **Save Settings**.
-- **Method 2 (`.env` file)**: Copy `.env.example` to `.env` and fill in your details:
+Configure your API credentials in **⚙️ Settings** within the web UI, or set environment variables in `.env`:
 
 ```ini
-NINJA_BASE_URL=https://app.ninjarmm.com
-# For EU region: https://eu.ninjarmm.com
-# For Oceania:   https://oc.ninjarmm.com
-
-NINJA_CLIENT_ID=your_client_id_here
-NINJA_CLIENT_SECRET=your_client_secret_here
-
-CACHE_TTL_SECONDS=300
-DASH_PORT=8050
+NINJA_BASE_URL=https://app.ninjarmm.com  # or https://eu.ninjarmm.com
+NINJA_CLIENT_ID=your_client_id
+NINJA_CLIENT_SECRET=your_client_secret
 ```
-
-### Step 3: Run in Live Mode
-```bash
-python src/dashboard/app.py
-```
-The dashboard will authenticate, pull your organizations, locations, and endpoints based on your user's role-based access control (RBAC), and build your live compliance view.
+*Required API Scopes: `monitoring`, `management`, `control` (optional for remote reboot/rescan triggers).*
 
 ---
 
-## 📦 Building a Standalone Windows Executable (.exe)
-
-You can bundle this entire toolkit into a single, self-contained Windows desktop app:
+## 🛠️ Build & Test
 
 ```bash
-# Build the standalone package
-python scripts/build_exe.py
-```
-The compiled application will be generated in `dist/NinjaOne-Compliance-Dashboard/`. Anyone can double-click `NinjaOne-Dashboard.exe` without needing Python installed!
+# Run unit test suite (55 automated tests)
+python -m pytest
 
----
-
-## 🧪 Running Unit Tests
-
-The test suite includes 26 automated unit tests covering API clients, EOL lifecycle detection, multi-cloud hosting classification, and Excel generation:
-
-```bash
-python -m pytest tests/ -v
-```
-
----
-
-## 📁 Repository Structure
-
-```
-ninjaone-infra-dashboard/
-├── .github/workflows/          # Automated GitHub Actions release pipeline
-├── scripts/
-│   ├── build_exe.py            # PyInstaller desktop bundling script
-│   ├── export_pdf.py           # Headless PDF report generator
-│   └── generate_sample_data.py # Mock multi-tenant data generator
-├── src/
-│   ├── api/                    # NinjaOne REST API client & models
-│   ├── cache/                  # In-memory TTL caching engine
-│   ├── dashboard/              # Dash web application, charts & components
-│   │   ├── components/         # Slicers, Map, OS Donuts, Server, Patch, EOL, SLA
-│   │   ├── charts.py           # Plotly dark theme chart builders
-│   │   ├── layout.py           # 4-Tab navigation layout
-│   │   └── callbacks.py        # Interactive slicing & download callbacks
-│   └── metrics/                # SLA aging, EOL detection, hosting classification
-├── tests/                      # Pytest automated test suite
-├── launcher.py                 # Desktop auto-browser launcher
-├── requirements.txt            # Python dependencies
-└── README.md                   # Documentation
+# Compile standalone Windows executable
+python scripts/build_single_exe.py
 ```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+Distributed under the [MIT License](LICENSE).
