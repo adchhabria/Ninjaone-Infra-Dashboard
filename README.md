@@ -3,7 +3,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Dash](https://img.shields.io/badge/Dash-2.16+-00D8FF.svg)](https://dash.plotly.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/badge/Release-v1.0.17-brightgreen.svg)](https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.18-brightgreen.svg)](https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases)
 
 An enterprise-grade infrastructure intelligence and operational patch management toolkit designed for **NinjaOne RMM**. Built for MSPs, IT infrastructure leaders, and compliance auditors to monitor multi-tenant device health, SLA aging backlogs, and multi-cloud hosting environments in real time.
 

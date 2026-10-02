@@ -9,17 +9,30 @@ import time
 from typing import Any, Callable, Optional
 
 
+import os
+import pickle
+from pathlib import Path
+
+
+def _get_disk_cache_path(key: str) -> Optional[Path]:
+    """Resolves local persistent cache directory for high-speed instant startup."""
+    try:
+        if os.name == "nt":
+            base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        else:
+            base = Path.home() / ".cache"
+        cache_dir = base / "NinjaOneDashboard" / "cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        safe_key = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in key)
+        return cache_dir / f"{safe_key}.pkl"
+    except Exception:
+        return None
+
+
 class TTLCache:
     """
-    Simple thread-safe in-memory cache with per-key TTL.
-
-    Usage::
-
-        cache = TTLCache(default_ttl=300)
-
-        @cache.cached(ttl=60)
-        def expensive_call():
-            ...
+    Thread-safe in-memory cache with per-key TTL and persistent disk fallback
+    for instantaneous zero-lag dashboard startup.
     """
 
     def __init__(self, default_ttl: int = 300):
@@ -30,23 +43,72 @@ class TTLCache:
     # Core Operations
     # ------------------------------------------------------------------
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str, allow_disk: bool = True) -> Optional[Any]:
         if key in self._store:
             value, expires_at = self._store[key]
             if time.monotonic() < expires_at:
                 return value
             del self._store[key]
+
+        if allow_disk and key == "raw_api_payload":
+            disk_path = _get_disk_cache_path(key)
+            if disk_path and disk_path.exists():
+                try:
+                    with open(disk_path, "rb") as f:
+                        val, exp_wall_time = pickle.load(f)
+                    if time.time() < exp_wall_time:
+                        ttl_remaining = max(1.0, exp_wall_time - time.time())
+                        self._store[key] = (val, time.monotonic() + ttl_remaining)
+                        return val
+                except Exception:
+                    pass
+        return None
+
+    def get_stale(self, key: str) -> Optional[Any]:
+        """Returns cached payload immediately even if expired (stale-while-revalidate pattern)."""
+        if key in self._store:
+            return self._store[key][0]
+        disk_path = _get_disk_cache_path(key)
+        if disk_path and disk_path.exists():
+            try:
+                with open(disk_path, "rb") as f:
+                    val, _ = pickle.load(f)
+                return val
+            except Exception:
+                pass
         return None
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         ttl = ttl if ttl is not None else self._default_ttl
         self._store[key] = (value, time.monotonic() + ttl)
 
+        if key == "raw_api_payload":
+            disk_path = _get_disk_cache_path(key)
+            if disk_path:
+                try:
+                    with open(disk_path, "wb") as f:
+                        pickle.dump((value, time.time() + ttl), f, protocol=pickle.HIGHEST_PROTOCOL)
+                except Exception:
+                    pass
+
     def invalidate(self, key: str) -> None:
         self._store.pop(key, None)
+        if key == "raw_api_payload":
+            disk_path = _get_disk_cache_path(key)
+            if disk_path and disk_path.exists():
+                try:
+                    disk_path.unlink()
+                except Exception:
+                    pass
 
     def clear(self) -> None:
         self._store.clear()
+        disk_path = _get_disk_cache_path("raw_api_payload")
+        if disk_path and disk_path.exists():
+            try:
+                disk_path.unlink()
+            except Exception:
+                pass
 
     def stats(self) -> dict[str, int]:
         now = time.monotonic()

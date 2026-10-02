@@ -225,3 +225,28 @@ class TestServerComplianceAndCustomEOL:
         assert res["non_compliant_count"] == 1029
         assert res["patch_coverage_pct"] == 39.6
         assert res["patch_coverage_pct"] < 50.0
+
+    def test_ttl_cache_disk_persistence(self, tmp_path, monkeypatch):
+        from src.cache.ttl_cache import TTLCache, _get_disk_cache_path
+
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        cache = TTLCache(default_ttl=60)
+        cache.set("raw_api_payload", ("test_orgs", "test_devices", "test_activities"))
+
+        # Verify disk cache file exists
+        p = _get_disk_cache_path("raw_api_payload")
+        assert p is not None
+        assert p.exists()
+
+        # New cache instance reading from disk
+        new_cache = TTLCache(default_ttl=60)
+        loaded = new_cache.get("raw_api_payload")
+        assert loaded == ("test_orgs", "test_devices", "test_activities")
+
+        # Stale retrieval works
+        stale = new_cache.get_stale("raw_api_payload")
+        assert stale == ("test_orgs", "test_devices", "test_activities")
+
+        # Clear cleans up disk
+        new_cache.clear()
+        assert not p.exists()

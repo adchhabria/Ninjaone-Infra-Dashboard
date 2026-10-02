@@ -91,6 +91,9 @@ def main():
     from dotenv import load_dotenv
     load_dotenv()
 
+    # Pre-warm live data cache immediately in background
+    coordinator.start_background_prewarm()
+
     # Use unified coordinator for live PKCE/client-credentials & demo dataset
     app = create_app(coordinator.get_dashboard_data)
 

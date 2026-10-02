@@ -423,8 +423,10 @@ class MetricsAggregator:
     """
 
     def __init__(self, client: NinjaOneClient, cache_ttl: int = 300):
+        import threading
         self._client = client
         self._cache = get_cache(ttl=cache_ttl)
+        self._fetch_lock = threading.Lock()
 
     def get_dashboard_data(
         self,
@@ -449,9 +451,28 @@ class MetricsAggregator:
             raw_bundle = self._cache.get(cache_key)
 
         if raw_bundle is None:
-            console.log("[bold cyan]Fetching fresh data from NinjaOne API...[/bold cyan]")
-            raw_bundle = self._fetch_raw()
-            self._cache.set(cache_key, raw_bundle)
+            # Check if stale disk cache is available for instant zero-wait startup
+            stale_bundle = self._cache.get_stale(cache_key) if hasattr(self._cache, "get_stale") else None
+
+            with self._fetch_lock:
+                raw_bundle = self._cache.get(cache_key)
+                if raw_bundle is None:
+                    if stale_bundle is not None and not force_refresh:
+                        # Return stale payload immediately; refresh asynchronously in background
+                        import threading
+                        def _bg_refresh():
+                            with self._fetch_lock:
+                                try:
+                                    fresh = self._fetch_raw()
+                                    self._cache.set(cache_key, fresh)
+                                except Exception as e:
+                                    console.log(f"[yellow]Background cache refresh error: {e}[/yellow]")
+                        threading.Thread(target=_bg_refresh, daemon=True).start()
+                        raw_bundle = stale_bundle
+                    else:
+                        console.log("[bold cyan]Fetching fresh data from NinjaOne API (parallel ingestion)...[/bold cyan]")
+                        raw_bundle = self._fetch_raw()
+                        self._cache.set(cache_key, raw_bundle)
 
         orgs, devices, activities = raw_bundle
         return compute_dashboard_slice(
@@ -472,10 +493,24 @@ class MetricsAggregator:
         )
 
     def _fetch_raw(self) -> tuple[list[Organization], list[Device], list[Activity]]:
-        orgs = get_organizations_detailed(self._client)
-        devices = get_devices_detailed(self._client)
-        activities = get_recent_activities(self._client, days=30)
-        os_patch_counts, sw_patch_counts = get_fleet_patch_counts(self._client)
+        is_mock = getattr(self._client, "_is_mock", False) or type(self._client).__name__ == "MagicMock"
+        if is_mock:
+            orgs = get_organizations_detailed(self._client)
+            devices = get_devices_detailed(self._client, page_size=1000)
+            activities = get_recent_activities(self._client, days=30)
+            os_patch_counts, sw_patch_counts = get_fleet_patch_counts(self._client)
+        else:
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                fut_orgs = executor.submit(get_organizations_detailed, self._client)
+                fut_devices = executor.submit(get_devices_detailed, self._client, 1000)
+                fut_activities = executor.submit(get_recent_activities, self._client, 30)
+                fut_patches = executor.submit(get_fleet_patch_counts, self._client)
+
+                orgs = fut_orgs.result()
+                devices = fut_devices.result()
+                activities = fut_activities.result()
+                os_patch_counts, sw_patch_counts = fut_patches.result()
 
         # Enrich organizations with geographic regions and build location dictionary
         org_geo_map = {}

@@ -66,6 +66,7 @@ class DataCoordinator:
                 self._auth_method = "pkce"
                 self._last_error = None
                 print(f"[+] Live NinjaOne PKCE Connection Active: {self.base_url}")
+                self.start_background_prewarm()
                 return
             except Exception as e:
                 print(f"[!] PKCE Cached Connection Failed: {e}")
@@ -85,6 +86,7 @@ class DataCoordinator:
                 self._auth_method = "client_credentials"
                 self._last_error = None
                 print(f"[+] Live NinjaOne Client Credentials Connection Active: {base_url}")
+                self.start_background_prewarm()
                 return
             except Exception as e:
                 self._is_live = False
@@ -97,6 +99,17 @@ class DataCoordinator:
         self._is_live = False
         self._client = None
         self._aggregator = None
+
+    def start_background_prewarm(self):
+        """Asynchronously pre-warms live data cache without blocking startup."""
+        import threading
+        def _prewarm():
+            if self._is_live and self._aggregator:
+                try:
+                    self._aggregator.get_dashboard_data(force_refresh=False)
+                except Exception as e:
+                    print(f"[!] Background pre-warm notice: {e}")
+        threading.Thread(target=_prewarm, daemon=True).start()
 
     @property
     def is_live(self) -> bool:

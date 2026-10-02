@@ -129,7 +129,7 @@ def _build_session() -> requests.Session:
         status_forcelist=[500, 502, 503, 504],
         allowed_methods=["GET"],
     )
-    adapter = HTTPAdapter(max_retries=retry_strategy)
+    adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=20, pool_maxsize=20)
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     return session
