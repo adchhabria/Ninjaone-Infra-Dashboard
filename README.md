@@ -17,10 +17,6 @@ An enterprise-grade infrastructure intelligence and operational patch management
 | :--- | :--- |
 | [**Watch Demo Video (`brag.mp4`)**](./brag.mp4) | [**Interactive Architecture (`HTML`)**](./ninjaone-architecture-showcase.html) |
 
-https://github.com/user-attachments/assets/brag.mp4
-
-> 💡 *Click above to open the video walkthrough [brag.mp4](./brag.mp4) or inspect the full interactive [Architecture Showcase](./ninjaone-architecture-showcase.html) in your browser.*
-
 ---
 
 ## ⚡ Key Advantages & Operational Efficiency
