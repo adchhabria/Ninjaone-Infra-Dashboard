@@ -40,25 +40,24 @@ def world_map_chart(map_data: list[dict], selected_region: Optional[str] = None)
     if not map_data:
         return _empty_figure("No geographic data available")
 
-    df = pd.DataFrame(map_data)
-
     # Marker colors based on RAG status
     colors = [
-        T.RAG_GREEN if r == "GREEN" else T.RAG_AMBER if r == "AMBER" else T.RAG_RED
-        for r in df["rag"]
+        T.RAG_GREEN if r.get("rag") == "GREEN" else T.RAG_AMBER if r.get("rag") == "AMBER" else T.RAG_RED
+        for r in map_data
     ]
 
     # Marker sizes scaled proportionally by device count (diameter reflects volume)
-    max_devs = df["device_count"].max() if not df.empty and df["device_count"].max() > 0 else 1
-    sizes = [14 + (count / max_devs) * 36 for count in df["device_count"]]
+    raw_counts = [r.get("device_count", 0) for r in map_data]
+    max_devs = max(raw_counts) if raw_counts and max(raw_counts) > 0 else 1
+    sizes = [14 + (count / max_devs) * 36 for count in raw_counts]
 
     hover_texts = [
-        f"<b>{row['country_name']}</b><br>"
-        f"Region: {row['region']}<br>"
-        f"Devices: <b>{row['device_count']}</b> across {row['org_count']} orgs<br>"
-        f"Compliance: <b>{row['compliance_score']}%</b> ({row['rag']})<br>"
-        f"EOL Devices: {row['eol_count']}"
-        for _, row in df.iterrows()
+        f"<b>{r.get('country_name', 'Unknown')}</b><br>"
+        f"Region: {r.get('region', 'N/A')}<br>"
+        f"Devices: <b>{r.get('device_count', 0)}</b> across {r.get('org_count', 0)} orgs<br>"
+        f"Compliance: <b>{r.get('compliance_score', 0.0)}%</b> ({r.get('rag', 'RED')})<br>"
+        f"EOL Devices: {r.get('eol_count', 0)}"
+        for r in map_data
     ]
 
     fig = go.Figure()
@@ -66,8 +65,8 @@ def world_map_chart(map_data: list[dict], selected_region: Optional[str] = None)
     # Geo scatter points — mode='markers' (shows text ONLY on hover)
     fig.add_trace(
         go.Scattergeo(
-            lat=df["lat"],
-            lon=df["lon"],
+            lat=[r.get("lat", 0.0) for r in map_data],
+            lon=[r.get("lon", 0.0) for r in map_data],
             text=hover_texts,
             hoverinfo="text",
             mode="markers",
@@ -77,11 +76,11 @@ def world_map_chart(map_data: list[dict], selected_region: Optional[str] = None)
                 line=dict(width=2, color=T.TEXT_PRIMARY),
                 opacity=0.88,
             ),
-            customdata=df["region"],
+            customdata=[r.get("region", "") for r in map_data],
         )
     )
 
-    # Geo layout configuration
+    # Geo layout configuration (resolution=110 provides fast natural earth rendering)
     geo_config: dict[str, Any] = dict(
         bgcolor=T.BG_CARD,
         showland=True,
@@ -94,7 +93,7 @@ def world_map_chart(map_data: list[dict], selected_region: Optional[str] = None)
         countrycolor=T.BORDER,
         coastlinecolor=T.BORDER,
         projection_type="natural earth",
-        resolution=50,
+        resolution=110,
     )
 
     # Region focus zoom

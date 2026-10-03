@@ -427,6 +427,7 @@ class MetricsAggregator:
         self._client = client
         self._cache = get_cache(ttl=cache_ttl)
         self._fetch_lock = threading.Lock()
+        self._slice_cache: dict[tuple, DashboardData] = {}
 
     def get_dashboard_data(
         self,
@@ -443,9 +444,26 @@ class MetricsAggregator:
         patch_amber: float = 84.0,
         patch_green: float = 85.0,
     ) -> DashboardData:
+        slice_key = (
+            active_org_id,
+            active_region,
+            active_location,
+            active_os_family,
+            active_patch_type.lower(),
+            approaching_days,
+            server_patch_threshold,
+            patch_red,
+            patch_amber,
+            patch_green,
+        )
+
+        if not force_refresh and slice_key in self._slice_cache:
+            return self._slice_cache[slice_key]
+
         cache_key = "raw_api_payload"
         if force_refresh:
             self._cache.clear()
+            self._slice_cache.clear()
             raw_bundle = None
         else:
             raw_bundle = self._cache.get(cache_key)
@@ -465,6 +483,7 @@ class MetricsAggregator:
                                 try:
                                     fresh = self._fetch_raw()
                                     self._cache.set(cache_key, fresh)
+                                    self._slice_cache.clear()
                                 except Exception as e:
                                     console.log(f"[yellow]Background cache refresh error: {e}[/yellow]")
                         threading.Thread(target=_bg_refresh, daemon=True).start()
@@ -473,9 +492,10 @@ class MetricsAggregator:
                         console.log("[bold cyan]Fetching fresh data from NinjaOne API (parallel ingestion)...[/bold cyan]")
                         raw_bundle = self._fetch_raw()
                         self._cache.set(cache_key, raw_bundle)
+                        self._slice_cache.clear()
 
         orgs, devices, activities = raw_bundle
-        return compute_dashboard_slice(
+        computed = compute_dashboard_slice(
             devices=devices,
             organizations=orgs,
             activities=activities,
@@ -491,6 +511,8 @@ class MetricsAggregator:
             patch_amber=patch_amber,
             patch_green=patch_green,
         )
+        self._slice_cache[slice_key] = computed
+        return computed
 
     def _fetch_raw(self) -> tuple[list[Organization], list[Device], list[Activity]]:
         is_mock = getattr(self._client, "_is_mock", False) or type(self._client).__name__ == "MagicMock"
