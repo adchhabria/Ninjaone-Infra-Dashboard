@@ -9,27 +9,26 @@ An enterprise-grade infrastructure intelligence and operational patch management
 
 ---
 
-## 🎬 Showcase & Architecture
+## 🎬 30-Second Infrastructure Intelligence Showcase
 
 <div align="center">
 
-### 🎥 30-Second Infrastructure Intelligence Showcase
-
-<video src="https://github.com/adchhabria/Ninjaone-Infra-Dashboard/raw/main/brag.mp4" controls="controls" poster="./brag.jpg" width="100%" style="max-width: 900px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6);">
-  <a href="https://github.com/adchhabria/Ninjaone-Infra-Dashboard/raw/main/brag.mp4">
-    <img src="./brag.jpg" alt="Click to Watch NinjaOne Infra Dashboard Video" width="100%" style="max-width: 900px; border-radius: 12px;" />
-  </a>
-</video>
+<a href="./brag.mp4" title="Click to Watch Full HD Video with Audio (brag.mp4)">
+  <img src="./brag.gif" alt="NinjaOne Infra Dashboard 30s Showcase Preview" width="100%" style="max-width: 860px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6);" />
+</a>
 
 <p>
-  <em>▶️ <b>Play Video</b>: Real-time telemetry, dual-engine patch slicing, and datacenter infrastructure visibility.</em>
+  <b><a href="./brag.mp4">▶️ Click Here to Watch Full HD Video with Sound (`brag.mp4`)</a></b> &nbsp;•&nbsp; 
+  <b><a href="./ninjaone-architecture-showcase.html">🌐 Interactive Architecture Showcase (`HTML`)</a></b>
 </p>
 
 </div>
 
-![NinjaOne Toolkit Architecture](./ninjaone-management-dashboard-toolkit.svg)
+---
 
-> 💡 **Interactive Architecture Model**: Explore the full system design in the [**Interactive Architecture Showcase (`HTML`)**](./ninjaone-architecture-showcase.html).
+## 📐 Architecture & Telemetry Pipeline
+
+![NinjaOne Toolkit Architecture](./ninjaone-management-dashboard-toolkit.svg)
 
 ---
 
