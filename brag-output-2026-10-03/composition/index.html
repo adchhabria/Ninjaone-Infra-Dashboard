@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>NinjaOne Infra Dashboard — Cinematic Datacenter Launch Video</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #030712;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #f8fafc;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        background: radial-gradient(circle at 50% 40%, #0c1527 0%, #030712 85%);
+        overflow: hidden;
+      }
+      
+      /* Datacenter Floor Grid */
+      .grid-floor {
+        position: absolute;
+        inset: 0;
+        background-image: 
+          linear-gradient(to right, rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
+        background-size: 80px 80px;
+        pointer-events: none;
+      }
+
+      /* Glow Spotlight */
+      .datacenter-ambient {
+        position: absolute;
+        width: 1200px;
+        height: 700px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse at center, rgba(0, 229, 255, 0.09) 0%, rgba(3, 7, 18, 0) 70%);
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+
+      /* Datacenter Server Racks - Left & Right */
+      .server-rack {
+        position: absolute;
+        width: 160px;
+        background: linear-gradient(180deg, #090e1a 0%, #030712 100%);
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(0, 229, 255, 0.05);
+        z-index: 2;
+      }
+      .rack-left-1 { top: 120px; left: 60px; height: 380px; }
+      .rack-left-2 { top: 540px; left: 60px; height: 420px; }
+      .rack-right-1 { top: 120px; right: 60px; height: 380px; }
+      .rack-right-2 { top: 540px; right: 60px; height: 420px; }
+
+      .server-unit {
+        height: 48px;
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+      }
+      .server-unit-header {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .server-drive-bay {
+        display: flex;
+        gap: 3px;
+      }
+      .drive-slot {
+        width: 14px;
+        height: 8px;
+        background: #1e293b;
+        border-radius: 1px;
+      }
+      .led {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .led-green { background: #00e676; box-shadow: 0 0 8px #00e676; }
+      .led-cyan { background: #00e5ff; box-shadow: 0 0 8px #00e5ff; }
+      .led-amber { background: #ffb300; box-shadow: 0 0 8px #ffb300; }
+
+      /* Flowing Fiber-Optic Bus Overlay */
+      .flow-canvas {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        pointer-events: none;
+        z-index: 3;
+      }
+
+      /* Base Scene Container */
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px;
+        opacity: 0;
+        visibility: hidden;
+        z-index: 5;
+      }
+
+      /* Live Telemetry Pill */
+      .live-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 26px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(0, 229, 255, 0.45);
+        border-radius: 9999px;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #00e5ff;
+        box-shadow: 0 0 25px rgba(0, 229, 255, 0.25);
+        margin-bottom: 28px;
+      }
+      .live-dot {
+        width: 12px;
+        height: 12px;
+        background: #00e676;
+        border-radius: 50%;
+        box-shadow: 0 0 12px #00e676;
+      }
+
+      /* Typography */
+      .cinematic-heading {
+        font-size: 78px;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        text-align: center;
+        background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 18px;
+        text-transform: uppercase;
+      }
+      .cinematic-subheading {
+        font-size: 28px;
+        font-weight: 500;
+        color: #cbd5e1;
+        letter-spacing: 0.02em;
+        text-align: center;
+        margin-bottom: 44px;
+        max-width: 1100px;
+      }
+
+      /* Stat Cards */
+      .stat-cards-row {
+        display: flex;
+        gap: 32px;
+        margin-top: 10px;
+      }
+      .stat-card {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 28px 44px;
+        text-align: center;
+        min-width: 280px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      }
+      .stat-val {
+        font-size: 58px;
+        font-weight: 800;
+        color: #00e5ff;
+        line-height: 1.1;
+        margin-bottom: 8px;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat-label {
+        font-size: 16px;
+        font-weight: 600;
+        color: #cbd5e1;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      /* Slicer Chips */
+      .slicer-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 36px;
+      }
+      .slicer-chip {
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-size: 20px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid #334155;
+        background: rgba(15, 23, 42, 0.8);
+        color: #94a3b8;
+      }
+      .slicer-chip.active {
+        background: rgba(0, 229, 255, 0.15);
+        border: 2px solid #00e5ff;
+        color: #00e5ff;
+        box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);
+      }
+
+      /* Speedometer Gauge in Scene 2 */
+      .gauge-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 60px;
+      }
+      .gauge-container {
+        position: relative;
+        width: 320px;
+        height: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .gauge-svg {
+        width: 320px;
+        height: 190px;
+        overflow: visible;
+      }
+      .gauge-center-text {
+        position: absolute;
+        top: 85px;
+        text-align: center;
+      }
+      .gauge-number {
+        font-size: 56px;
+        font-weight: 900;
+        color: #ffffff;
+        line-height: 1;
+      }
+      .gauge-sub {
+        font-size: 15px;
+        font-weight: 700;
+        color: #00e5ff;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-top: 4px;
+      }
+
+      /* Multi-Cloud Topology Grid in Scene 3 */
+      .cloud-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        width: 1240px;
+        margin-bottom: 30px;
+      }
+      .cloud-card {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 22px;
+        text-align: left;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      }
+      .cloud-title {
+        font-size: 19px;
+        font-weight: 700;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .cloud-metric {
+        font-size: 28px;
+        font-weight: 800;
+        color: #00e5ff;
+      }
+      .cloud-sub {
+        font-size: 14px;
+        color: #94a3b8;
+        margin-top: 2px;
+      }
+
+      /* High Density Audit Table in Scene 3 */
+      .table-card {
+        width: 1240px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid #334155;
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .table-row {
+        display: grid;
+        grid-template-columns: 2.2fr 2.5fr 2fr 1.6fr 1.7fr;
+        padding: 13px 26px;
+        align-items: center;
+        border-bottom: 1px solid #1e293b;
+        font-size: 16px;
+      }
+      .table-header {
+        background: rgba(30, 41, 59, 0.7);
+        font-weight: 700;
+        color: #cbd5e1;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .status-pill {
+        display: inline-block;
+        padding: 4px 14px;
+        border-radius: 9999px;
+        font-size: 14px;
+        font-weight: 700;
+        background: rgba(0, 230, 118, 0.15);
+        border: 1px solid #00e676;
+        color: #00e676;
+        text-align: center;
+      }
+
+      /* Outro in Scene 4 */
+      .export-chip {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 30px;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid #334155;
+        border-radius: 14px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #f8fafc;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+      .footer-badge {
+        margin-top: 36px;
+        padding: 10px 28px;
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid #475569;
+        border-radius: 9999px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #cbd5e1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080">
+      <div class="grid-floor"></div>
+      <div class="datacenter-ambient"></div>
+
+      <!-- Left Datacenter Server Racks -->
+      <div class="server-rack rack-left-1">
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-amber"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+      </div>
+
+      <div class="server-rack rack-left-2">
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-amber"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+      </div>
+
+      <!-- Right Datacenter Server Racks -->
+      <div class="server-rack rack-right-1">
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-amber"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+      </div>
+
+      <div class="server-rack rack-right-2">
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-cyan"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-amber"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-cyan"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+        <div class="server-unit">
+          <div class="server-unit-header"><div class="led led-green"></div><div class="led led-green"></div></div>
+          <div class="server-drive-bay"><div class="drive-slot"></div><div class="drive-slot"></div><div class="drive-slot"></div></div>
+        </div>
+      </div>
+
+      <!-- Animated SVG Data Lines Flowing Between Servers -->
+      <svg class="flow-canvas" viewBox="0 0 1920 1080">
+        <defs>
+          <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <linearGradient id="busGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.2" />
+            <stop offset="50%" stop-color="#00e5ff" stop-opacity="0.9" />
+            <stop offset="100%" stop-color="#00e676" stop-opacity="0.2" />
+          </linearGradient>
+          <linearGradient id="busGrad2" x1="100%" y1="0%" x2="0%" y2="0%">
+            <stop offset="0%" stop-color="#00e676" stop-opacity="0.2" />
+            <stop offset="50%" stop-color="#00e5ff" stop-opacity="0.9" />
+            <stop offset="100%" stop-color="#00e5ff" stop-opacity="0.2" />
+          </linearGradient>
+        </defs>
+
+        <!-- Dynamic Optic Cables Connecting Servers Across Datacenter Floor -->
+        <path id="cable1" d="M 220 280 C 450 280, 550 480, 960 480" fill="none" stroke="rgba(0, 229, 255, 0.25)" stroke-width="2" />
+        <path id="cable2" d="M 1700 280 C 1470 280, 1370 480, 960 480" fill="none" stroke="rgba(0, 230, 118, 0.25)" stroke-width="2" />
+        <path id="cable3" d="M 220 720 C 500 720, 600 540, 960 540" fill="none" stroke="rgba(0, 229, 255, 0.25)" stroke-width="2" />
+        <path id="cable4" d="M 1700 720 C 1420 720, 1320 540, 960 540" fill="none" stroke="rgba(0, 230, 118, 0.25)" stroke-width="2" />
+        <path id="cable5" d="M 220 400 L 1700 400" fill="none" stroke="rgba(0, 229, 255, 0.15)" stroke-width="1.5" stroke-dasharray="8 12" />
+        <path id="cable6" d="M 220 640 L 1700 640" fill="none" stroke="rgba(0, 230, 118, 0.15)" stroke-width="1.5" stroke-dasharray="8 12" />
+
+        <!-- Pulsing Optical Fiber Packets Running Along Cables -->
+        <path id="pulse1" d="M 220 280 C 450 280, 550 480, 960 480" fill="none" stroke="url(#busGrad1)" stroke-width="4" stroke-linecap="round" stroke-dasharray="40 180" filter="url(#glow-cyan)" />
+        <path id="pulse2" d="M 1700 280 C 1470 280, 1370 480, 960 480" fill="none" stroke="url(#busGrad2)" stroke-width="4" stroke-linecap="round" stroke-dasharray="40 180" filter="url(#glow-cyan)" />
+        <path id="pulse3" d="M 220 720 C 500 720, 600 540, 960 540" fill="none" stroke="url(#busGrad1)" stroke-width="4" stroke-linecap="round" stroke-dasharray="50 220" filter="url(#glow-cyan)" />
+        <path id="pulse4" d="M 1700 720 C 1420 720, 1320 540, 960 540" fill="none" stroke="url(#busGrad2)" stroke-width="4" stroke-linecap="round" stroke-dasharray="50 220" filter="url(#glow-cyan)" />
+      </svg>
+
+      <!-- Scene 1: The Datacenter Grid & Fleet Scope (0.0s - 7.5s) -->
+      <div id="scene-1" class="scene">
+        <div class="live-pill">
+          <div class="live-dot"></div>
+          <span>Live Telemetry · 1,704 Data Center Servers</span>
+        </div>
+        <h1 class="cinematic-heading">Enterprise Infrastructure Intelligence</h1>
+        <p class="cinematic-subheading">Continuous telemetry streaming between physical server nodes, multi-cloud hosting, and patch SLA compliance.</p>
+        <div class="stat-cards-row">
+          <div class="stat-card">
+            <div class="stat-val">1,704</div>
+            <div class="stat-label">Active Monitored Servers</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">54</div>
+            <div class="stat-label">Data Center Locations</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" style="color: #00e676;">&lt; 1.2s</div>
+            <div class="stat-label">Direct API Response</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 2: Real-Time Dual-Engine Patch Slicer & Gauge (7.5s - 15.0s) -->
+      <div id="scene-2" class="scene">
+        <div class="live-pill">
+          <div class="live-dot"></div>
+          <span>Precision Compliance Evaluation</span>
+        </div>
+        <h1 class="cinematic-heading">Dual-Engine Patch Slicing</h1>
+        <p class="cinematic-subheading">Instantly isolate OS Patches, Software Patches, or evaluate combined fleet compliance in real time.</p>
+        
+        <!-- Interactive Slicer Controls -->
+        <div class="slicer-row">
+          <div class="slicer-chip">
+            <span>🖥️</span>
+            <span>OS Patches Only</span>
+          </div>
+          <div class="slicer-chip">
+            <span>📦</span>
+            <span>Software Patches Only</span>
+          </div>
+          <div class="slicer-chip active">
+            <span>⚡</span>
+            <span>Both (Combined Fleet)</span>
+          </div>
+        </div>
+
+        <div class="gauge-wrapper">
+          <div class="gauge-container">
+            <svg class="gauge-svg" viewBox="0 0 200 120">
+              <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" stroke-width="18" stroke-linecap="round" />
+              <path id="gauge-arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#00e5ff" stroke-width="18" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2" style="filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.6));" />
+            </svg>
+            <div class="gauge-center-text">
+              <div class="gauge-number" id="gauge-readout">94.6%</div>
+              <div class="gauge-sub">Fleet Compliant</div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="stat-card" style="min-width: 380px; padding: 20px 32px; text-align: left; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 14px; color: #cbd5e1; text-transform: uppercase; font-weight: 600;">SLA Compliance Rule</div>
+                <div style="font-size: 22px; color: #00e676; font-weight: 800; margin-top: 4px;">0 Missing = 100% Compliant</div>
+              </div>
+              <span style="font-size: 32px;">🛡️</span>
+            </div>
+            <div class="stat-card" style="min-width: 380px; padding: 20px 32px; text-align: left; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 14px; color: #cbd5e1; text-transform: uppercase; font-weight: 600;">Dynamic Thresholds</div>
+                <div style="font-size: 22px; color: #ffb300; font-weight: 800; margin-top: 4px;">90% Amber · 80% Red</div>
+              </div>
+              <span style="font-size: 32px;">⚙️</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 3: Multi-Cloud Mesh & Live Audit Ledger (15.0s - 22.5s) -->
+      <div id="scene-3" class="scene">
+        <h1 class="cinematic-heading" style="font-size: 68px; margin-bottom: 12px;">Unified Multi-Cloud Topology</h1>
+        <p class="cinematic-subheading" style="margin-bottom: 30px;">Eliminate multi-console fragmentation. Single-pane telemetry across public cloud and private datacenter racks.</p>
+        
+        <div class="cloud-grid">
+          <div class="cloud-card">
+            <div class="cloud-title"><span>☁️</span> AWS Infrastructure</div>
+            <div class="cloud-metric">715 Nodes</div>
+            <div class="cloud-sub">eu-west-1 & us-east-1</div>
+          </div>
+          <div class="cloud-card">
+            <div class="cloud-title"><span>🔷</span> Azure Hybrid</div>
+            <div class="cloud-metric">596 Nodes</div>
+            <div class="cloud-sub">East US & West Europe</div>
+          </div>
+          <div class="cloud-card">
+            <div class="cloud-title"><span>🌐</span> Google Cloud</div>
+            <div class="cloud-metric">256 Nodes</div>
+            <div class="cloud-sub">asia-northeast1</div>
+          </div>
+          <div class="cloud-card">
+            <div class="cloud-title"><span>🏢</span> On-Prem Datacenter</div>
+            <div class="cloud-metric">137 Nodes</div>
+            <div class="cloud-sub">Tier-3 Private Core</div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-row table-header">
+            <span>Server Hostname</span>
+            <span>Operating System</span>
+            <span>Hosting Provider</span>
+            <span>Patch Backlog</span>
+            <span>Compliance SLA</span>
+          </div>
+          <div class="table-row">
+            <span style="font-weight: 700; color: #ffffff;">SRV-LON-APP01</span>
+            <span style="color: #cbd5e1;">Windows Server 2022</span>
+            <span style="color: #00e5ff; font-weight: 600;">AWS eu-west-1</span>
+            <span style="color: #00e676; font-weight: 700;">0 (Clean)</span>
+            <span><div class="status-pill">100% Compliant</div></span>
+          </div>
+          <div class="table-row">
+            <span style="font-weight: 700; color: #ffffff;">SRV-NYC-DB04</span>
+            <span style="color: #cbd5e1;">Ubuntu 22.04 LTS</span>
+            <span style="color: #00e5ff; font-weight: 600;">Azure East US</span>
+            <span style="color: #00e676; font-weight: 700;">0 (Clean)</span>
+            <span><div class="status-pill">100% Compliant</div></span>
+          </div>
+          <div class="table-row">
+            <span style="font-weight: 700; color: #ffffff;">SRV-TOK-WEB02</span>
+            <span style="color: #cbd5e1;">Windows Server 2019</span>
+            <span style="color: #00e5ff; font-weight: 600;">GCP asia-ne1</span>
+            <span style="color: #00e676; font-weight: 700;">0 (Clean)</span>
+            <span><div class="status-pill">100% Compliant</div></span>
+          </div>
+          <div class="table-row">
+            <span style="font-weight: 700; color: #ffffff;">SRV-FRA-CORE1</span>
+            <span style="color: #cbd5e1;">RHEL 9 Enterprise</span>
+            <span style="color: #00e5ff; font-weight: 600;">Datacenter Core</span>
+            <span style="color: #00e676; font-weight: 700;">0 (Clean)</span>
+            <span><div class="status-pill">100% Compliant</div></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 4: Executive Climax & Outro (22.5s - 30.0s) -->
+      <div id="scene-4" class="scene">
+        <div style="width: 104px; height: 104px; border-radius: 26px; background: rgba(0, 229, 255, 0.12); border: 2px solid #00e5ff; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; box-shadow: 0 0 45px rgba(0, 229, 255, 0.35);">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+        </div>
+        <h1 class="cinematic-heading" style="font-size: 82px; margin-bottom: 14px;">NinjaOne Infra Dashboard</h1>
+        <p class="cinematic-subheading" style="font-size: 32px; color: #cbd5e1; margin-bottom: 40px;">Complete fleet compliance. Zero guesswork.</p>
+        <div style="display: flex; gap: 26px;">
+          <div class="export-chip">
+            <span style="font-size: 26px;">📄</span>
+            <span>Executive Vector PDF</span>
+          </div>
+          <div class="export-chip">
+            <span style="font-size: 26px;">📊</span>
+            <span>6-Sheet Formatted Excel</span>
+          </div>
+          <div class="export-chip">
+            <span style="font-size: 26px;">🌐</span>
+            <span>Interactive HTML Report</span>
+          </div>
+        </div>
+        <div class="footer-badge">
+          ⚡ Single Standalone Executable · Zero Python Setup · In-App Auto-Updater
+        </div>
+      </div>
+
+      <!-- Audio Tracks -->
+      <audio id="bg-music" data-start="0" data-duration="30" data-track-index="10" data-volume="0.55" src="assets/music/happy-beats-business-moves-vol-11-by-ende-dot-app.mp3"></audio>
+      <audio id="sfx-1" data-start="0.4" data-duration="0.11" data-track-index="11" data-volume="0.70" src="assets/sfx/interface/drop_001.ogg"></audio>
+      <audio id="sfx-2" data-start="7.6" data-duration="0.31" data-track-index="12" data-volume="0.70" src="assets/sfx/ui/switch1.ogg"></audio>
+      <audio id="sfx-3" data-start="10.2" data-duration="0.23" data-track-index="13" data-volume="0.70" src="assets/sfx/ui/rollover1.ogg"></audio>
+      <audio id="sfx-4" data-start="15.2" data-duration="0.09" data-track-index="14" data-volume="0.70" src="assets/sfx/ui/click1.ogg"></audio>
+      <audio id="sfx-5" data-start="22.6" data-duration="1.2" data-track-index="15" data-volume="0.80" src="assets/sfx/impact/impactBell_heavy_000.ogg"></audio>
+      <audio id="sfx-6" data-start="25.5" data-duration="0.31" data-track-index="16" data-volume="0.70" src="assets/sfx/ui/switch1.ogg"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // Continuous Background Animations: Flowing Fiber-Optic Packets & Blinking Server LEDs
+      tl.to("#pulse1", { strokeDashoffset: -400, duration: 30, ease: "none" }, 0);
+      tl.to("#pulse2", { strokeDashoffset: -400, duration: 30, ease: "none" }, 0);
+      tl.to("#pulse3", { strokeDashoffset: -500, duration: 30, ease: "none" }, 0);
+      tl.to("#pulse4", { strokeDashoffset: -500, duration: 30, ease: "none" }, 0);
+
+      // Random-looking blinking LEDs across server racks
+      gsap.utils.toArray(".led").forEach((led, i) => {
+        tl.to(led, {
+          opacity: 0.3,
+          duration: 0.3,
+          repeat: 45,
+          yoyo: true,
+          ease: "steps(1)",
+          delay: (i * 0.13) % 1.5
+        }, 0);
+      });
+
+      // SCENE 1 (0.0s -> 7.5s): Hook & Datacenter Scale
+      tl.set("#scene-1", { autoAlpha: 1 }, 0);
+      tl.fromTo("#scene-1 .live-pill", { opacity: 0, y: -24 }, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 0.3);
+      tl.fromTo("#scene-1 .cinematic-heading", { opacity: 0, scale: 0.94, y: 25 }, { opacity: 1, scale: 1, y: 0, duration: 0.9, ease: "power3.out" }, 0.6);
+      tl.fromTo("#scene-1 .cinematic-subheading", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 0.9);
+      tl.fromTo("#scene-1 .stat-card", { opacity: 0, y: 30, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, stagger: 0.18, duration: 0.8, ease: "back.out(1.2)" }, 1.3);
+      
+      // Scene 1 Exit
+      tl.to("#scene-1", { opacity: 0, y: -25, scale: 0.98, duration: 0.6, ease: "power2.in" }, 6.9);
+      tl.set("#scene-1", { autoAlpha: 0 }, 7.5);
+
+      // SCENE 2 (7.5s -> 15.0s): Dual-Engine Slicer & Gauge
+      tl.set("#scene-2", { autoAlpha: 1 }, 7.5);
+      tl.fromTo("#scene-2 .live-pill", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 7.6);
+      tl.fromTo("#scene-2 .cinematic-heading", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 7.8);
+      tl.fromTo("#scene-2 .cinematic-subheading", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 8.0);
+      tl.fromTo("#scene-2 .slicer-chip", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, stagger: 0.15, duration: 0.6, ease: "back.out(1.4)" }, 8.3);
+      tl.fromTo("#scene-2 .gauge-wrapper", { opacity: 0, y: 25 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 8.8);
+      
+      // Speedometer Gauge Sweep Animation
+      tl.fromTo("#gauge-arc", { strokeDashoffset: 251.2 }, { strokeDashoffset: 26, duration: 1.8, ease: "power2.out" }, 9.2);
+
+      // Scene 2 Exit
+      tl.to("#scene-2", { opacity: 0, y: -25, scale: 0.98, duration: 0.6, ease: "power2.in" }, 14.4);
+      tl.set("#scene-2", { autoAlpha: 0 }, 15.0);
+
+      // SCENE 3 (15.0s -> 22.5s): Multi-Cloud Mesh & Live Audit Ledger
+      tl.set("#scene-3", { autoAlpha: 1 }, 15.0);
+      tl.fromTo("#scene-3 .cinematic-heading", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 15.2);
+      tl.fromTo("#scene-3 .cinematic-subheading", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 15.4);
+      tl.fromTo("#scene-3 .cloud-card", { opacity: 0, y: 20, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, stagger: 0.12, duration: 0.7, ease: "back.out(1.3)" }, 15.7);
+      tl.fromTo("#scene-3 .table-card", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 16.3);
+      tl.fromTo("#scene-3 .table-row:not(.table-header)", { opacity: 0, x: -24 }, { opacity: 1, x: 0, stagger: 0.16, duration: 0.6, ease: "power2.out" }, 16.7);
+
+      // Scene 3 Exit
+      tl.to("#scene-3", { opacity: 0, y: -25, scale: 0.98, duration: 0.6, ease: "power2.in" }, 21.9);
+      tl.set("#scene-3", { autoAlpha: 0 }, 22.5);
+
+      // SCENE 4 (22.5s -> 30.0s): Executive Climax & Outro
+      tl.set("#scene-4", { autoAlpha: 1 }, 22.5);
+      tl.fromTo("#scene-4 > div:first-child", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.9, ease: "back.out(1.5)" }, 22.7);
+      tl.fromTo("#scene-4 .cinematic-heading", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 23.0);
+      tl.fromTo("#scene-4 .cinematic-subheading", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 23.3);
+      tl.fromTo("#scene-4 .export-chip", { opacity: 0, y: 24, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, stagger: 0.18, duration: 0.7, ease: "power2.out" }, 23.7);
+      tl.fromTo("#scene-4 .footer-badge", { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 24.5);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

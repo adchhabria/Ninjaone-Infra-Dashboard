@@ -11,11 +11,25 @@ An enterprise-grade infrastructure intelligence and operational patch management
 
 ## 🎬 Showcase & Architecture
 
+<div align="center">
+
+### 🎥 30-Second Infrastructure Intelligence Showcase
+
+<video src="https://github.com/adchhabria/Ninjaone-Infra-Dashboard/raw/main/brag.mp4" controls="controls" poster="./brag.jpg" width="100%" style="max-width: 900px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6);">
+  <a href="https://github.com/adchhabria/Ninjaone-Infra-Dashboard/raw/main/brag.mp4">
+    <img src="./brag.jpg" alt="Click to Watch NinjaOne Infra Dashboard Video" width="100%" style="max-width: 900px; border-radius: 12px;" />
+  </a>
+</video>
+
+<p>
+  <em>▶️ <b>Play Video</b>: Real-time telemetry, dual-engine patch slicing, and datacenter infrastructure visibility.</em>
+</p>
+
+</div>
+
 ![NinjaOne Toolkit Architecture](./ninjaone-management-dashboard-toolkit.svg)
 
-| 🎥 Product Walkthrough Video | 🌐 Interactive Architecture Showcase |
-| :--- | :--- |
-| [**Watch Demo Video (`brag.mp4`)**](./brag.mp4) | [**Interactive Architecture (`HTML`)**](./ninjaone-architecture-showcase.html) |
+> 💡 **Interactive Architecture Model**: Explore the full system design in the [**Interactive Architecture Showcase (`HTML`)**](./ninjaone-architecture-showcase.html).
 
 ---
 
