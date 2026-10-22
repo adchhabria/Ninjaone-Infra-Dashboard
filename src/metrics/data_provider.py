@@ -52,31 +52,38 @@ class DataCoordinator:
         # 1. Try PKCE cached token
         cached_pkce = pkce_manager.load_cached_token()
         if cached_pkce and cached_pkce.get("access_token"):
-            try:
-                client = NinjaOneClient.from_pkce(
-                    base_url=cached_pkce.get("base_url") or self.base_url,
-                    client_id=cached_pkce.get("client_id") or os.getenv("NINJA_CLIENT_ID", ""),
-                    token_data=cached_pkce,
-                )
-                # Verify token works
-                _ = client._tokens.get_token()
-                self._client = client
-                self._aggregator = MetricsAggregator(client, cache_ttl=cache_ttl)
-                self._is_live = True
-                self._auth_method = "pkce"
-                self._last_error = None
-                print(f"[+] Live NinjaOne PKCE Connection Active: {self.base_url}")
-                self.start_background_prewarm()
-                return
-            except Exception as e:
-                print(f"[!] PKCE Cached Connection Failed: {e}")
+            tok = cached_pkce.get("access_token", "")
+            cid = cached_pkce.get("client_id") or os.getenv("NINJA_CLIENT_ID", "")
+            if not tok.startswith("mock_") and not "test_" in cid:
+                try:
+                    client = NinjaOneClient.from_pkce(
+                        base_url=cached_pkce.get("base_url") or self.base_url,
+                        client_id=cid,
+                        token_data=cached_pkce,
+                    )
+                    # Verify token works
+                    _ = client._tokens.get_token()
+                    self._client = client
+                    self._aggregator = MetricsAggregator(client, cache_ttl=cache_ttl)
+                    self._is_live = True
+                    self._auth_method = "pkce"
+                    self._last_error = None
+                    print(f"[+] Live NinjaOne PKCE Connection Active: {self.base_url}")
+                    self.start_background_prewarm()
+                    return
+                except Exception as e:
+                    self._is_live = False
+                    self._client = None
+                    self._aggregator = None
+                    self._last_error = str(e)
+                    print(f"[!] PKCE Cached Connection Failed: {e}")
 
         # 2. Try Client Credentials
         client_id = os.getenv("NINJA_CLIENT_ID", "").strip()
         client_secret = os.getenv("NINJA_CLIENT_SECRET", "").strip()
         base_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com").strip().rstrip("/")
 
-        if client_id and client_secret:
+        if client_id and client_secret and not "test_" in client_id and not client_secret.startswith("mock_"):
             try:
                 client = NinjaOneClient(base_url=base_url, client_id=client_id, client_secret=client_secret)
                 _ = client._tokens.get_token()
@@ -306,18 +313,21 @@ class DataCoordinator:
 
     def get_dashboard_data(
         self,
-        active_org_id: Optional[int] = None,
+        active_org_id: Any = None,
         active_region: Optional[str] = None,
-        active_location: Optional[str] = None,
-        active_os_family: Optional[str] = None,
+        active_location: Any = None,
+        active_os_family: Any = None,
+        active_roles: Any = None,
         active_patch_type: str = "both",
         force_refresh: bool = False,
         approaching_days: int = 180,
         custom_eol_dates: Optional[dict[str, str]] = None,
-        server_patch_threshold: int = 0,
         patch_red: float = 60.0,
         patch_amber: float = 84.0,
         patch_green: float = 85.0,
+        included_keywords: list[str] | None = None,
+        excluded_products: list[str] | None = None,
+        selected_patch_titles: list[str] | None = None,
     ) -> DashboardData:
         """
         Retrieves DashboardData from Live NinjaOne API if authenticated,
@@ -333,17 +343,22 @@ class DataCoordinator:
                     active_region=active_region,
                     active_location=active_location,
                     active_os_family=active_os_family,
+                    active_roles=active_roles,
                     active_patch_type=active_patch_type,
                     force_refresh=force_refresh,
                     approaching_days=approaching_days,
                     custom_eol_dates=custom_eol_dates,
-                    server_patch_threshold=server_patch_threshold,
                     patch_red=patch_red,
                     patch_amber=patch_amber,
                     patch_green=patch_green,
+                    included_keywords=included_keywords,
+                    excluded_products=excluded_products,
+                    selected_patch_titles=selected_patch_titles,
                 )
             except Exception as e:
-                print(f"[!] Live data fetch failed, falling back to sample dataset: {e}")
+                print(f"[!] Live data fetch failed, tripping circuit breaker to offline/demo: {e}")
+                self._is_live = False
+                self._last_error = str(e)
 
         # Fallback to mock data
         return get_mock_dashboard_data(
@@ -351,13 +366,16 @@ class DataCoordinator:
             active_region=active_region,
             active_location=active_location,
             active_os_family=active_os_family,
+            active_roles=active_roles,
             active_patch_type=active_patch_type,
             approaching_days=approaching_days,
             custom_eol_dates=custom_eol_dates,
-            server_patch_threshold=server_patch_threshold,
             patch_red=patch_red,
             patch_amber=patch_amber,
             patch_green=patch_green,
+            included_keywords=included_keywords,
+            excluded_products=excluded_products,
+            selected_patch_titles=selected_patch_titles,
         )
 
 

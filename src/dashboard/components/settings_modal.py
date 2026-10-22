@@ -32,8 +32,9 @@ NINJA_REGIONS = [
 DEFAULT_REDIRECT_URI = "http://localhost:8050/oauth/callback"
 
 
-def build_settings_modal() -> dbc.Modal:
+def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
     """Settings modal for configuring NinjaOne API credentials, regions, governance thresholds, and updates."""
+    p = T.get_theme_palette(theme_mode)
     current_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com")
     current_client_id = os.getenv("NINJA_CLIENT_ID", "")
     has_secret = bool(os.getenv("NINJA_CLIENT_SECRET"))
@@ -55,7 +56,8 @@ def build_settings_modal() -> dbc.Modal:
                     html.Span("⚙️", style={"marginRight": "8px"}),
                     html.Span("Settings & NinjaOne Authentication"),
                 ]),
-                style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                className="settings-modal-header",
+                style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
             ),
             dbc.ModalBody(
                 [
@@ -219,46 +221,97 @@ def build_settings_modal() -> dbc.Modal:
                                 [
                                     dbc.Alert(
                                         [
-                                            html.B("Criteria: "),
-                                            "Extracts Approved Patch Count and Approved Software Count for each server. If approved_patch_count == 0 compliant; Otherwise it will be a Non-Compliant.",
+                                            html.B("Patch Compliance Criteria: "),
+                                            "A server is evaluated as Non-Compliant if it has any uninstalled patch matching the selected patch titles above, or an approved uninstalled patch matching target OS keywords (e.g. Cumulative Update or Security Update) while excluding application products (.NET, Office, SQL, etc.). Machines with 0 pending uninstalled matches are evaluated as Compliant.",
                                         ],
                                         color="info",
                                         className="mt-3 mb-3",
                                         style={"fontSize": "0.82rem", "backgroundColor": "rgba(47, 129, 247, 0.12)", "border": f"1px solid {T.ACCENT_BLUE}"},
                                     ),
 
-                                    # 1. Server Compliance Definition
+                                    # 1. Server Compliance Definition & Patch Title Selection
                                     html.Div(
                                         [
-                                            dbc.Label("1. Server Compliance Definition", style=T.FONT_KPI_LABEL),
+                                            dbc.Label("1. OS Patch Compliance & Title Selection", style=T.FONT_KPI_LABEL),
+                                            html.P(
+                                                "Configure patch titles and keywords that flag a machine as Non-Compliant. Machines with zero uninstalled matches remain Compliant.",
+                                                style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "10px"},
+                                            ),
+                                            # Option 1: Discovered Fleet Patch Titles (Direct Match Override)
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Approved Patch count for Compliance (default: 0)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
-                                                            dbc.InputGroup(
-                                                                [
-                                                                    dbc.Input(
-                                                                        id="settings-server-patch-threshold",
-                                                                        type="number",
-                                                                        min=0,
-                                                                        max=50,
-                                                                        step=1,
-                                                                        value=0,
-                                                                    ),
-                                                                    dbc.InputGroupText("Approved Patches"),
-                                                                ],
-                                                                className="mb-1",
+                                                            dbc.Label("📋 Discovered Fleet Patch Titles (Direct Match Override)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
+                                                            dcc.Dropdown(
+                                                                id="settings-discovered-patch-titles",
+                                                                options=[],
+                                                                value=[],
+                                                                multi=True,
+                                                                placeholder="Select specific patch titles found across your fleet...",
+                                                                className="filter-dd mb-2",
+                                                                style={"fontSize": "0.82rem"},
                                                             ),
-                                                            html.Span(
-                                                                "Servers with Approved Patch Count 0 are evaluated as Compliant; and ≥1 are evaluated as Non-Compliant devices.",
-                                                                style={"fontSize": "0.74rem", "color": T.TEXT_MUTED},
-                                                            ),
+                                                            html.Span("Any machine with an uninstalled patch matching any selected title here will immediately be marked Non-Compliant.", style={"fontSize": "0.74rem", "color": T.TEXT_MUTED}),
                                                         ],
                                                         md=12,
+                                                        className="mb-3",
                                                     ),
                                                 ],
-                                                className="mb-3",
+                                                className="mb-2",
+                                            ),
+                                            # Option 2: Target Keywords & Excluded Products
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("🎯 Target Patch Keywords (Trigger Non-Compliance)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
+                                                            dcc.Dropdown(
+                                                                id="settings-patch-included-keywords",
+                                                                options=[
+                                                                    {"label": "Cumulative Update", "value": "Cumulative Update"},
+                                                                    {"label": "Security Update", "value": "Security Update"},
+                                                                    {"label": "Critical Update", "value": "Critical Update"},
+                                                                    {"label": "Security Rollup", "value": "Security Rollup"},
+                                                                    {"label": "Hotfix", "value": "Hotfix"},
+                                                                ],
+                                                                value=["Cumulative Update", "Security Update"],
+                                                                multi=True,
+                                                                placeholder="Select patch title keywords...",
+                                                                className="filter-dd mb-2",
+                                                                style={"fontSize": "0.82rem"},
+                                                            ),
+                                                            html.Span("Patches matching any of these keywords will be audited for compliance.", style={"fontSize": "0.74rem", "color": T.TEXT_MUTED}),
+                                                        ],
+                                                        md=6,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("🚫 Excluded Products (Exempted from Non-Compliance)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
+                                                            dcc.Dropdown(
+                                                                id="settings-patch-excluded-keywords",
+                                                                options=[
+                                                                    {"label": ".NET / .NET Framework", "value": ".NET"},
+                                                                    {"label": "Microsoft Office", "value": "Office"},
+                                                                    {"label": "SQL Server", "value": "SQL"},
+                                                                    {"label": "Visual Studio", "value": "Visual Studio"},
+                                                                    {"label": "Exchange Server", "value": "Exchange"},
+                                                                    {"label": "SharePoint", "value": "SharePoint"},
+                                                                ],
+                                                                value=[".NET", "Office", "SQL", "Visual Studio", "Exchange", "SharePoint"],
+                                                                multi=True,
+                                                                placeholder="Select products to exclude...",
+                                                                className="filter-dd mb-2",
+                                                                style={"fontSize": "0.82rem"},
+                                                            ),
+                                                            html.Span("Non-OS application updates matching these products will NOT trigger non-compliance.", style={"fontSize": "0.74rem", "color": T.TEXT_MUTED}),
+                                                        ],
+                                                        md=6,
+                                                        className="mb-2",
+                                                    ),
+                                                ],
+                                                className="mb-2",
                                             ),
                                         ]
                                     ),
@@ -492,7 +545,7 @@ def build_settings_modal() -> dbc.Modal:
                                                         html.Div(id="update-apply-status-container", className="mt-2"),
                                                     ]
                                                 ),
-                                                style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "marginTop": "14px"},
+                                                style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "marginTop": "14px"},
                                             ),
                                         ]
                                     ),
@@ -505,17 +558,20 @@ def build_settings_modal() -> dbc.Modal:
                     ),
                     html.Div(id="settings-feedback-alert", className="mt-2"),
                 ],
-                style={"backgroundColor": T.BG_CARD},
+                className="settings-modal-body",
+                style={"backgroundColor": p["bg_card"]},
             ),
             dbc.ModalFooter(
                 [
                     dbc.Button("Cancel", id="settings-cancel-btn", color="secondary", outline=True, size="sm"),
                     dbc.Button("💾 Save Configuration", id="settings-save-btn", color="primary", size="sm"),
                 ],
-                style={"backgroundColor": T.BG_CARD, "borderTop": f"1px solid {T.BORDER}"},
+                className="settings-modal-footer",
+                style={"backgroundColor": p["bg_card"], "borderTop": f"1px solid {p['border']}"},
             ),
         ],
         id="settings-modal",
+        className=f"settings-modal theme-{theme_mode}",
         is_open=False,
         size="lg",
         centered=True,

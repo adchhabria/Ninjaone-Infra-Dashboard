@@ -49,18 +49,59 @@ def register_callbacks(app, get_data_fn=None):
         get_data_fn = coordinator.get_dashboard_data
 
     # -----------------------------------------------------------------------
+    # Theme Toggle Callback (Light / Dark Mode)
+    # -----------------------------------------------------------------------
+    @app.callback(
+        Output("theme-store", "data"),
+        Output("theme-toggle-btn", "children"),
+        Output("dashboard-theme-wrapper", "className"),
+        Output("dashboard-theme-wrapper", "style"),
+        Output("settings-modal", "className"),
+        Input("theme-toggle-btn", "n_clicks"),
+        State("theme-store", "data"),
+        prevent_initial_call=True,
+    )
+    def toggle_dashboard_theme(n_clicks, current_theme):
+        if not n_clicks:
+            return no_update, no_update, no_update, no_update, no_update
+        new_theme = "light" if current_theme == "dark" else "dark"
+        btn_label = "🌙 Dark" if new_theme == "light" else "☀️ Light"
+        wrapper_class = f"theme-{new_theme}"
+        p = T.get_theme_palette(new_theme)
+        wrapper_style = {
+            "backgroundColor": p["bg_primary"],
+            "minHeight": "100vh",
+            "color": p["text_primary"],
+            "transition": "background-color 0.3s ease, color 0.3s ease",
+        }
+        settings_modal_class = f"settings-modal theme-{new_theme}"
+        return new_theme, btn_label, wrapper_class, wrapper_style, settings_modal_class
+
+    # -----------------------------------------------------------------------
     # 1. Multi-Dimensional Filter Store, Tabs & Dashboard Body Update
     # -----------------------------------------------------------------------
     @app.callback(
-        Output("dashboard-body", "children"),
+        Output("tab-content-container", "children"),
+        Output("world-map-graph", "figure"),
         Output("header-filter-badge", "children"),
         Output("last-updated-text", "children"),
         Output("filter-state-store", "data"),
         Output("active-tab-store", "data"),
-        Input({"type": "org-slicer-btn", "index": ALL}, "n_clicks"),
-        Input({"type": "location-slicer-btn", "index": ALL}, "n_clicks"),
-        Input({"type": "os-family-slicer-btn", "index": ALL}, "n_clicks"),
-        Input({"type": "patch-type-slicer-btn", "index": ALL}, "n_clicks"),
+        Output("nav-tab-executive", "active"),
+        Output("nav-tab-patch-ops", "active"),
+        Output("nav-tab-reboots", "active"),
+        Output("nav-tab-reports", "active"),
+        Output("filter-org-dropdown", "value"),
+        Output("filter-location-dropdown", "value"),
+        Output("filter-os-dropdown", "value"),
+        Output("filter-roles-dropdown", "value"),
+        Output("filter-patch-type-dropdown", "value"),
+        Input("filter-org-dropdown", "value"),
+        Input("filter-location-dropdown", "value"),
+        Input("filter-os-dropdown", "value"),
+        Input("filter-roles-dropdown", "value"),
+        Input("filter-patch-type-dropdown", "value"),
+        Input("reset-filters-btn", "n_clicks"),
         Input("world-map-graph", "clickData"),
         Input("nav-tab-executive", "n_clicks"),
         Input("nav-tab-patch-ops", "n_clicks"),
@@ -70,15 +111,18 @@ def register_callbacks(app, get_data_fn=None):
         Input("auto-refresh", "n_intervals"),
         Input("threshold-settings-store", "data"),
         Input("auth-state-store", "data"),
+        Input("theme-store", "data"),
         State("filter-state-store", "data"),
         State("active-tab-store", "data"),
         prevent_initial_call=True,
     )
     def handle_interactive_filtering(
-        org_clicks,
-        loc_clicks,
-        os_clicks,
-        patch_type_clicks,
+        org_dd_val,
+        loc_dd_val,
+        os_dd_val,
+        roles_dd_val,
+        patch_type_dd_val,
+        reset_clicks,
         map_click_data,
         tab_exec_clicks,
         tab_patch_clicks,
@@ -88,24 +132,35 @@ def register_callbacks(app, get_data_fn=None):
         auto_refresh_intervals,
         threshold_settings,
         auth_state,
+        current_theme,
         current_filter_state,
         current_active_tab,
     ):
         triggered_id = ctx.triggered_id
         filter_state = dict(current_filter_state or {
-            "org_id": None,
+            "org_ids": [],
             "region": "Global / All",
-            "location": "All Locations",
-            "os_family": "All OS Families",
+            "locations": [],
+            "os_families": [],
+            "roles": [],
             "patch_type": "both",
         })
         tab_to_show = current_active_tab or "tab-executive"
+        theme_mode = current_theme or "dark"
         ts_settings = threshold_settings or {
             "eol_days": 180,
             "patch_red": 60.0,
             "patch_amber": 84.0,
             "patch_green": 85.0,
         }
+
+        is_tab_switch_only = triggered_id in [
+            "nav-tab-executive",
+            "nav-tab-patch-ops",
+            "nav-tab-reboots",
+            "nav-tab-reports",
+        ]
+        is_reset = (triggered_id == "reset-filters-btn")
 
         # Tab Navigation
         if triggered_id == "nav-tab-executive":
@@ -117,34 +172,26 @@ def register_callbacks(app, get_data_fn=None):
         elif triggered_id == "nav-tab-reports":
             tab_to_show = "tab-reports"
 
-        # Check pattern-matching button clicks
-        elif isinstance(triggered_id, dict):
-            btn_type = triggered_id.get("type")
-            btn_idx = triggered_id.get("index")
+        # Filter Dropdown / Reset interactions
+        elif is_reset:
+            filter_state["org_ids"] = []
+            filter_state["region"] = "Global / All"
+            filter_state["locations"] = []
+            filter_state["os_families"] = []
+            filter_state["roles"] = []
+            filter_state["patch_type"] = "both"
+        elif triggered_id == "filter-org-dropdown":
+            filter_state["org_ids"] = org_dd_val if isinstance(org_dd_val, list) else ([org_dd_val] if org_dd_val else [])
+        elif triggered_id == "filter-location-dropdown":
+            filter_state["locations"] = loc_dd_val if isinstance(loc_dd_val, list) else ([loc_dd_val] if loc_dd_val else [])
+        elif triggered_id == "filter-os-dropdown":
+            filter_state["os_families"] = os_dd_val if isinstance(os_dd_val, list) else ([os_dd_val] if os_dd_val else [])
+        elif triggered_id == "filter-roles-dropdown":
+            filter_state["roles"] = roles_dd_val if isinstance(roles_dd_val, list) else ([roles_dd_val] if roles_dd_val else [])
+        elif triggered_id == "filter-patch-type-dropdown":
+            filter_state["patch_type"] = str(patch_type_dd_val or "both")
 
-            # A. Organization Slicer button clicked
-            if btn_type == "org-slicer-btn":
-                if btn_idx in ["all", "All Organizations"]:
-                    filter_state["org_id"] = None
-                else:
-                    try:
-                        filter_state["org_id"] = int(btn_idx)
-                    except (ValueError, TypeError):
-                        filter_state["org_id"] = None
-
-            # B. Location Slicer button clicked
-            elif btn_type == "location-slicer-btn":
-                filter_state["location"] = str(btn_idx)
-
-            # C. OS Family Slicer button clicked
-            elif btn_type == "os-family-slicer-btn":
-                filter_state["os_family"] = str(btn_idx)
-
-            # D. Patch Type Slicer button clicked
-            elif btn_type == "patch-type-slicer-btn":
-                filter_state["patch_type"] = str(btn_idx).lower()
-
-        # E. World Map Marker clicked
+        # World Map Marker clicked
         elif triggered_id == "world-map-graph" and map_click_data:
             points = map_click_data.get("points", [])
             if points:
@@ -164,42 +211,104 @@ def register_callbacks(app, get_data_fn=None):
         p_red = float(ts_settings.get("patch_red", 60.0))
         p_amber = float(ts_settings.get("patch_amber", 84.0))
         p_green = float(ts_settings.get("patch_green", 85.0))
-        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
+        inc_kw = ts_settings.get("included_keywords", None)
+        exc_prod = ts_settings.get("excluded_products", None)
+        sel_titles = ts_settings.get("selected_patch_titles", None)
+
+        active_org = filter_state.get("org_ids") or filter_state.get("org_id")
+        active_loc = filter_state.get("locations") or filter_state.get("location")
+        active_os = filter_state.get("os_families") or filter_state.get("os_family")
+        active_roles = filter_state.get("roles")
+        p_type = filter_state.get("patch_type", "both")
 
         data = coordinator.get_dashboard_data(
-            active_org_id=filter_state.get("org_id"),
+            active_org_id=active_org,
             active_region=filter_state.get("region"),
-            active_location=filter_state.get("location"),
-            active_os_family=filter_state.get("os_family"),
-            active_patch_type=filter_state.get("patch_type", "both"),
+            active_location=active_loc,
+            active_os_family=active_os,
+            active_roles=active_roles,
+            active_patch_type=p_type,
             force_refresh=force_refresh,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
-            server_patch_threshold=srv_threshold,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
+            included_keywords=inc_kw,
+            excluded_products=exc_prod,
+            selected_patch_titles=sel_titles,
         )
 
-        badge_label = data.active_filter_label
-        ts_text = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
-
-        new_body = build_body(
+        tab_content = build_tab_content(
             data,
             active_tab=tab_to_show,
             eol_days=eol_days_val,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
+            theme_mode=theme_mode,
         )
 
+        # Nav pill active states
+        is_exec = (tab_to_show == "tab-executive")
+        is_patch = (tab_to_show == "tab-patch-ops")
+        is_reboot = (tab_to_show == "tab-reboots")
+        is_reports = (tab_to_show == "tab-reports")
+
+        # Fast path for tab switching: do NOT re-render map, filter badge, or dropdowns
+        if is_tab_switch_only:
+            return (
+                tab_content,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                tab_to_show,
+                is_exec,
+                is_patch,
+                is_reboot,
+                is_reports,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+                no_update,
+            )
+
+        badge_label = data.active_filter_label
+        ts_text = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+        map_fig = charts.world_map_chart(data.map_data, active_region=data.active_region, theme_mode=theme_mode)
+
+        if is_reset:
+            org_out = []
+            loc_out = []
+            os_out = []
+            roles_out = []
+            patch_type_out = "both"
+        else:
+            org_out = no_update
+            loc_out = no_update
+            os_out = no_update
+            roles_out = no_update
+            patch_type_out = no_update
+
         return (
-            new_body,
+            tab_content,
+            map_fig,
             badge_label,
             ts_text,
             filter_state,
             tab_to_show,
+            is_exec,
+            is_patch,
+            is_reboot,
+            is_reports,
+            org_out,
+            loc_out,
+            os_out,
+            roles_out,
+            patch_type_out,
         )
 
     # -----------------------------------------------------------------------
@@ -227,22 +336,26 @@ def register_callbacks(app, get_data_fn=None):
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
-        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
         p_red = float(ts_settings.get("patch_red", 60.0))
         p_amber = float(ts_settings.get("patch_amber", 84.0))
         p_green = float(ts_settings.get("patch_green", 85.0))
         p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
+        active_org = filter_state.get("org_ids") or filter_state.get("org_id")
+        active_loc = filter_state.get("locations") or filter_state.get("location")
+        active_os = filter_state.get("os_families") or filter_state.get("os_family")
+        active_roles = filter_state.get("roles")
+
         data = coordinator.get_dashboard_data(
-            active_org_id=filter_state.get("org_id"),
+            active_org_id=active_org,
             active_region=filter_state.get("region"),
-            active_location=filter_state.get("location"),
-            active_os_family=filter_state.get("os_family"),
+            active_location=active_loc,
+            active_os_family=active_os,
+            active_roles=active_roles,
             active_patch_type=p_type,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
-            server_patch_threshold=srv_threshold,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
@@ -260,34 +373,37 @@ def register_callbacks(app, get_data_fn=None):
     @app.callback(
         Output("download-pdf-data", "data"),
         Input("btn-generate-pdf-trigger", "n_clicks"),
-        Input("header-pdf-btn", "n_clicks"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
         prevent_initial_call=True,
     )
-    def download_pdf_audit(btn_tab_clicks, btn_hdr_clicks, filter_state, threshold_settings):
-        if not btn_tab_clicks and not btn_hdr_clicks:
+    def download_pdf_audit(btn_tab_clicks, filter_state, threshold_settings):
+        if not btn_tab_clicks:
             return no_update
 
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
-        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
         p_red = float(ts_settings.get("patch_red", 60.0))
         p_amber = float(ts_settings.get("patch_amber", 84.0))
         p_green = float(ts_settings.get("patch_green", 85.0))
         p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
+        active_org = filter_state.get("org_ids") or filter_state.get("org_id")
+        active_loc = filter_state.get("locations") or filter_state.get("location")
+        active_os = filter_state.get("os_families") or filter_state.get("os_family")
+        active_roles = filter_state.get("roles")
+
         data = coordinator.get_dashboard_data(
-            active_org_id=filter_state.get("org_id"),
+            active_org_id=active_org,
             active_region=filter_state.get("region"),
-            active_location=filter_state.get("location"),
-            active_os_family=filter_state.get("os_family"),
+            active_location=active_loc,
+            active_os_family=active_os,
+            active_roles=active_roles,
             active_patch_type=p_type,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
-            server_patch_threshold=srv_threshold,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
@@ -317,22 +433,26 @@ def register_callbacks(app, get_data_fn=None):
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
-        srv_threshold = int(ts_settings.get("server_patch_threshold", 0))
         p_red = float(ts_settings.get("patch_red", 60.0))
         p_amber = float(ts_settings.get("patch_amber", 84.0))
         p_green = float(ts_settings.get("patch_green", 85.0))
         p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
+        active_org = filter_state.get("org_ids") or filter_state.get("org_id")
+        active_loc = filter_state.get("locations") or filter_state.get("location")
+        active_os = filter_state.get("os_families") or filter_state.get("os_family")
+        active_roles = filter_state.get("roles")
+
         data = coordinator.get_dashboard_data(
-            active_org_id=filter_state.get("org_id"),
+            active_org_id=active_org,
             active_region=filter_state.get("region"),
-            active_location=filter_state.get("location"),
-            active_os_family=filter_state.get("os_family"),
+            active_location=active_loc,
+            active_os_family=active_os,
+            active_roles=active_roles,
             active_patch_type=p_type,
             approaching_days=eol_days_val,
             custom_eol_dates=c_eol_dates,
-            server_patch_threshold=srv_threshold,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
@@ -358,28 +478,31 @@ def register_callbacks(app, get_data_fn=None):
         Input("hosting-filter-radio", "value"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
+        State("theme-store", "data"),
         prevent_initial_call=True,
     )
-    def update_hosting_filter(filter_mode, filter_state, threshold_settings):
+    def update_hosting_filter(filter_mode, filter_state, threshold_settings, current_theme):
         if not filter_mode:
             return no_update, no_update
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
+        theme_mode = current_theme or "dark"
 
         data = coordinator.get_dashboard_data(
-            active_org_id=filter_state.get("org_id"),
+            active_org_id=filter_state.get("org_id") or filter_state.get("org_ids"),
             active_region=filter_state.get("region"),
-            active_location=filter_state.get("location"),
-            active_os_family=filter_state.get("os_family"),
+            active_location=filter_state.get("location") or filter_state.get("locations"),
+            active_os_family=filter_state.get("os_family") or filter_state.get("os_families"),
+            active_roles=filter_state.get("roles"),
             active_patch_type=filter_state.get("patch_type", "both"),
             approaching_days=eol_days_val,
         )
         hosting_counts = data.servers.get("hosting_counts", {})
         org_dist = data.servers.get("org_distribution", [])
 
-        donut_fig = charts.hosting_donut(hosting_counts, filter_mode=filter_mode)
-        bar_fig = charts.hosting_org_stacked_bar(org_dist, filter_mode=filter_mode)
+        donut_fig = charts.hosting_donut(hosting_counts, filter_mode=filter_mode, theme_mode=theme_mode)
+        bar_fig = charts.hosting_org_stacked_bar(org_dist, filter_mode=filter_mode, theme_mode=theme_mode)
         return donut_fig, bar_fig
 
     # -----------------------------------------------------------------------
@@ -567,6 +690,7 @@ def register_callbacks(app, get_data_fn=None):
         Output("settings-feedback-alert", "children"),
         Output("threshold-settings-store", "data"),
         Output("auth-state-store", "data"),
+        Output("settings-discovered-patch-titles", "options"),
         Input("open-settings-btn", "n_clicks"),
         Input("header-signin-btn", "n_clicks"),
         Input("header-signout-btn", "n_clicks"),
@@ -581,7 +705,9 @@ def register_callbacks(app, get_data_fn=None):
         State("settings-patch-red-limit", "value"),
         State("settings-patch-amber-limit", "value"),
         State("settings-patch-green-target", "value"),
-        State("settings-server-patch-threshold", "value"),
+        State("settings-patch-included-keywords", "value"),
+        State("settings-patch-excluded-keywords", "value"),
+        State("settings-discovered-patch-titles", "value"),
         State("settings-eol-win2008", "value"),
         State("settings-eol-win2012", "value"),
         State("settings-eol-win2016", "value"),
@@ -612,7 +738,9 @@ def register_callbacks(app, get_data_fn=None):
         patch_red_limit,
         patch_amber_limit,
         patch_green_target,
-        server_patch_threshold,
+        patch_included_keywords,
+        patch_excluded_keywords,
+        patch_selected_titles,
         eol_win2008,
         eol_win2012,
         eol_win2016,
@@ -630,15 +758,22 @@ def register_callbacks(app, get_data_fn=None):
         triggered = ctx.triggered_id
 
         if triggered in ["open-settings-btn", "header-signin-btn"]:
-            return True, no_update, no_update, no_update
+            discovered = []
+            try:
+                data = coordinator.get_dashboard_data(force_refresh=False)
+                discovered = getattr(data, "discovered_patch_titles", []) or []
+            except Exception:
+                pass
+            disc_options = [{"label": t, "value": t} for t in discovered]
+            return True, no_update, no_update, no_update, disc_options
 
         if triggered == "settings-cancel-btn":
-            return False, no_update, no_update, no_update
+            return False, no_update, no_update, no_update, no_update
 
         if triggered == "header-signout-btn":
             coordinator.sign_out()
             auth_state = {"is_live": False, "base_url": coordinator.base_url}
-            return False, no_update, no_update, auth_state
+            return False, no_update, no_update, auth_state, no_update
 
         if triggered == "settings-save-btn":
             # Sanitize inputs
@@ -654,7 +789,6 @@ def register_callbacks(app, get_data_fn=None):
             p_red = float(patch_red_limit or 60.0)
             p_amber = float(patch_amber_limit or 84.0)
             p_green = float(patch_green_target or 85.0)
-            srv_threshold = int(server_patch_threshold if server_patch_threshold is not None else 0)
 
             custom_eol = {
                 "Windows Server 2008": eol_win2008 or "01/14/2020",
@@ -674,8 +808,10 @@ def register_callbacks(app, get_data_fn=None):
                 "patch_red": p_red,
                 "patch_amber": p_amber,
                 "patch_green": p_green,
-                "server_patch_threshold": srv_threshold,
                 "custom_eol_dates": custom_eol,
+                "included_keywords": patch_included_keywords if patch_included_keywords is not None else ["Cumulative Update", "Security Update"],
+                "excluded_products": patch_excluded_keywords if patch_excluded_keywords is not None else [".NET", "Office", "SQL", "Visual Studio", "Exchange", "SharePoint"],
+                "selected_patch_titles": patch_selected_titles or [],
             }
 
             # If user provided API keys with Client Secret, attempt M2M sign in
@@ -687,6 +823,7 @@ def register_callbacks(app, get_data_fn=None):
                         dbc.Alert(f"❌ Failed to connect to NinjaOne: {msg}", color="danger", className="mt-2"),
                         no_update,
                         no_update,
+                        no_update,
                     )
                 auth_state = {"is_live": True, "base_url": url_to_save}
             else:
@@ -694,9 +831,9 @@ def register_callbacks(app, get_data_fn=None):
                 coordinator._save_to_env_file(url_to_save, client_id or "", client_secret or "", redirect_uri=redirect_to_save, ssl_verify=ssl_to_save)
                 auth_state = {"is_live": coordinator.is_live, "base_url": url_to_save}
 
-            return False, dbc.Alert("✅ Configuration saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state
+            return False, dbc.Alert("✅ Configuration saved successfully!", color="success", className="mt-2"), thresholds_data, auth_state, no_update
 
-        return is_open, no_update, no_update, no_update
+        return is_open, no_update, no_update, no_update, no_update
 
     # -----------------------------------------------------------------------
     # 10. Check for Updates Callback

@@ -40,10 +40,11 @@ _FAILURE_COLUMNS = [
 ]
 
 
-def build_reboot_failures_panel(sla_data: dict) -> html.Div:
+def build_reboot_failures_panel(sla_data: dict, theme_mode: str = "dark") -> html.Div:
     """
     Renders the Reboot Watchlist and Patch Failures operational tables with Excel filtering.
     """
+    p = T.get_theme_palette(theme_mode)
     reboot_rows = sla_data.get("reboot_devices", [])
     failed_rows = sla_data.get("failed_patches", [])
 
@@ -58,18 +59,18 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
         page_size=8,
         style_table={"overflowX": "auto"},
         style_header={
-            "backgroundColor": T.BG_PRIMARY,
-            "color": T.TEXT_SECONDARY,
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
             "fontWeight": "600",
             "fontSize": "0.75rem",
             "textTransform": "uppercase",
             "letterSpacing": "0.06em",
-            "border": f"1px solid {T.BORDER}",
+            "border": f"1px solid {p['border']}",
         },
         style_cell={
-            "backgroundColor": T.BG_CARD,
-            "color": T.TEXT_PRIMARY,
-            "border": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
             "fontSize": "0.85rem",
             "padding": "8px 12px",
             "fontFamily": "Inter, -apple-system, sans-serif",
@@ -77,12 +78,12 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
         style_data_conditional=[
             {"if": {"filter_query": "{uptime_days} > 30", "column_id": "uptime_days"}, "color": T.RAG_AMBER, "fontWeight": "600"},
             {"if": {"filter_query": "{uptime_days} > 60", "column_id": "uptime_days"}, "color": T.RAG_RED, "fontWeight": "700"},
-            {"if": {"state": "active"}, "backgroundColor": T.BG_CARD_HOVER, "border": f"1px solid {T.BORDER}"},
+            {"if": {"state": "active"}, "backgroundColor": p["bg_card_hover"], "border": f"1px solid {p['border']}"},
         ],
         style_filter={
-            "backgroundColor": T.BG_CARD_HOVER,
-            "color": T.TEXT_PRIMARY,
-            "border": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
             "fontSize": "0.80rem",
         },
     )
@@ -98,30 +99,30 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
         page_size=8,
         style_table={"overflowX": "auto"},
         style_header={
-            "backgroundColor": T.BG_PRIMARY,
-            "color": T.TEXT_SECONDARY,
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
             "fontWeight": "600",
             "fontSize": "0.75rem",
             "textTransform": "uppercase",
             "letterSpacing": "0.06em",
-            "border": f"1px solid {T.BORDER}",
+            "border": f"1px solid {p['border']}",
         },
         style_cell={
-            "backgroundColor": T.BG_CARD,
-            "color": T.TEXT_PRIMARY,
-            "border": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
             "fontSize": "0.85rem",
             "padding": "8px 12px",
             "fontFamily": "Inter, -apple-system, sans-serif",
         },
         style_data_conditional=[
             {"if": {"column_id": "error_code"}, "color": T.RAG_RED, "fontWeight": "600", "fontFamily": "monospace"},
-            {"if": {"state": "active"}, "backgroundColor": T.BG_CARD_HOVER, "border": f"1px solid {T.BORDER}"},
+            {"if": {"state": "active"}, "backgroundColor": p["bg_card_hover"], "border": f"1px solid {p['border']}"},
         ],
         style_filter={
-            "backgroundColor": T.BG_CARD_HOVER,
-            "color": T.TEXT_PRIMARY,
-            "border": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
             "fontSize": "0.80rem",
         },
     )
@@ -137,7 +138,7 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
                                 dbc.Col(
                                     html.Span([
                                         html.Span("🔄", style={"marginRight": "8px"}),
-                                        html.Span("Endpoints Requiring Reboot", style=T.FONT_SECTION_TITLE),
+                                        html.Span("Endpoints Requiring Reboot", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                         dbc.Badge(f"{len(reboot_rows)} Devices", color="warning" if reboot_rows else "success", className="ms-2"),
                                     ]),
                                     md=6,
@@ -154,11 +155,11 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
                             ],
                             align="center",
                         ),
-                        style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                        style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
                     ),
-                    dbc.CardBody(reboot_table),
+                    dbc.CardBody(reboot_table, style={"backgroundColor": p["bg_card"]}),
                 ],
-                style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "marginBottom": "20px"},
+                style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "marginBottom": "20px"},
             ),
 
             # Section 2: Patch Failures Ledger
@@ -170,7 +171,7 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
                                 dbc.Col(
                                     html.Span([
                                         html.Span("❌", style={"marginRight": "8px"}),
-                                        html.Span("Patch Deployment Failure Triage", style=T.FONT_SECTION_TITLE),
+                                        html.Span("Patch Deployment Failure Triage", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                         dbc.Badge(f"{len(failed_rows)} Failed KBs", color="danger" if failed_rows else "success", className="ms-2"),
                                     ]),
                                     md=6,
@@ -187,11 +188,11 @@ def build_reboot_failures_panel(sla_data: dict) -> html.Div:
                             ],
                             align="center",
                         ),
-                        style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                        style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
                     ),
-                    dbc.CardBody(failures_table),
+                    dbc.CardBody(failures_table, style={"backgroundColor": p["bg_card"]}),
                 ],
-                style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "marginBottom": "20px"},
+                style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "marginBottom": "20px"},
             ),
 
             # Feedback Modal / Alert

@@ -18,13 +18,14 @@ from dash import dcc, html
 from src.dashboard import charts, theme as T
 
 
-def build_hosting_box_1(server_data: dict, filter_mode: str = "all") -> dbc.Card:
+def build_hosting_box_1(server_data: dict, filter_mode: str = "all", theme_mode: str = "dark") -> dbc.Card:
     """
     Box 1: Hosting breakdown donut with 3 radio button filters:
     1. All
     2. On-Premise (Physical & VMs)
     3. Cloud (Azure & AWS)
     """
+    p = T.get_theme_palette(theme_mode)
     hosting_counts = server_data.get("hosting_counts", {})
     cloud_total = server_data.get("cloud_total", 0)
     onprem_total = server_data.get("onprem_total", 0)
@@ -33,7 +34,7 @@ def build_hosting_box_1(server_data: dict, filter_mode: str = "all") -> dbc.Card
     cloud_pct = (cloud_total / total_devices * 100) if total_devices > 0 else 0.0
     onprem_pct = (onprem_total / total_devices * 100) if total_devices > 0 else 0.0
 
-    hosting_fig = charts.hosting_donut(hosting_counts, filter_mode=filter_mode)
+    hosting_fig = charts.hosting_donut(hosting_counts, filter_mode=filter_mode, theme_mode=theme_mode)
 
     return dbc.Card(
         [
@@ -42,7 +43,7 @@ def build_hosting_box_1(server_data: dict, filter_mode: str = "all") -> dbc.Card
                     html.Div(
                         [
                             html.Span("☁️", style={"marginRight": "8px"}),
-                            html.Span("Infrastructure Hosting Breakdown", style=T.FONT_SECTION_TITLE),
+                            html.Span("Infrastructure Hosting Breakdown", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                             dbc.Badge(f"{total_devices:,} Total Devices", color="primary", className="ms-2"),
                         ],
                         className="d-flex align-items-center mb-2",
@@ -59,13 +60,13 @@ def build_hosting_box_1(server_data: dict, filter_mode: str = "all") -> dbc.Card
                                 ],
                                 value=filter_mode,
                                 inline=True,
-                                style={"fontSize": "0.82rem"},
+                                style={"fontSize": "0.82rem", "color": p["text_primary"]},
                             ),
                         ],
                         className="mt-1",
                     ),
                 ],
-                style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
             ),
             dbc.CardBody(
                 [
@@ -93,29 +94,30 @@ def build_hosting_box_1(server_data: dict, filter_mode: str = "all") -> dbc.Card
                         style={"height": "250px"},
                     ),
                 ],
-                style={"padding": "10px"},
+                style={"padding": "10px", "backgroundColor": p["bg_card"]},
             ),
         ],
-        style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+        style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "height": "100%"},
     )
 
 
-def build_hosting_box_2(server_data: dict, filter_mode: str = "all") -> dbc.Card:
+def build_hosting_box_2(server_data: dict, filter_mode: str = "all", theme_mode: str = "dark") -> dbc.Card:
     """
     Box 2: Organization-wise Stacked Column Bar Graph Display.
     """
+    p = T.get_theme_palette(theme_mode)
     org_dist = server_data.get("org_distribution", [])
-    bar_fig = charts.hosting_org_stacked_bar(org_dist, filter_mode=filter_mode)
+    bar_fig = charts.hosting_org_stacked_bar(org_dist, filter_mode=filter_mode, theme_mode=theme_mode)
 
     return dbc.Card(
         [
             dbc.CardHeader(
                 html.Span([
                     html.Span("🏢", style={"marginRight": "8px"}),
-                    html.Span("Organization-Wise Hosting Distribution", style=T.FONT_SECTION_TITLE),
+                    html.Span("Organization-Wise Hosting Distribution", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                     dbc.Badge("Stacked Columns", color="secondary", className="ms-2"),
                 ]),
-                style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
             ),
             dbc.CardBody(
                 [
@@ -126,21 +128,21 @@ def build_hosting_box_2(server_data: dict, filter_mode: str = "all") -> dbc.Card
                         style={"height": "285px"},
                     ),
                 ],
-                style={"padding": "10px"},
+                style={"padding": "10px", "backgroundColor": p["bg_card"]},
             ),
         ],
-        style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+        style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "height": "100%"},
     )
 
 
-def build_server_hosting_panel(server_data: dict, filter_mode: str = "all") -> dbc.Row:
+def build_server_hosting_panel(server_data: dict, filter_mode: str = "all", theme_mode: str = "dark") -> dbc.Row:
     """
     Renders Box 1 and Box 2 side by side.
     """
     return dbc.Row(
         [
-            dbc.Col(build_hosting_box_1(server_data, filter_mode=filter_mode), lg=6, md=12, className="mb-3"),
-            dbc.Col(build_hosting_box_2(server_data, filter_mode=filter_mode), lg=6, md=12, className="mb-3"),
+            dbc.Col(build_hosting_box_1(server_data, filter_mode=filter_mode, theme_mode=theme_mode), lg=6, md=12, className="mb-3"),
+            dbc.Col(build_hosting_box_2(server_data, filter_mode=filter_mode, theme_mode=theme_mode), lg=6, md=12, className="mb-3"),
         ],
         className="g-3",
     )

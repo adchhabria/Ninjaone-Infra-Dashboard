@@ -23,7 +23,8 @@ _COLUMNS = [
 ]
 
 
-def build_compliance_table(org_table: list[dict]) -> dbc.Card:
+def build_compliance_table(org_table: list[dict], theme_mode: str = "dark") -> dbc.Card:
+    p = T.get_theme_palette(theme_mode)
     # Add RAG icon column
     rows = []
     for row in org_table:
@@ -60,7 +61,7 @@ def build_compliance_table(org_table: list[dict]) -> dbc.Card:
             "color": T.RAG_AMBER,
         },
         # Row hover
-        {"if": {"state": "active"}, "backgroundColor": T.BG_CARD_HOVER, "border": f"1px solid {T.BORDER}"},
+        {"if": {"state": "active"}, "backgroundColor": p["bg_card_hover"], "border": f"1px solid {p['border']}"},
     ]
 
     table = dash_table.DataTable(
@@ -74,27 +75,27 @@ def build_compliance_table(org_table: list[dict]) -> dbc.Card:
         page_size=15,
         style_table={"overflowX": "auto"},
         style_header={
-            "backgroundColor": T.BG_PRIMARY,
-            "color": T.TEXT_SECONDARY,
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
             "fontWeight": "600",
             "fontSize": "0.75rem",
             "textTransform": "uppercase",
             "letterSpacing": "0.06em",
-            "border": f"1px solid {T.BORDER}",
+            "border": f"1px solid {p['border']}",
         },
         style_cell={
-            "backgroundColor": T.BG_CARD,
-            "color": T.TEXT_PRIMARY,
-            "border": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
             "fontSize": "0.875rem",
             "padding": "8px 12px",
             "fontFamily": "Inter, -apple-system, sans-serif",
         },
         style_data_conditional=style_data_conditional,
         style_filter={
-            "backgroundColor": T.BG_CARD_HOVER,
-            "color": T.TEXT_PRIMARY,
-            "border": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
             "fontSize": "0.80rem",
         },
     )
@@ -107,7 +108,7 @@ def build_compliance_table(org_table: list[dict]) -> dbc.Card:
                         dbc.Col(
                             html.Span([
                                 html.Span("📊", style={"marginRight": "8px"}),
-                                html.Span("Organization Compliance Ledger", style=T.FONT_SECTION_TITLE),
+                                html.Span("Organization Compliance Ledger", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                 dbc.Badge(f"{len(rows)} Organizations", color="secondary", className="ms-2"),
                             ]),
                             md=7,
@@ -115,7 +116,7 @@ def build_compliance_table(org_table: list[dict]) -> dbc.Card:
                         dbc.Col(
                             html.Div(
                                 html.Span("🔍 Excel-style column filters & sorting enabled below each header",
-                                          style={"fontSize": "0.75rem", "color": T.TEXT_MUTED}),
+                                          style={"fontSize": "0.75rem", "color": p["text_muted"]}),
                                 style={"textAlign": "right"},
                             ),
                             md=5,
@@ -123,9 +124,9 @@ def build_compliance_table(org_table: list[dict]) -> dbc.Card:
                     ],
                     align="center",
                 ),
-                style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
             ),
-            dbc.CardBody(table),
+            dbc.CardBody(table, style={"backgroundColor": p["bg_card"]}),
         ],
-        style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "marginBottom": "20px"},
+        style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "marginBottom": "20px"},
     )

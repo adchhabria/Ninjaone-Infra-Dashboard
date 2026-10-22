@@ -5,7 +5,7 @@ All charts and components import from here to ensure visual consistency.
 """
 
 # ---------------------------------------------------------------------------
-# Color Palette
+# Color Palette (Dark Theme Default)
 # ---------------------------------------------------------------------------
 
 BG_PRIMARY = "#0D1117"       # Page background
@@ -15,6 +15,15 @@ BORDER = "#30363D"           # Subtle card border
 TEXT_PRIMARY = "#E6EDF3"     # Main text
 TEXT_SECONDARY = "#8B949E"   # Muted / label text
 TEXT_MUTED = "#484F58"       # Very muted
+
+# Light Theme Palette
+LIGHT_BG_PRIMARY = "#F8FAFC"
+LIGHT_BG_CARD = "#FFFFFF"
+LIGHT_BG_CARD_HOVER = "#F1F5F9"
+LIGHT_BORDER = "#E2E8F0"
+LIGHT_TEXT_PRIMARY = "#0F172A"
+LIGHT_TEXT_SECONDARY = "#475569"
+LIGHT_TEXT_MUTED = "#94A3B8"
 
 # Accent Colors
 ACCENT_BLUE = "#2F81F7"      # Primary brand
@@ -133,3 +142,67 @@ FONT_KPI_LABEL = {"fontSize": "0.75rem", "fontWeight": "500", "letterSpacing": "
 FONT_SECTION_TITLE = {"fontSize": "0.9rem", "fontWeight": "600",
                        "textTransform": "uppercase", "letterSpacing": "0.06em"}
 FONT_BODY = {"fontSize": "0.875rem", "color": TEXT_SECONDARY}
+
+
+def get_theme_palette(theme: str = "dark") -> dict:
+    """Return dictionary of theme colors for dark or light mode."""
+    if theme == "light":
+        return {
+            "bg_primary": LIGHT_BG_PRIMARY,
+            "bg_card": LIGHT_BG_CARD,
+            "bg_card_hover": LIGHT_BG_CARD_HOVER,
+            "border": LIGHT_BORDER,
+            "text_primary": LIGHT_TEXT_PRIMARY,
+            "text_secondary": LIGHT_TEXT_SECONDARY,
+            "text_muted": LIGHT_TEXT_MUTED,
+            "is_dark": False,
+        }
+    return {
+        "bg_primary": BG_PRIMARY,
+        "bg_card": BG_CARD,
+        "bg_card_hover": BG_CARD_HOVER,
+        "border": BORDER,
+        "text_primary": TEXT_PRIMARY,
+        "text_secondary": TEXT_SECONDARY,
+        "text_muted": TEXT_MUTED,
+        "is_dark": True,
+    }
+
+
+def get_plotly_template(theme: str = "dark") -> dict:
+    """Return theme-adjusted Plotly template layout dict."""
+    p = get_theme_palette(theme)
+    return dict(
+        layout=dict(
+            paper_bgcolor=p["bg_card"],
+            plot_bgcolor=p["bg_card"],
+            font=dict(family="Inter, -apple-system, sans-serif", color=p["text_primary"], size=12),
+            title=dict(font=dict(size=14, color=p["text_primary"]), x=0.01, xanchor="left"),
+            legend=dict(
+                bgcolor=p["bg_card"],
+                bordercolor=p["border"],
+                borderwidth=1,
+                font=dict(color=p["text_secondary"], size=11),
+            ),
+            margin=dict(l=12, r=12, t=36, b=12),
+            xaxis=dict(
+                gridcolor=p["border"],
+                linecolor=p["border"],
+                tickcolor=p["text_secondary"],
+                tickfont=dict(color=p["text_secondary"]),
+            ),
+            yaxis=dict(
+                gridcolor=p["border"],
+                linecolor=p["border"],
+                tickcolor=p["text_secondary"],
+                tickfont=dict(color=p["text_secondary"]),
+                zerolinecolor=p["border"],
+            ),
+            hoverlabel=dict(
+                bgcolor=p["bg_card_hover"],
+                bordercolor=p["border"],
+                font=dict(color=p["text_primary"]),
+            ),
+        )
+    )
+

@@ -37,8 +37,15 @@ from src.dashboard.components.settings_modal import build_settings_modal
 from src.metrics.data_provider import coordinator
 
 
-def build_header(last_refreshed: datetime | None = None, active_filter_label: str = "Global Overview", is_live: bool = False, base_url: str = "") -> html.Div:
-    """Top navigation bar with brand, active filter badge, auth controls, settings, and refresh buttons."""
+def build_header(
+    last_refreshed: datetime | None = None,
+    active_filter_label: str = "Global Overview",
+    is_live: bool = False,
+    base_url: str = "",
+    theme_mode: str = "dark",
+) -> html.Div:
+    """Top navigation bar with brand, active filter badge, auth controls, theme toggle, settings, and refresh buttons."""
+    p = T.get_theme_palette(theme_mode)
     ts = (last_refreshed or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M:%S UTC")
     clean_url = (base_url or "app.ninjarmm.com").replace("https://", "").replace("http://", "").rstrip("/")
 
@@ -73,7 +80,7 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                         f"Last updated: {ts}",
                                         id="last-updated-text",
                                         style={
-                                            "fontSize": "0.75rem", "color": T.TEXT_MUTED,
+                                            "fontSize": "0.75rem", "color": p["text_muted"],
                                             "marginRight": "14px", "lineHeight": "34px",
                                         },
                                     ),
@@ -129,9 +136,9 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     style={"fontSize": "0.8rem"},
                                 ),
                                 dbc.Button(
-                                    "📄 PDF",
-                                    id="header-pdf-btn",
-                                    color="primary",
+                                    "☀️ Light" if theme_mode == "dark" else "🌙 Dark",
+                                    id="theme-toggle-btn",
+                                    color="secondary",
                                     outline=True,
                                     size="sm",
                                     className="me-2",
@@ -152,7 +159,7 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
                                     outline=True,
                                     size="sm",
                                     className="me-2",
-                                    style={"fontSize": "0.8rem", "borderColor": T.BORDER},
+                                    style={"fontSize": "0.8rem", "borderColor": p["border"]},
                                 ),
                                 dbc.Button(
                                     "↻ Refresh Data",
@@ -172,9 +179,10 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
             ),
             fluid=True,
         ),
+        id="dashboard-header",
         style={
-            "backgroundColor": T.BG_CARD,
-            "borderBottom": f"1px solid {T.BORDER}",
+            "backgroundColor": p["bg_card"],
+            "borderBottom": f"1px solid {p['border']}",
             "padding": "10px 0",
             "marginBottom": "16px",
             "position": "sticky",
@@ -182,6 +190,364 @@ def build_header(last_refreshed: datetime | None = None, active_filter_label: st
             "zIndex": "1000",
         },
     )
+
+
+CUSTOM_CSS = """
+@keyframes expandDonutCard {
+    0% {
+        opacity: 0.6;
+        transform: scale(0.97);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+.os-donut-col-expanded {
+    animation: expandDonutCard 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: all 0.4s ease-in-out;
+}
+.os-donut-col {
+    transition: all 0.4s ease-in-out;
+}
+
+/* Light Theme Styling */
+.theme-light {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+}
+.theme-light h1, .theme-light h2, .theme-light h3, .theme-light h4, .theme-light h5, .theme-light h6,
+.theme-light p, .theme-light span, .theme-light div, .theme-light label {
+    color: inherit;
+}
+.theme-light .text-muted, .theme-light .text-secondary {
+    color: #64748B !important;
+}
+.theme-light #dashboard-header {
+    background-color: #FFFFFF !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+}
+.theme-light .card {
+    background-color: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+    color: #0F172A !important;
+}
+.theme-light .card-header {
+    background-color: #FFFFFF !important;
+    border-bottom-color: #E2E8F0 !important;
+    color: #0F172A !important;
+}
+.theme-light .card-body {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+.theme-light .table {
+    color: #0F172A !important;
+    border-color: #E2E8F0 !important;
+}
+.theme-light .table th {
+    background-color: #F1F5F9 !important;
+    color: #0F172A !important;
+    border-color: #E2E8F0 !important;
+}
+.theme-light .table td {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #E2E8F0 !important;
+}
+.theme-light .nav-pills .nav-link:not(.active) {
+    color: #475569 !important;
+}
+.theme-light .nav-pills .nav-link.active {
+    background-color: #2F81F7 !important;
+    color: #FFFFFF !important;
+}
+.theme-light .filter-dd .Select-control {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+}
+.theme-light .filter-dd .Select-menu-outer {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+}
+.theme-light .filter-dd .Select-value-label {
+    color: #0F172A !important;
+}
+.theme-light .filter-dd .Select-placeholder {
+    color: #64748B !important;
+}
+.theme-light .filter-dd .Select-option {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+.theme-light .filter-dd .Select-option.is-focused {
+    background-color: #F1F5F9 !important;
+}
+.theme-light #last-updated-text {
+    color: #64748B !important;
+}
+.theme-light .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background-color: #F1F5F9 !important;
+    color: #0F172A !important;
+}
+.theme-light .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+.theme-light .dash-table-container input.dash-filter--case--sensitive,
+.theme-light .dash-table-container input.dash-filter--case--insensitive {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+}
+
+/* Settings Modal & All Modals Light Theme */
+.theme-light.settings-modal .modal-content,
+.theme-light .settings-modal .modal-content,
+.theme-light .modal-content {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #E2E8F0 !important;
+}
+.theme-light.settings-modal .modal-header,
+.theme-light .settings-modal .modal-header,
+.theme-light .modal-header,
+.theme-light .settings-modal-header {
+    background-color: #FFFFFF !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    color: #0F172A !important;
+}
+.theme-light.settings-modal .modal-title,
+.theme-light .settings-modal .modal-title,
+.theme-light .modal-title {
+    color: #0F172A !important;
+}
+.theme-light.settings-modal .modal-body,
+.theme-light .settings-modal .modal-body,
+.theme-light .modal-body,
+.theme-light .settings-modal-body {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+.theme-light.settings-modal .modal-footer,
+.theme-light .settings-modal .modal-footer,
+.theme-light .modal-footer,
+.theme-light .settings-modal-footer {
+    background-color: #F8FAFC !important;
+    border-top: 1px solid #E2E8F0 !important;
+    color: #0F172A !important;
+}
+
+/* Modal Tabs in Light Theme */
+.theme-light.settings-modal .nav-tabs,
+.theme-light .settings-modal .nav-tabs,
+.theme-light .modal .nav-tabs {
+    border-bottom: 1px solid #CBD5E1 !important;
+}
+.theme-light.settings-modal .nav-tabs .nav-link,
+.theme-light .settings-modal .nav-tabs .nav-link,
+.theme-light .modal .nav-tabs .nav-link {
+    color: #64748B !important;
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+}
+.theme-light.settings-modal .nav-tabs .nav-link:hover,
+.theme-light .settings-modal .nav-tabs .nav-link:hover,
+.theme-light .modal .nav-tabs .nav-link:hover {
+    color: #0F172A !important;
+    border-color: #E2E8F0 #E2E8F0 transparent !important;
+}
+.theme-light.settings-modal .nav-tabs .nav-link.active,
+.theme-light .settings-modal .nav-tabs .nav-link.active,
+.theme-light .modal .nav-tabs .nav-link.active {
+    color: #2F81F7 !important;
+    background-color: #FFFFFF !important;
+    border-color: #CBD5E1 #CBD5E1 #FFFFFF !important;
+    font-weight: 600 !important;
+}
+
+/* Modal Accordions in Light Theme */
+.theme-light.settings-modal .accordion-item,
+.theme-light .settings-modal .accordion-item,
+.theme-light .modal .accordion-item {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    color: #0F172A !important;
+}
+.theme-light.settings-modal .accordion-button,
+.theme-light .settings-modal .accordion-button,
+.theme-light .modal .accordion-button {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+    border: none !important;
+}
+.theme-light.settings-modal .accordion-button:not(.collapsed),
+.theme-light .settings-modal .accordion-button:not(.collapsed),
+.theme-light .modal .accordion-button:not(.collapsed) {
+    background-color: #EFF6FF !important;
+    color: #1D4ED8 !important;
+    box-shadow: inset 0 -1px 0 #DBEAFE !important;
+}
+.theme-light.settings-modal .accordion-button::after,
+.theme-light .settings-modal .accordion-button::after,
+.theme-light .modal .accordion-button::after {
+    filter: invert(0) !important;
+}
+.theme-light.settings-modal .accordion-body,
+.theme-light .settings-modal .accordion-body,
+.theme-light .modal .accordion-body {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+
+/* Modal Form Controls, Selects, Inputs in Light Theme */
+.theme-light.settings-modal .form-control,
+.theme-light .settings-modal .form-control,
+.theme-light .modal .form-control {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+}
+.theme-light.settings-modal .form-control:focus,
+.theme-light .settings-modal .form-control:focus,
+.theme-light .modal .form-control:focus {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #2F81F7 !important;
+    box-shadow: 0 0 0 0.2rem rgba(47, 129, 247, 0.25) !important;
+}
+.theme-light.settings-modal .form-control::placeholder,
+.theme-light .settings-modal .form-control::placeholder,
+.theme-light .modal .form-control::placeholder {
+    color: #94A3B8 !important;
+}
+.theme-light.settings-modal .form-select,
+.theme-light .settings-modal .form-select,
+.theme-light .modal .form-select {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+}
+.theme-light.settings-modal .form-select option,
+.theme-light .settings-modal .form-select option,
+.theme-light .modal .form-select option {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}
+.theme-light.settings-modal .input-group-text,
+.theme-light .settings-modal .input-group-text,
+.theme-light .modal .input-group-text {
+    background-color: #F1F5F9 !important;
+    color: #475569 !important;
+    border: 1px solid #CBD5E1 !important;
+}
+.theme-light.settings-modal .form-check-label,
+.theme-light .settings-modal .form-check-label,
+.theme-light .modal .form-check-label {
+    color: #0F172A !important;
+}
+.theme-light.settings-modal .form-check-input,
+.theme-light .settings-modal .form-check-input,
+.theme-light .modal .form-check-input {
+    background-color: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+}
+
+/* Modal Typography, Labels, Code, and Alerts in Light Theme */
+.theme-light.settings-modal label,
+.theme-light .settings-modal label,
+.theme-light .modal label,
+.theme-light.settings-modal .form-label,
+.theme-light .settings-modal .form-label {
+    color: #334155 !important;
+}
+.theme-light.settings-modal .modal-body p,
+.theme-light .settings-modal .modal-body p,
+.theme-light.settings-modal .modal-body span:not(.badge),
+.theme-light .settings-modal .modal-body span:not(.badge) {
+    color: #475569 !important;
+}
+.theme-light.settings-modal .modal-body h1,
+.theme-light .settings-modal .modal-body h1,
+.theme-light.settings-modal .modal-body h2,
+.theme-light .settings-modal .modal-body h2,
+.theme-light.settings-modal .modal-body h3,
+.theme-light .settings-modal .modal-body h3,
+.theme-light.settings-modal .modal-body h4,
+.theme-light .settings-modal .modal-body h4,
+.theme-light.settings-modal .modal-body h5,
+.theme-light .settings-modal .modal-body h5,
+.theme-light.settings-modal .modal-body h6,
+.theme-light .settings-modal .modal-body h6,
+.theme-light.settings-modal .modal-body b,
+.theme-light .settings-modal .modal-body b,
+.theme-light.settings-modal .modal-body strong,
+.theme-light .settings-modal .modal-body strong {
+    color: #0F172A !important;
+}
+.theme-light.settings-modal hr,
+.theme-light .settings-modal hr,
+.theme-light .modal hr {
+    border-color: #E2E8F0 !important;
+    opacity: 1 !important;
+}
+.theme-light.settings-modal .alert-info,
+.theme-light .settings-modal .alert-info,
+.theme-light .modal .alert-info {
+    background-color: rgba(47, 129, 247, 0.08) !important;
+    border: 1px solid #BFDBFE !important;
+    color: #1E3A8A !important;
+}
+.theme-light.settings-modal .alert-info ol,
+.theme-light.settings-modal .alert-info li,
+.theme-light .settings-modal .alert-info ol,
+.theme-light .settings-modal .alert-info li {
+    color: #1E293B !important;
+}
+.theme-light.settings-modal code,
+.theme-light .settings-modal code,
+.theme-light .modal code {
+    color: #0969DA !important;
+    background-color: #EFF6FF !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+}
+.theme-light.settings-modal .card,
+.theme-light .settings-modal .card {
+    background-color: #F8FAFC !important;
+    border-color: #E2E8F0 !important;
+}
+.theme-light.settings-modal .badge.bg-dark,
+.theme-light .settings-modal .badge.bg-dark {
+    background-color: #E2E8F0 !important;
+    color: #334155 !important;
+    border: 1px solid #CBD5E1 !important;
+}
+.theme-light.settings-modal .btn-close,
+.theme-light .settings-modal .btn-close,
+.theme-light .modal .btn-close {
+    filter: none !important;
+}
+
+/* Multi-select Dropdown Pills */
+.theme-light .Select--multi .Select-value {
+    background-color: #E0E7FF !important;
+    border: 1px solid #C7D2FE !important;
+    color: #3730A3 !important;
+}
+.theme-light .Select--multi .Select-value-icon {
+    border-right: 1px solid #C7D2FE !important;
+    color: #4F46E5 !important;
+}
+.theme-light .Select--multi .Select-value-icon:hover {
+    background-color: #C7D2FE !important;
+    color: #1E1B4B !important;
+}
+.theme-light .Select--multi .Select-value-label {
+    color: #3730A3 !important;
+}
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +561,7 @@ def build_tab_content(
     patch_red: float = 60.0,
     patch_amber: float = 84.0,
     patch_green: float = 85.0,
+    theme_mode: str = "dark",
 ) -> html.Div:
     """Renders the inner content for the currently active tab."""
     if active_tab == "tab-executive":
@@ -202,32 +569,32 @@ def build_tab_content(
             [
                 # Row 1: KPI Summary Strip
                 dbc.Row(
-                    dbc.Col(build_kpi_strip(data), width=12),
+                    dbc.Col(build_kpi_strip(data, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
-                # Row 2: OS Landscape (Windows and Linux side by side)
+                # Row 2: OS Landscape (Windows and Linux side by side or single expanded)
                 dbc.Row(
-                    dbc.Col(build_os_panel(data.os), width=12),
+                    dbc.Col(build_os_panel(data.os, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
                 # Row 3: Multi-Cloud Server Hosting
                 dbc.Row(
-                    dbc.Col(build_server_hosting_panel(data.servers), width=12),
+                    dbc.Col(build_server_hosting_panel(data.servers, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
                 # Row 4: Speedometer Patch Gauge
                 dbc.Row(
-                    dbc.Col(build_patch_panel(data.patches, red_limit=patch_red, amber_limit=patch_amber, green_target=patch_green), width=12),
+                    dbc.Col(build_patch_panel(data.patches, red_limit=patch_red, amber_limit=patch_amber, green_target=patch_green, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
                 # Row 5: EOL Compliance & Risk Analysis
                 dbc.Row(
-                    dbc.Col(build_eol_panel(data.os), width=12),
+                    dbc.Col(build_eol_panel(data.os, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
                 # Row 6: Organization Compliance Table
                 dbc.Row(
-                    dbc.Col(build_compliance_table(data.org_table), width=12),
+                    dbc.Col(build_compliance_table(data.org_table, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
             ]
@@ -237,7 +604,7 @@ def build_tab_content(
         return html.Div(
             [
                 dbc.Row(
-                    dbc.Col(build_sla_panel(data.sla, data.patches), width=12),
+                    dbc.Col(build_sla_panel(data.sla, data.patches, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
             ]
@@ -247,7 +614,7 @@ def build_tab_content(
         return html.Div(
             [
                 dbc.Row(
-                    dbc.Col(build_reboot_failures_panel(data.sla), width=12),
+                    dbc.Col(build_reboot_failures_panel(data.sla, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
             ]
@@ -257,7 +624,7 @@ def build_tab_content(
         return html.Div(
             [
                 dbc.Row(
-                    dbc.Col(build_reports_panel(data), width=12),
+                    dbc.Col(build_reports_panel(data, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
             ]
@@ -266,15 +633,24 @@ def build_tab_content(
     return html.Div("Tab content not found.", style={"color": T.TEXT_MUTED})
 
 
-def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, patch_red: float = 60.0, patch_amber: float = 84.0, patch_green: float = 85.0) -> html.Div:
-    """Builds the main container with slicers, map, tab bar, and tab content."""
+def build_body(
+    data,
+    active_tab: str = "tab-executive",
+    eol_days: int = 180,
+    patch_red: float = 60.0,
+    patch_amber: float = 84.0,
+    patch_green: float = 85.0,
+    theme_mode: str = "dark",
+) -> html.Div:
+    """Builds the main container with dropdown filters, map, tab bar, and tab content."""
     org_list = data.org_options or [{"label": o.name, "value": str(o.id)} for o in data.organizations]
     location_opts = data.location_options or list({d.location_name for d in data.devices_raw if d.location_name})
     os_opts = data.os_family_options or ["Windows", "Linux", "macOS"]
+    role_opts = getattr(data, "role_options", None) or list({d.device_role for d in data.devices_raw if getattr(d, "device_role", None)})
 
     return html.Div(
         [
-            # Multi-Dimensional Slicer Bar
+            # Multi-Dimensional Dropdown Filter Bar
             dbc.Container(
                 dbc.Row(
                     dbc.Col(
@@ -282,10 +658,13 @@ def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, pat
                             org_list,
                             location_opts,
                             os_opts,
+                            role_options=role_opts,
                             active_org_id=data.active_org_id,
                             active_location=data.active_location,
                             active_os_family=data.active_os_family,
+                            active_roles=getattr(data, "active_roles", None),
                             active_patch_type=getattr(data, "active_patch_type", "both"),
+                            theme_mode=theme_mode,
                         ),
                         width=12,
                     ),
@@ -298,7 +677,7 @@ def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, pat
             dbc.Container(
                 dbc.Row(
                     dbc.Col(
-                        build_map_panel(data.map_data, active_region=data.active_region),
+                        build_map_panel(data.map_data, active_region=data.active_region, theme_mode=theme_mode),
                         width=12,
                     ),
                     className="mb-4",
@@ -363,6 +742,7 @@ def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, pat
                         patch_red=patch_red,
                         patch_amber=patch_amber,
                         patch_green=patch_green,
+                        theme_mode=theme_mode,
                     ),
                     id="tab-content-container",
                 ),
@@ -376,10 +756,11 @@ def build_body(data, active_tab: str = "tab-executive", eol_days: int = 180, pat
 # Master Page Layout
 # ---------------------------------------------------------------------------
 
-def build_layout(data) -> html.Div:
+def build_layout(data, theme_mode: str = "dark") -> html.Div:
     """Assemble the full dashboard page from DashboardData."""
     is_live = coordinator.is_live
     base_url = coordinator.base_url
+    p = T.get_theme_palette(theme_mode)
 
     return html.Div(
         [
@@ -387,12 +768,14 @@ def build_layout(data) -> html.Div:
             dcc.Interval(id="auto-refresh", interval=5 * 60 * 1000, n_intervals=0),
 
             # State stores
+            dcc.Store(id="theme-store", storage_type="local", data=theme_mode),
             dcc.Store(id="last-refresh-store"),
             dcc.Store(id="filter-state-store", data={
-                "org_id": None,
+                "org_ids": [],
                 "region": "Global / All",
-                "location": "All Locations",
-                "os_family": "All OS Families",
+                "locations": [],
+                "os_families": [],
+                "roles": [],
                 "patch_type": "both",
             }),
             dcc.Store(id="active-tab-store", data="tab-executive"),
@@ -401,7 +784,6 @@ def build_layout(data) -> html.Div:
                 "patch_red": float(os.getenv("PATCH_RED_LIMIT", "60.0")),
                 "patch_amber": float(os.getenv("PATCH_AMBER_LIMIT", "84.0")),
                 "patch_green": float(os.getenv("PATCH_GREEN_TARGET", "85.0")),
-                "server_patch_threshold": 0,
                 "custom_eol_dates": {
                     "Windows Server 2008": "01/14/2020",
                     "Windows Server 2012": "10/10/2023",
@@ -414,6 +796,9 @@ def build_layout(data) -> html.Div:
                     "CentOS": "06/30/2024",
                     "Debian": "06/30/2026",
                 },
+                "included_keywords": ["Cumulative Update", "Security Update"],
+                "excluded_products": [".NET", "Office", "SQL", "Visual Studio", "Exchange", "SharePoint"],
+                "selected_patch_titles": [],
             }),
             dcc.Store(id="auth-state-store", data={
                 "is_live": is_live,
@@ -421,7 +806,7 @@ def build_layout(data) -> html.Div:
             }),
 
             # In-App Settings Modal
-            build_settings_modal(),
+            build_settings_modal(theme_mode=theme_mode),
 
             # Auto-Update Periodic Checker & Notification Modal
             dcc.Interval(id="auto-update-check-interval", interval=60 * 60 * 1000, n_intervals=0),
@@ -432,14 +817,14 @@ def build_layout(data) -> html.Div:
                     dbc.ModalHeader(
                         dbc.ModalTitle("🚀 New Toolkit Version Available!"),
                         close_button=True,
-                        style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                        style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
                     ),
                     dbc.ModalBody(
                         [
                             html.Div(id="update-prompt-content"),
                             html.Div(id="update-prompt-status", className="mt-3"),
                         ],
-                        style={"backgroundColor": T.BG_PRIMARY, "color": T.TEXT_PRIMARY, "padding": "20px"},
+                        style={"backgroundColor": p["bg_primary"], "color": p["text_primary"], "padding": "20px"},
                     ),
                     dbc.ModalFooter(
                         [
@@ -459,7 +844,7 @@ def build_layout(data) -> html.Div:
                                 style={"fontWeight": "600"},
                             ),
                         ],
-                        style={"backgroundColor": T.BG_CARD, "borderTop": f"1px solid {T.BORDER}"},
+                        style={"backgroundColor": p["bg_card"], "borderTop": f"1px solid {p['border']}"},
                     ),
                 ],
                 id="update-prompt-modal",
@@ -474,10 +859,12 @@ def build_layout(data) -> html.Div:
             dcc.Download(id="download-html-data"),
 
             # Header
-            build_header(data.fetched_at, data.active_filter_label, is_live=is_live, base_url=base_url),
+            build_header(data.fetched_at, data.active_filter_label, is_live=is_live, base_url=base_url, theme_mode=theme_mode),
 
             # Main content container
-            html.Div(build_body(data, active_tab="tab-executive"), id="dashboard-body"),
+            html.Div(build_body(data, active_tab="tab-executive", theme_mode=theme_mode), id="dashboard-body"),
         ],
-        style={"backgroundColor": T.BG_PRIMARY, "minHeight": "100vh", "color": T.TEXT_PRIMARY},
+        id="dashboard-theme-wrapper",
+        className=f"theme-{theme_mode}",
+        style={"backgroundColor": p["bg_primary"], "minHeight": "100vh", "color": p["text_primary"], "transition": "background-color 0.3s ease, color 0.3s ease"},
     )

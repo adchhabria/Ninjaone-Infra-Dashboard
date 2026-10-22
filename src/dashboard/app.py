@@ -35,7 +35,7 @@ if _root_dir not in sys.path:
 
 from src.dashboard import theme as T
 from src.dashboard.callbacks import register_callbacks
-from src.dashboard.layout import build_layout
+from src.dashboard.layout import build_layout, CUSTOM_CSS
 from src.metrics.data_provider import coordinator
 from src.metrics.pdf_export import generate_pdf_report
 from src.metrics.excel_export import generate_excel_workbook
@@ -67,6 +67,27 @@ def create_app(get_data_fn=None) -> dash.Dash:
             {"name": "viewport", "content": "width=device-width, initial-scale=1"},
         ],
     )
+
+    app.index_string = f"""<!DOCTYPE html>
+<html>
+    <head>
+        {{%metas%}}
+        <title>{{%title%}}</title>
+        {{%favicon%}}
+        {{%css%}}
+        <style>
+{CUSTOM_CSS}
+        </style>
+    </head>
+    <body>
+        {{%app_entry%}}
+        <footer>
+            {{%config%}}
+            {{%scripts%}}
+            {{%renderer%}}
+        </footer>
+    </body>
+</html>"""
 
     # -----------------------------------------------------------------------
     # OAuth 2.0 PKCE Callback Endpoint (Supports /oauth/callback and /callback)

@@ -15,10 +15,11 @@ from src.dashboard import theme as T
 from src.metrics.aggregator import DashboardData
 
 
-def build_reports_panel(data: DashboardData) -> html.Div:
+def build_reports_panel(data: DashboardData, theme_mode: str = "dark") -> html.Div:
     """
     Renders the report export hub with Excel, PDF, and HTML download triggers.
     """
+    p = T.get_theme_palette(theme_mode)
     return html.Div(
         [
             dbc.Row(
@@ -30,16 +31,16 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                 dbc.CardHeader(
                                     html.Span([
                                         html.Span("📊", style={"marginRight": "8px"}),
-                                        html.Span("Multi-Sheet Excel Audit Workbook (.xlsx)", style=T.FONT_SECTION_TITLE),
+                                        html.Span("Multi-Sheet Excel Audit Workbook (.xlsx)", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                         dbc.Badge("Interactive", color="success", className="ms-2"),
                                     ]),
-                                    style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                                    style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
                                 ),
                                 dbc.CardBody(
                                     [
                                         html.P(
                                             "Exports a complete enterprise workbook with formatted headers, auto-filters, and 6 specialized worksheets matching the current filter scope:",
-                                            style=T.FONT_BODY,
+                                            style={**T.FONT_BODY, "color": p["text_primary"]},
                                         ),
                                         html.Ul(
                                             [
@@ -50,7 +51,7 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                                 html.Li([html.Strong("Needs Reboot: "), "Watchlist of endpoints requiring restart."]),
                                                 html.Li([html.Strong("Patch Failures: "), "Failed updates with diagnostic error codes."]),
                                             ],
-                                            style={**T.FONT_BODY, "fontSize": "0.85rem", "marginBottom": "20px"},
+                                            style={"color": p["text_secondary"], "fontSize": "0.85rem", "marginBottom": "20px"},
                                         ),
                                         dbc.Button(
                                             "📥 Download Excel Audit (.xlsx)",
@@ -61,10 +62,10 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                             style={"fontWeight": "600"},
                                         ),
                                     ],
-                                    style={"padding": "20px"},
+                                    style={"padding": "20px", "backgroundColor": p["bg_card"]},
                                 ),
                             ],
-                            style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+                            style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "height": "100%"},
                         ),
                         md=4,
                         className="mb-3",
@@ -77,16 +78,16 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                 dbc.CardHeader(
                                     html.Span([
                                         html.Span("📄", style={"marginRight": "8px"}),
-                                        html.Span("Executive PDF Audit Report (.pdf)", style=T.FONT_SECTION_TITLE),
+                                        html.Span("Executive PDF Audit Report (.pdf)", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                         dbc.Badge("Direct PDF", color="primary", className="ms-2"),
                                     ]),
-                                    style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                                    style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
                                 ),
                                 dbc.CardBody(
                                     [
                                         html.P(
                                             "Generates a multi-page, publication-grade executive audit document with styled tables, KPI cards, and SLA breakdown matching your active filters:",
-                                            style=T.FONT_BODY,
+                                            style={**T.FONT_BODY, "color": p["text_primary"]},
                                         ),
                                         html.Ul(
                                             [
@@ -96,7 +97,7 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                                 html.Li([html.Strong("EOL Audit Ledger: "), "Complete list of past-support operating systems with days overdue."]),
                                                 html.Li([html.Strong("Client Scorecards: "), "Organization-by-organization compliance status."]),
                                             ],
-                                            style={**T.FONT_BODY, "fontSize": "0.85rem", "marginBottom": "20px"},
+                                            style={"color": p["text_secondary"], "fontSize": "0.85rem", "marginBottom": "20px"},
                                         ),
                                         dbc.Button(
                                             "📄 Generate & Download PDF (.pdf)",
@@ -107,10 +108,10 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                             style={"fontWeight": "600"},
                                         ),
                                     ],
-                                    style={"padding": "20px"},
+                                    style={"padding": "20px", "backgroundColor": p["bg_card"]},
                                 ),
                             ],
-                            style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+                            style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "height": "100%"},
                         ),
                         md=4,
                         className="mb-3",
@@ -123,16 +124,16 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                 dbc.CardHeader(
                                     html.Span([
                                         html.Span("📤", style={"marginRight": "8px"}),
-                                        html.Span("Standalone Interactive HTML (.html)", style=T.FONT_SECTION_TITLE),
+                                        html.Span("Standalone Interactive HTML (.html)", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                         dbc.Badge("Shareable", color="info", className="ms-2"),
                                     ]),
-                                    style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                                    style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
                                 ),
                                 dbc.CardBody(
                                     [
                                         html.P(
                                             "Generates a standalone, self-contained HTML executive dashboard that can be emailed or shared directly with stakeholders. Opens in any browser:",
-                                            style=T.FONT_BODY,
+                                            style={**T.FONT_BODY, "color": p["text_primary"]},
                                         ),
                                         html.Ul(
                                             [
@@ -142,7 +143,7 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                                 html.Li([html.Strong("Offline Ready: "), "Does not require a running server or login credentials."]),
                                                 html.Li([html.Strong("Filtered Scope: "), f"Exported for {data.active_filter_label}."]),
                                             ],
-                                            style={**T.FONT_BODY, "fontSize": "0.85rem", "marginBottom": "20px"},
+                                            style={"color": p["text_secondary"], "fontSize": "0.85rem", "marginBottom": "20px"},
                                         ),
                                         dbc.Button(
                                             "📤 Export & Share HTML Report (.html)",
@@ -153,10 +154,10 @@ def build_reports_panel(data: DashboardData) -> html.Div:
                                             style={"fontWeight": "600"},
                                         ),
                                     ],
-                                    style={"padding": "20px"},
+                                    style={"padding": "20px", "backgroundColor": p["bg_card"]},
                                 ),
                             ],
-                            style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+                            style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "height": "100%"},
                         ),
                         md=4,
                         className="mb-3",

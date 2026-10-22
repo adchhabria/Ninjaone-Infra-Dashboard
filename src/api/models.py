@@ -157,6 +157,9 @@ class Device(BaseModel):
     hosting_type: Optional[str] = None
     approved_patch_count: Optional[int] = None
     approved_software_count: Optional[int] = None
+    os_security_patch_count: Optional[int] = None
+    os_security_patch_names: list[str] = Field(default_factory=list)
+    device_role: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -165,8 +168,43 @@ class Device(BaseModel):
             # Map 'system' to 'systemInfo' if present
             if "system" in data and "systemInfo" not in data and "system_info" not in data:
                 data["systemInfo"] = data["system"]
-            # Extract approved/pending patch count if present
             cf = data.get("customFields") or data.get("custom_fields") or {}
+
+            # Extract or infer device role from NinjaOne metadata
+            role_val = (
+                data.get("device_role")
+                or data.get("deviceRole")
+                or data.get("roleName")
+                or data.get("nodeRoleName")
+                or cf.get("deviceRole")
+                or cf.get("role")
+                or cf.get("Device Role")
+                or cf.get("Server Role")
+            )
+            if not role_val:
+                name = str(data.get("displayName") or data.get("systemName") or "")
+                nu = name.upper()
+                if "DC-" in nu or "-DC" in nu or "DOMAIN" in nu:
+                    role_val = "Domain Controller"
+                elif "DB-" in nu or "-DB" in nu or "SQL" in nu or "DATABASE" in nu:
+                    role_val = "Database Server"
+                elif "WEB-" in nu or "-WEB" in nu or "IIS" in nu or "NGINX" in nu:
+                    role_val = "Web Server"
+                elif "APP-" in nu or "-APP" in nu or "APPLICATION" in nu:
+                    role_val = "Application Server"
+                elif "FILE-" in nu or "-FILE" in nu or "FS-" in nu or "STORAGE" in nu:
+                    role_val = "File Server"
+                elif "BACKUP-" in nu or "-BACKUP" in nu or "BKP" in nu:
+                    role_val = "Backup Server"
+                elif "SERVER" in str(data.get("nodeClass", "")).upper() or "SERVER" in str(data.get("os", {}).get("name", "") if isinstance(data.get("os"), dict) else "").upper():
+                    role_val = "General Server"
+                elif "WORKSTATION" in str(data.get("nodeClass", "")).upper():
+                    role_val = "Workstation"
+                else:
+                    role_val = "General Server"
+            data["device_role"] = role_val
+
+            # Extract approved/pending patch count if present
             for k in [
                 "approvedPatchCount",
                 "approved_patch_count",
@@ -251,6 +289,11 @@ class Device(BaseModel):
     @property
     def is_online(self) -> bool:
         return not self.offline
+
+    @property
+    def has_uninstalled_os_security_patch(self) -> bool:
+        """True if the device has 1 or more approved uninstalled OS Cumulative/Security updates."""
+        return bool(self.os_security_patch_count and self.os_security_patch_count > 0)
 
 
 # ---------------------------------------------------------------------------

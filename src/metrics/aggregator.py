@@ -112,7 +112,8 @@ class DashboardData:
     active_org_id: Optional[int] = None
     active_region: Optional[str] = None
     active_location: Optional[str] = None
-    active_os_family: Optional[str] = None
+    active_os_family: Any = None
+    active_roles: Any = None
     active_patch_type: str = "both"
     active_filter_label: str = "Global Overview"
 
@@ -152,7 +153,12 @@ class DashboardData:
     org_options: list[dict] = field(default_factory=list)
     location_options: list[str] = field(default_factory=list)
     os_family_options: list[str] = field(default_factory=list)
+    role_options: list[str] = field(default_factory=list)
     region_options: list[str] = field(default_factory=list)
+    discovered_patch_titles: list[str] = field(default_factory=list)
+    compliance_included_keywords: list[str] = field(default_factory=list)
+    compliance_excluded_keywords: list[str] = field(default_factory=list)
+    compliance_selected_patch_titles: list[str] = field(default_factory=list)
 
     # Raw entities (for in-memory slicing)
     organizations: list[Organization] = field(default_factory=list)
@@ -194,53 +200,114 @@ def compute_dashboard_slice(
     devices: list[Device],
     organizations: list[Organization],
     activities: list[Activity],
-    active_org_id: Optional[int] = None,
+    active_org_id: Any = None,
     active_region: Optional[str] = None,
-    active_location: Optional[str] = None,
-    active_os_family: Optional[str] = None,
+    active_location: Any = None,
+    active_os_family: Any = None,
+    active_roles: Any = None,
     active_patch_type: str = "both",
     approaching_days: int = 180,
     custom_eol_dates: Optional[dict[str, str]] = None,
-    server_patch_threshold: int = 0,
     patch_red: float = 60.0,
     patch_amber: float = 84.0,
     patch_green: float = 85.0,
+    included_keywords: list[str] | None = None,
+    excluded_products: list[str] | None = None,
+    selected_patch_titles: list[str] | None = None,
 ) -> DashboardData:
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
     # 1. Available Slicer Options (derived from total fleet)
     all_locations = sorted(list({d.location_name for d in devices if d.location_name}))
     all_os_families = ["Windows", "Linux", "macOS"]
+    all_role_options = sorted(list({d.device_role for d in devices if d.device_role}))
+    if not all_role_options:
+        all_role_options = [
+            "Domain Controller",
+            "Database Server",
+            "Web Server",
+            "File Server",
+            "Application Server",
+            "Backup Server",
+            "General Server",
+            "Workstation",
+        ]
 
     # 2. Apply active filtering
     filtered_devices = devices
     filtered_orgs = organizations
 
-    # Filter by Org
+    # Filter by Org (supports int, list[int], or 'all'/None)
     if active_org_id is not None:
-        filtered_devices = [d for d in filtered_devices if d.organization_id == active_org_id]
-        filtered_orgs = [o for o in filtered_orgs if o.id == active_org_id]
+        if isinstance(active_org_id, (list, tuple, set)):
+            target_ids = {int(x) for x in active_org_id if str(x) not in ["all", "All Organizations", "None", ""]}
+            if target_ids:
+                filtered_devices = [d for d in filtered_devices if d.organization_id in target_ids]
+                filtered_orgs = [o for o in filtered_orgs if o.id in target_ids]
+        elif str(active_org_id) not in ["all", "All Organizations", "None", ""]:
+            try:
+                oid = int(active_org_id)
+                filtered_devices = [d for d in filtered_devices if d.organization_id == oid]
+                filtered_orgs = [o for o in filtered_orgs if o.id == oid]
+            except (ValueError, TypeError):
+                pass
 
     # Filter by Region
-    if active_region is not None and active_region not in ["Global / All", "all", None]:
+    if active_region is not None and active_region not in ["Global / All", "all", None, ""]:
         filtered_devices = [d for d in filtered_devices if d.region == active_region]
         filtered_org_ids = {d.organization_id for d in filtered_devices}
         filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids or o.region == active_region]
 
-    # Filter by Location
-    if active_location is not None and active_location not in ["All Locations", "all", None]:
-        filtered_devices = [d for d in filtered_devices if d.location_name == active_location]
-        filtered_org_ids = {d.organization_id for d in filtered_devices}
-        filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
+    # Filter by Location (supports str, list[str])
+    if active_location is not None:
+        if isinstance(active_location, (list, tuple, set)):
+            loc_set = {str(x) for x in active_location if x not in ["All Locations", "all", None, ""]}
+            if loc_set:
+                filtered_devices = [d for d in filtered_devices if d.location_name in loc_set]
+                filtered_org_ids = {d.organization_id for d in filtered_devices}
+                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
+        elif active_location not in ["All Locations", "all", None, ""]:
+            filtered_devices = [d for d in filtered_devices if d.location_name == active_location]
+            filtered_org_ids = {d.organization_id for d in filtered_devices}
+            filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
 
-    # Filter by OS Family
-    if active_os_family is not None and active_os_family not in ["All OS Families", "all", None]:
-        filtered_devices = [
-            d for d in filtered_devices
-            if _classify_os_family(d.os.name if d.os else None) == active_os_family
-        ]
-        filtered_org_ids = {d.organization_id for d in filtered_devices}
-        filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
+    # Filter by OS Family (supports str, list[str])
+    if active_os_family is not None:
+        if isinstance(active_os_family, (list, tuple, set)):
+            os_set = {str(x) for x in active_os_family if x not in ["All OS Families", "all", None, ""]}
+            if os_set:
+                filtered_devices = [
+                    d for d in filtered_devices
+                    if _classify_os_family(d.os.name if d.os else None) in os_set
+                ]
+                filtered_org_ids = {d.organization_id for d in filtered_devices}
+                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
+        elif active_os_family not in ["All OS Families", "all", None, ""]:
+            filtered_devices = [
+                d for d in filtered_devices
+                if _classify_os_family(d.os.name if d.os else None) == active_os_family
+            ]
+            filtered_org_ids = {d.organization_id for d in filtered_devices}
+            filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
+
+    # Filter by Device Roles (supports str, list[str])
+    if active_roles is not None:
+        if isinstance(active_roles, (list, tuple, set)):
+            role_set = {str(x) for x in active_roles if x not in ["All Roles", "all", None, ""]}
+            if role_set:
+                filtered_devices = [
+                    d for d in filtered_devices
+                    if (d.device_role or "General Server") in role_set
+                ]
+                filtered_org_ids = {d.organization_id for d in filtered_devices}
+                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
+        elif active_roles not in ["All Roles", "all", None, ""]:
+            filtered_devices = [
+                d for d in filtered_devices
+                if (d.device_role or "General Server") == active_roles
+            ]
+            filtered_org_ids = {d.organization_id for d in filtered_devices}
+            filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
 
     # Build org name map
     org_name_map = {o.id: o.name for o in organizations}
@@ -257,8 +324,10 @@ def compute_dashboard_slice(
         filtered_devices,
         activities,
         org_name_map=org_name_map,
-        max_approved_patches=server_patch_threshold,
         patch_type=active_patch_type,
+        included_keywords=included_keywords,
+        excluded_products=excluded_products,
+        selected_patch_titles=selected_patch_titles,
     )
     sla_metrics = compute_patch_sla_metrics(
         filtered_devices,
@@ -362,15 +431,38 @@ def compute_dashboard_slice(
     filter_label_parts = []
     if active_region and active_region != "Global / All":
         filter_label_parts.append(f"Region: {active_region}")
-    if active_org_id is not None:
-        org_name = org_name_map.get(active_org_id, f"Org {active_org_id}")
-        filter_label_parts.append(f"Org: {org_name}")
+
+    if active_org_id:
+        if isinstance(active_org_id, (list, tuple, set)) and len(active_org_id) > 1:
+            filter_label_parts.append(f"{len(active_org_id)} Orgs")
+        elif isinstance(active_org_id, (list, tuple, set)) and len(active_org_id) == 1:
+            filter_label_parts.append(f"Org: {org_name_map.get(int(list(active_org_id)[0]), 'Org')}")
+        elif str(active_org_id) not in ["all", "None"]:
+            try:
+                filter_label_parts.append(f"Org: {org_name_map.get(int(active_org_id), f'Org {active_org_id}')}")
+            except (ValueError, TypeError):
+                pass
+
     if active_location and active_location not in ["All Locations", "all"]:
-        filter_label_parts.append(f"Loc: {active_location}")
+        if isinstance(active_location, (list, tuple, set)):
+            filter_label_parts.append(f"{len(active_location)} Locs" if len(active_location) > 1 else f"Loc: {list(active_location)[0]}")
+        else:
+            filter_label_parts.append(f"Loc: {active_location}")
+
     if active_os_family and active_os_family not in ["All OS Families", "all"]:
-        filter_label_parts.append(f"OS: {active_os_family}")
-    if active_patch_type and active_patch_type.lower() != "both":
-        filter_label_parts.append(f"Patches: {active_patch_type.upper()}")
+        if isinstance(active_os_family, (list, tuple, set)):
+            filter_label_parts.append(f"OS: {', '.join(active_os_family)}")
+        else:
+            filter_label_parts.append(f"OS: {active_os_family}")
+
+    if active_roles and active_roles not in ["All Roles", "all"]:
+        if isinstance(active_roles, (list, tuple, set)):
+            filter_label_parts.append(f"{len(active_roles)} Roles" if len(active_roles) > 1 else f"Role: {list(active_roles)[0]}")
+        else:
+            filter_label_parts.append(f"Role: {active_roles}")
+
+    if active_patch_type and str(active_patch_type).lower() != "both":
+        filter_label_parts.append(f"Patches: {str(active_patch_type).upper()}")
 
     filter_label = " · ".join(filter_label_parts) if filter_label_parts else "Global Overview"
 
@@ -380,12 +472,29 @@ def compute_dashboard_slice(
     ]
     all_region_options = ["Global / All"] + list(REGION_DEFINITIONS.keys())
 
+    all_discovered_patches = sorted(list({
+        name
+        for d in devices
+        for name in (getattr(d, "os_security_patch_names", []) or [])
+        if name
+    }))
+    if not all_discovered_patches:
+        all_discovered_patches = [
+            "2024-10 Cumulative Update for Windows Server 2022 (KB5044281)",
+            "2024-08 Cumulative Update for Windows 11 Version 23H2 (KB5041585)",
+            "Security Update for Windows Server 2019 (KB5034441)",
+            "Cumulative Update for .NET Framework 4.8.1",
+            "Security Update for Microsoft SQL Server 2019",
+            "Intel Network Adapter Driver Update",
+        ]
+
     return DashboardData(
         active_org_id=active_org_id,
         active_region=active_region,
         active_location=active_location,
         active_os_family=active_os_family,
-        active_patch_type=active_patch_type.lower(),
+        active_roles=active_roles,
+        active_patch_type=active_patch_type.lower() if isinstance(active_patch_type, str) else "both",
         active_filter_label=filter_label,
         patch_red=patch_red,
         patch_amber=patch_amber,
@@ -406,7 +515,12 @@ def compute_dashboard_slice(
         org_options=all_org_options,
         location_options=all_locations,
         os_family_options=all_os_families,
+        role_options=all_role_options,
         region_options=all_region_options,
+        discovered_patch_titles=all_discovered_patches,
+        compliance_included_keywords=included_keywords or ["Cumulative Update", "Security Update"],
+        compliance_excluded_keywords=excluded_products or [".NET", "Office", "SQL", "Visual Studio", "Exchange", "SharePoint"],
+        compliance_selected_patch_titles=selected_patch_titles or [],
         organizations=organizations,
         devices_raw=devices,
         activities_raw=activities,
@@ -432,29 +546,40 @@ class MetricsAggregator:
     def get_dashboard_data(
         self,
         force_refresh: bool = False,
-        active_org_id: Optional[int] = None,
+        active_org_id: Any = None,
         active_region: Optional[str] = None,
-        active_location: Optional[str] = None,
-        active_os_family: Optional[str] = None,
+        active_location: Any = None,
+        active_os_family: Any = None,
+        active_roles: Any = None,
         active_patch_type: str = "both",
         approaching_days: int = 180,
         custom_eol_dates: Optional[dict[str, str]] = None,
-        server_patch_threshold: int = 0,
         patch_red: float = 60.0,
         patch_amber: float = 84.0,
         patch_green: float = 85.0,
+        included_keywords: list[str] | None = None,
+        excluded_products: list[str] | None = None,
+        selected_patch_titles: list[str] | None = None,
     ) -> DashboardData:
+        def _hashable(v):
+            if isinstance(v, (list, tuple, set)):
+                return tuple(sorted(str(x) for x in v))
+            return v
+
         slice_key = (
-            active_org_id,
+            _hashable(active_org_id),
             active_region,
-            active_location,
-            active_os_family,
-            active_patch_type.lower(),
+            _hashable(active_location),
+            _hashable(active_os_family),
+            _hashable(active_roles),
+            active_patch_type.lower() if isinstance(active_patch_type, str) else "both",
             approaching_days,
-            server_patch_threshold,
             patch_red,
             patch_amber,
             patch_green,
+            _hashable(included_keywords),
+            _hashable(excluded_products),
+            _hashable(selected_patch_titles),
         )
 
         if not force_refresh and slice_key in self._slice_cache:
@@ -503,13 +628,16 @@ class MetricsAggregator:
             active_region=active_region,
             active_location=active_location,
             active_os_family=active_os_family,
+            active_roles=active_roles,
             active_patch_type=active_patch_type,
             approaching_days=approaching_days,
             custom_eol_dates=custom_eol_dates,
-            server_patch_threshold=server_patch_threshold,
             patch_red=patch_red,
             patch_amber=patch_amber,
             patch_green=patch_green,
+            included_keywords=included_keywords,
+            excluded_products=excluded_products,
+            selected_patch_titles=selected_patch_titles,
         )
         self._slice_cache[slice_key] = computed
         return computed
@@ -573,6 +701,10 @@ class MetricsAggregator:
                 d.approved_patch_count = os_patch_counts[d.id]
             elif getattr(d, "approved_patch_count", None) is None:
                 d.approved_patch_count = 0
+
+            if hasattr(os_patch_counts, "os_sec_counts") and d.id in os_patch_counts.os_sec_counts:
+                d.os_security_patch_count = os_patch_counts.os_sec_counts[d.id]
+                d.os_security_patch_names = os_patch_counts.os_sec_names.get(d.id, [])
 
             if d.id in sw_patch_counts:
                 d.approved_software_count = sw_patch_counts[d.id]

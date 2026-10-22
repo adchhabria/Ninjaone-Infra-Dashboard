@@ -19,16 +19,18 @@ def build_patch_panel(
     red_limit: float = 60.0,
     amber_limit: float = 84.0,
     green_target: float = 85.0,
+    theme_mode: str = "dark",
 ) -> dbc.Card:
     """
     Renders Patch Compliance gauge with configurable thresholds and compliant/non-compliant device tallies.
     """
+    p = T.get_theme_palette(theme_mode)
     pct = patch_data.get("patch_coverage_pct", 0.0)
     compliant_cnt = patch_data.get("compliant_count", 0)
     non_compliant_cnt = patch_data.get("non_compliant_count", 0)
     total_devs = patch_data.get("total_devices", compliant_cnt + non_compliant_cnt)
 
-    gauge_fig = charts.patch_gauge(pct, red_limit=red_limit, amber_limit=amber_limit, green_target=green_target)
+    gauge_fig = charts.patch_gauge(pct, red_limit=red_limit, amber_limit=amber_limit, green_target=green_target, theme_mode=theme_mode)
 
     badge_color = "success" if pct >= green_target else "warning" if pct > red_limit else "danger"
     status_text = f"🟢 Compliant (≥{int(green_target)}%)" if pct >= green_target else f"🟡 Warning ({int(red_limit)+1}-{int(amber_limit)}%)" if pct > red_limit else f"🔴 Critical (≤{int(red_limit)}%)"
@@ -52,7 +54,7 @@ def build_patch_panel(
                         dbc.Col(
                             html.Span([
                                 html.Span("🔧", style={"marginRight": "8px"}),
-                                html.Span("Patch Management & Compliance Status", style=T.FONT_SECTION_TITLE),
+                                html.Span("Patch Management & Compliance Status", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
                                 dbc.Badge(f"{pct:.1f}% Coverage", color=badge_color, className="ms-2"),
                                 dbc.Badge(status_text, color="secondary", className="ms-1"),
                                 dbc.Badge(scope_badge_text, color="info", className="ms-1"),
@@ -81,7 +83,7 @@ def build_patch_panel(
                     ],
                     align="center",
                 ),
-                style={"backgroundColor": T.BG_CARD, "borderBottom": f"1px solid {T.BORDER}"},
+                style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
             ),
             dbc.CardBody(
                 [
@@ -94,8 +96,8 @@ def build_patch_panel(
                         ]
                     ),
                 ],
-                style={"padding": "10px"},
+                style={"padding": "10px", "backgroundColor": p["bg_card"]},
             ),
         ],
-        style={"backgroundColor": T.BG_CARD, "border": f"1px solid {T.BORDER}", "borderRadius": "8px", "height": "100%"},
+        style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "height": "100%"},
     )

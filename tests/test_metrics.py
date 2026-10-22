@@ -182,6 +182,76 @@ class TestServerComplianceAndCustomEOL:
         assert res_both["non_compliant_count"] == 2
         assert res_both["patch_coverage_pct"] == 0.0
 
+    def test_server_compliance_os_cumulative_and_security_updates(self):
+        """
+        Verify that a server with uninstalled approved updates is ONLY Non-Compliant
+        if the update is an OS Cumulative Update or OS Security Update.
+        Updates for .NET, MS Office, SQL Server, and drivers do NOT mark the server Non-Compliant.
+        """
+        # Server A: Has 3 pending updates, but ALL are .NET or Drivers -> Must be COMPLIANT!
+        server_a = Device(
+            id=201,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-DOTNET-01",
+            approved_patch_count=3,
+            os_security_patch_count=0,
+            os_security_patch_names=[
+                "2024-10 Cumulative Update for .NET Framework 3.5 and 4.8.1 (KB5044091)",
+                "Security Update for SQL Server 2019 (KB5014353)",
+                "Intel Network Adapter Driver Update",
+            ],
+            os=OSInfo(name="Windows Server 2022 Datacenter"),
+        )
+
+        # Server B: Has 1 pending update, which is an OS Cumulative Update -> Must be NON-COMPLIANT!
+        server_b = Device(
+            id=202,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-WIN-02",
+            approved_patch_count=1,
+            os_security_patch_count=1,
+            os_security_patch_names=[
+                "2024-10 Cumulative Update for Windows Server 2022 for x64-based Systems (KB5044281)",
+            ],
+            os=OSInfo(name="Windows Server 2022 Datacenter"),
+        )
+
+        # Server C: Has 0 pending updates -> Must be COMPLIANT!
+        server_c = Device(
+            id=203,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-CLEAN-03",
+            approved_patch_count=0,
+            os_security_patch_count=0,
+            os_security_patch_names=[],
+            os=OSInfo(name="Windows Server 2022 Datacenter"),
+        )
+
+        res = compute_patch_metrics([server_a, server_b, server_c], org_name_map={1: "Acme Corp"}, patch_type="os")
+        assert res["total_devices"] == 3
+        assert res["compliant_count"] == 2  # Servers A and C are Compliant
+        assert res["non_compliant_count"] == 1  # Server B is Non-Compliant
+        assert res["patch_coverage_pct"] == 66.7
+
+        tbl = res["server_compliance_table"]
+        row_a = next(r for r in tbl if r["device_id"] == 201)
+        assert row_a["status"] == "Compliant"
+        assert row_a["is_compliant"] is True
+        assert row_a["os_security_patch_count"] == 0
+
+        row_b = next(r for r in tbl if r["device_id"] == 202)
+        assert row_b["status"] == "Non-Compliant"
+        assert row_b["is_compliant"] is False
+        assert row_b["os_security_patch_count"] == 1
+        assert "KB5044281" in row_b["pending_security_patches_str"]
+
+        row_c = next(r for r in tbl if r["device_id"] == 203)
+        assert row_c["status"] == "Compliant"
+        assert row_c["is_compliant"] is True
+
     def test_custom_eol_date_mm_dd_yyyy_calculation(self):
         from src.metrics.os_compliance import _get_eol_info, compute_os_metrics
 
@@ -250,3 +320,46 @@ class TestServerComplianceAndCustomEOL:
         # Clear cleans up disk
         new_cache.clear()
         assert not p.exists()
+
+    def test_selected_patch_titles_direct_override_and_zero_threshold_compliance(self):
+        from src.metrics.patch_compliance import compute_patch_metrics
+
+        # Server 1 has uninstalled custom software patch that would normally be excluded (Office patch)
+        s1 = Device(
+            id=301,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-OFFICE-01",
+            approved_patch_count=1,
+            os_security_patch_count=0,
+            os_security_patch_names=["Security Update for Microsoft Office 2016 (KB5002457)"],
+        )
+        # Server 2 has no pending patches
+        s2 = Device(
+            id=302,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-CLEAN-02",
+            approved_patch_count=0,
+            os_security_patch_count=0,
+            os_security_patch_names=[],
+        )
+
+        # Without selecting the title, Office patch is excluded -> both servers are Compliant
+        res_default = compute_patch_metrics([s1, s2], org_name_map={1: "Acme Corp"}, patch_type="os")
+        assert res_default["compliant_count"] == 2
+        assert res_default["non_compliant_count"] == 0
+
+        # With title selected in selected_patch_titles, s1 is directly flagged as Non-Compliant
+        res_override = compute_patch_metrics(
+            [s1, s2],
+            org_name_map={1: "Acme Corp"},
+            patch_type="os",
+            selected_patch_titles=["Security Update for Microsoft Office 2016 (KB5002457)"],
+        )
+        assert res_override["compliant_count"] == 1
+        assert res_override["non_compliant_count"] == 1
+        s1_row = next(r for r in res_override["server_compliance_table"] if r["device_id"] == 301)
+        assert s1_row["is_compliant"] is False
+        assert s1_row["status"] == "Non-Compliant"
+

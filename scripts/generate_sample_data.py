@@ -70,6 +70,7 @@ HOSTING_TYPES_LIST = [
 ]
 
 _CACHED_RAW_MOCK: Optional[tuple[list[Organization], list[Device], list[Activity]]] = None
+_MOCK_SLICE_CACHE: dict[tuple, Any] = {}
 
 
 def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activity]]:
@@ -128,6 +129,7 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                 )[0]
                 d_name = f"SRV-{cc}-{hosting_val[:3].upper()}-{role_code}-{dev_id_counter % 100:02d}"
             else:
+                role = "Workstation"
                 d_name = f"WS-{cc}-{dev_id_counter % 1000:03d}"
 
             # Patch simulation
@@ -139,6 +141,13 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
 
             total_pending = crit_patches + random.randint(0, 3) if crit_patches > 0 else (random.randint(0, 2) if random.random() < 0.2 else 0)
             sw_pending = (dev_id_counter % 3) if (dev_id_counter % 3 == 0) else 0
+
+            sec_patch_names = []
+            if crit_patches > 0:
+                sec_patch_names = [f"KB50{30000 + (dev_id_counter * 17 + i) % 9999} Cumulative Update for {os_name}" for i in range(crit_patches)]
+                os_sec_cnt = crit_patches
+            else:
+                os_sec_cnt = 0
 
             device = Device(
                 id=dev_id_counter,
@@ -153,6 +162,9 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                 hosting_type=hosting_val,
                 approved_patch_count=total_pending,
                 approved_software_count=sw_pending,
+                os_security_patch_count=os_sec_cnt,
+                os_security_patch_names=sec_patch_names,
+                device_role=role,
                 lastSeen=datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 72)),
                 os=OSInfo(name=os_name, releaseId=rid),
                 custom_fields={
@@ -160,6 +172,7 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                     "approvedSoftwareCount": sw_pending,
                     "criticalPatchesPending": crit_patches,
                     "totalPatchesPending": total_pending,
+                    "osSecurityPatchCount": os_sec_cnt,
                     "patchStatus": "PENDING" if crit_patches > 0 else "OK",
                     "hosting": hosting_val,
                 },
@@ -188,26 +201,57 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
 
 
 def get_mock_dashboard_data(
-    active_org_id: Optional[int] = None,
+    active_org_id: Any = None,
     active_region: Optional[str] = None,
-    active_location: Optional[str] = None,
-    active_os_family: Optional[str] = None,
+    active_location: Any = None,
+    active_os_family: Any = None,
+    active_roles: Any = None,
     active_patch_type: str = "both",
     approaching_days: int = 180,
     custom_eol_dates: Optional[dict[str, str]] = None,
-    server_patch_threshold: int = 0,
     patch_red: float = 60.0,
     patch_amber: float = 84.0,
     patch_green: float = 85.0,
+    included_keywords: list[str] | None = None,
+    excluded_products: list[str] | None = None,
+    selected_patch_titles: list[str] | None = None,
+    force_refresh: bool = False,
 ) -> DashboardData:
-    """Returns complete DashboardData computed from realistic mock pool."""
-    global _CACHED_RAW_MOCK
+    """Returns complete DashboardData computed from realistic mock pool with sub-millisecond slice caching."""
+    global _CACHED_RAW_MOCK, _MOCK_SLICE_CACHE
+    if force_refresh:
+        _MOCK_SLICE_CACHE.clear()
+
     if _CACHED_RAW_MOCK is None:
         _CACHED_RAW_MOCK = _generate_raw_mock()
 
+    def _hashable(v):
+        if isinstance(v, (list, tuple, set)):
+            return tuple(sorted(str(x) for x in v))
+        return v
+
+    slice_key = (
+        _hashable(active_org_id),
+        active_region,
+        _hashable(active_location),
+        _hashable(active_os_family),
+        _hashable(active_roles),
+        active_patch_type.lower() if isinstance(active_patch_type, str) else "both",
+        approaching_days,
+        patch_red,
+        patch_amber,
+        patch_green,
+        _hashable(included_keywords),
+        _hashable(excluded_products),
+        _hashable(selected_patch_titles),
+    )
+
+    if not force_refresh and slice_key in _MOCK_SLICE_CACHE:
+        return _MOCK_SLICE_CACHE[slice_key]
+
     orgs, devices, activities = _CACHED_RAW_MOCK
 
-    return compute_dashboard_slice(
+    computed = compute_dashboard_slice(
         devices=devices,
         organizations=orgs,
         activities=activities,
@@ -215,14 +259,19 @@ def get_mock_dashboard_data(
         active_region=active_region,
         active_location=active_location,
         active_os_family=active_os_family,
+        active_roles=active_roles,
         active_patch_type=active_patch_type,
         approaching_days=approaching_days,
         custom_eol_dates=custom_eol_dates,
-        server_patch_threshold=server_patch_threshold,
         patch_red=patch_red,
         patch_amber=patch_amber,
         patch_green=patch_green,
+        included_keywords=included_keywords,
+        excluded_products=excluded_products,
+        selected_patch_titles=selected_patch_titles,
     )
+    _MOCK_SLICE_CACHE[slice_key] = computed
+    return computed
 
 
 if __name__ == "__main__":

@@ -15,9 +15,7 @@ from src.api.models import Device, Activity
 
 def get_device_approved_patch_count(device: Device) -> int:
     """
-    Extracts the Approved Patch Count for a device:
-    - 0 means compliant
-    - >= 1 means non-compliant
+    Extracts the total Approved Patch Count for a device.
     """
     # 1. Direct attribute on Device if explicitly set
     attr_val = getattr(device, "approved_patch_count", None)
@@ -68,6 +66,52 @@ def get_device_approved_patch_count(device: Device) -> int:
     return 0
 
 
+def get_device_os_security_patch_info(
+    device: Device,
+    included_keywords: list[str] | None = None,
+    excluded_products: list[str] | None = None,
+    selected_patch_titles: list[str] | None = None,
+) -> tuple[int, list[str]]:
+    """
+    Extracts the uninstalled approved OS Cumulative/Security update count and patch titles for a device.
+    - 0 means compliant (no OS Cumulative or Security updates awaiting installation)
+    - >= 1 means non-compliant
+    """
+    from src.api.patches import is_os_security_or_cumulative_patch
+
+    raw_names = list(getattr(device, "os_security_patch_names", []) or [])
+    if raw_names:
+        matching_names = [
+            n for n in raw_names
+            if is_os_security_or_cumulative_patch(
+                n,
+                included_keywords=included_keywords,
+                excluded_products=excluded_products,
+                selected_patch_titles=selected_patch_titles,
+            )
+        ]
+        return len(matching_names), matching_names
+
+    cnt_attr = getattr(device, "os_security_patch_count", None)
+    if cnt_attr is not None:
+        return max(0, int(cnt_attr)), []
+
+    # Fallback to custom fields
+    cf = device.custom_fields or {}
+    for key in ["osSecurityPatchCount", "os_security_patch_count", "criticalPatchesPending"]:
+        if key in cf and cf[key] is not None:
+            try:
+                cnt = int(cf[key])
+                if cnt >= 0:
+                    return cnt, []
+            except (ValueError, TypeError):
+                pass
+
+    # Legacy fallback: if device only has approved_patch_count
+    legacy_cnt = get_device_approved_patch_count(device)
+    return legacy_cnt, []
+
+
 def get_device_approved_software_count(device: Device) -> int:
     """
     Extracts or infers the Approved 3rd-party Software update count for a device.
@@ -116,15 +160,18 @@ def compute_patch_metrics(
     org_name_map: dict[int, str] | None = None,
     max_approved_patches: int = 0,
     patch_type: str = "both",
+    included_keywords: list[str] | None = None,
+    excluded_products: list[str] | None = None,
+    selected_patch_titles: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Computes fleet patch compliance based strictly on Approved Patch Count:
-    - patch_type="both": Evaluates combined OS and 3rd-party Software patches
-    - patch_type="os": Evaluates only OS security patches
+    Computes fleet patch compliance based strictly on uninstalled approved OS Cumulative & Security Updates:
+    - patch_type="both": Evaluates OS Cumulative/Security updates plus 3rd-party Software patches
+    - patch_type="os": Evaluates only OS Cumulative/Security updates (excluding .NET, Office, SQL)
     - patch_type="software": Evaluates only 3rd-party Software update patches
-    - Effective Patch Count <= max_approved_patches (Default: 0): Compliant
-    - Effective Patch Count > max_approved_patches: Non-Compliant
-    - Also generates the Server Patch & Software Compliance ledger for the next tab.
+    - Zero Qualifying Uninstalled Patches (cnt == 0): Compliant
+    - Any Qualifying Uninstalled Patches (cnt > 0): Non-Compliant
+    - Also generates the Server Patch & Software Compliance ledger with exact offending KBs.
     """
     p_type = (patch_type or "both").lower()
     org_map = org_name_map or {}
@@ -136,7 +183,7 @@ def compute_patch_metrics(
             "non_compliant_count": 0,
             "total_devices": 0,
             "org_patch_table": [],
-            "max_approved_patches": max_approved_patches,
+            "max_approved_patches": 0,
             "patch_type": p_type,
             "server_compliance_table": [],
             "server_compliant_count": 0,
@@ -150,17 +197,22 @@ def compute_patch_metrics(
     org_patch_map: dict[int, dict[str, Any]] = {}
 
     for d in devices:
-        os_cnt = get_device_approved_patch_count(d)
+        os_sec_cnt, _ = get_device_os_security_patch_info(
+            d,
+            included_keywords=included_keywords,
+            excluded_products=excluded_products,
+            selected_patch_titles=selected_patch_titles,
+        )
         sw_cnt = get_device_approved_software_count(d)
 
         if p_type == "os":
-            cnt = os_cnt
+            cnt = os_sec_cnt
         elif p_type == "software":
             cnt = sw_cnt
         else:
-            cnt = os_cnt + sw_cnt
+            cnt = os_sec_cnt + sw_cnt
 
-        is_compliant = (cnt <= max_approved_patches)
+        is_compliant = (cnt == 0)
 
         if is_compliant:
             compliant_count += 1
@@ -204,17 +256,23 @@ def compute_patch_metrics(
     server_non_compliant_count = 0
 
     for s in server_devices:
+        s_sec_cnt, s_sec_names = get_device_os_security_patch_info(
+            s,
+            included_keywords=included_keywords,
+            excluded_products=excluded_products,
+            selected_patch_titles=selected_patch_titles,
+        )
         p_cnt = get_device_approved_patch_count(s)
         sw_cnt = get_device_approved_software_count(s)
 
         if p_type == "os":
-            eval_cnt = p_cnt
+            eval_cnt = s_sec_cnt
         elif p_type == "software":
             eval_cnt = sw_cnt
         else:
-            eval_cnt = p_cnt + sw_cnt
+            eval_cnt = s_sec_cnt + sw_cnt
 
-        s_compliant = (eval_cnt <= max_approved_patches)
+        s_compliant = (eval_cnt == 0)
 
         if s_compliant:
             server_compliant_count += 1
@@ -230,6 +288,9 @@ def compute_patch_metrics(
             "org_name": s_org,
             "location": s_loc,
             "os": s.os_display,
+            "os_security_patch_count": s_sec_cnt,
+            "os_security_patch_names": s_sec_names,
+            "pending_security_patches_str": ", ".join(s_sec_names) if s_sec_names else "None (Clean)",
             "approved_patch_count": p_cnt,
             "approved_software_count": sw_cnt,
             "effective_patch_count": eval_cnt,
