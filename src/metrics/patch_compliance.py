@@ -79,10 +79,11 @@ def get_device_os_security_patch_info(
     """
     from src.api.patches import is_os_security_or_cumulative_patch
 
-    raw_names = list(getattr(device, "os_security_patch_names", []) or [])
-    if raw_names:
+    # 1. Evaluate uninstalled patch list if names are available
+    raw_uninstalled = getattr(device, "all_uninstalled_patch_names", None) or getattr(device, "os_security_patch_names", None)
+    if raw_uninstalled:
         matching_names = [
-            n for n in raw_names
+            n for n in raw_uninstalled
             if is_os_security_or_cumulative_patch(
                 n,
                 included_keywords=included_keywords,
@@ -92,11 +93,12 @@ def get_device_os_security_patch_info(
         ]
         return len(matching_names), matching_names
 
+    # 2. Check explicit os_security_patch_count attribute
     cnt_attr = getattr(device, "os_security_patch_count", None)
     if cnt_attr is not None:
         return max(0, int(cnt_attr)), []
 
-    # Fallback to custom fields
+    # 3. Fallback to custom fields
     cf = device.custom_fields or {}
     for key in ["osSecurityPatchCount", "os_security_patch_count", "criticalPatchesPending"]:
         if key in cf and cf[key] is not None:
@@ -107,7 +109,7 @@ def get_device_os_security_patch_info(
             except (ValueError, TypeError):
                 pass
 
-    # Legacy fallback: if device only has approved_patch_count
+    # 4. Fallback to approved_patch_count if present
     legacy_cnt = get_device_approved_patch_count(device)
     return legacy_cnt, []
 

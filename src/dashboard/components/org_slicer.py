@@ -31,9 +31,10 @@ def build_org_slicer(
     active_roles: Any = None,
     active_patch_type: str = "both",
     theme_mode: str = "dark",
+    **kwargs: Any,
 ) -> dbc.Card:
     """
-    Renders the executive multi-select dropdown filter control bar.
+    Renders the executive multi-select dropdown filter control bar across 2 comfortable rows.
     """
     p = T.get_theme_palette(theme_mode)
 

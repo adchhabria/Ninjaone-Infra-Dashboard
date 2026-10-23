@@ -159,6 +159,7 @@ class Device(BaseModel):
     approved_software_count: Optional[int] = None
     os_security_patch_count: Optional[int] = None
     os_security_patch_names: list[str] = Field(default_factory=list)
+    all_uninstalled_patch_names: list[str] = Field(default_factory=list)
     device_role: Optional[str] = None
 
     @model_validator(mode="before")

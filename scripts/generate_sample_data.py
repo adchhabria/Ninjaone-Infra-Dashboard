@@ -164,6 +164,7 @@ def _generate_raw_mock() -> tuple[list[Organization], list[Device], list[Activit
                 approved_software_count=sw_pending,
                 os_security_patch_count=os_sec_cnt,
                 os_security_patch_names=sec_patch_names,
+                all_uninstalled_patch_names=sec_patch_names,
                 device_role=role,
                 lastSeen=datetime.now(timezone.utc) - timedelta(hours=random.randint(1, 72)),
                 os=OSInfo(name=os_name, releaseId=rid),

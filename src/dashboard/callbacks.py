@@ -173,36 +173,33 @@ def register_callbacks(app, get_data_fn=None):
             tab_to_show = "tab-reports"
 
         # Filter Dropdown / Reset interactions
-        elif is_reset:
+        if is_reset:
             filter_state["org_ids"] = []
             filter_state["region"] = "Global / All"
             filter_state["locations"] = []
             filter_state["os_families"] = []
             filter_state["roles"] = []
             filter_state["patch_type"] = "both"
-        elif triggered_id == "filter-org-dropdown":
+        else:
+            # Unconditionally sync current dropdown values
             filter_state["org_ids"] = org_dd_val if isinstance(org_dd_val, list) else ([org_dd_val] if org_dd_val else [])
-        elif triggered_id == "filter-location-dropdown":
             filter_state["locations"] = loc_dd_val if isinstance(loc_dd_val, list) else ([loc_dd_val] if loc_dd_val else [])
-        elif triggered_id == "filter-os-dropdown":
             filter_state["os_families"] = os_dd_val if isinstance(os_dd_val, list) else ([os_dd_val] if os_dd_val else [])
-        elif triggered_id == "filter-roles-dropdown":
             filter_state["roles"] = roles_dd_val if isinstance(roles_dd_val, list) else ([roles_dd_val] if roles_dd_val else [])
-        elif triggered_id == "filter-patch-type-dropdown":
             filter_state["patch_type"] = str(patch_type_dd_val or "both")
 
-        # World Map Marker clicked
-        elif triggered_id == "world-map-graph" and map_click_data:
-            points = map_click_data.get("points", [])
-            if points:
-                clicked_pt = points[0]
-                custom = clicked_pt.get("customdata", [])
-                if custom and len(custom) > 0:
-                    clicked_region = custom[0]
-                    if filter_state.get("region") == clicked_region:
-                        filter_state["region"] = "Global / All"
-                    else:
-                        filter_state["region"] = clicked_region
+            # World Map click interaction
+            if triggered_id == "world-map-graph" and map_click_data:
+                points = map_click_data.get("points", [])
+                if points:
+                    clicked_pt = points[0]
+                    custom = clicked_pt.get("customdata", [])
+                    if custom and len(custom) > 0:
+                        clicked_region = custom[0]
+                        if filter_state.get("region") == clicked_region:
+                            filter_state["region"] = "Global / All"
+                        else:
+                            filter_state["region"] = clicked_region
 
         force_refresh = (triggered_id in ["refresh-btn", "auto-refresh"])
 
@@ -274,14 +271,16 @@ def register_callbacks(app, get_data_fn=None):
                 no_update,
                 no_update,
                 no_update,
+                no_update,
             )
 
         badge_label = data.active_filter_label
         ts_text = f"Last updated: {data.fetched_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
-        map_fig = charts.world_map_chart(data.map_data, active_region=data.active_region, theme_mode=theme_mode)
+        map_fig = charts.world_map_chart(data.map_data, selected_region=data.active_region, theme_mode=theme_mode)
 
         if is_reset:
             org_out = []
+            region_out = []
             loc_out = []
             os_out = []
             roles_out = []
@@ -476,14 +475,13 @@ def register_callbacks(app, get_data_fn=None):
         Output("hosting-donut-graph", "figure"),
         Output("hosting-stacked-bar-graph", "figure"),
         Input("hosting-filter-radio", "value"),
+        Input("theme-store", "data"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
-        State("theme-store", "data"),
         prevent_initial_call=True,
     )
-    def update_hosting_filter(filter_mode, filter_state, threshold_settings, current_theme):
-        if not filter_mode:
-            return no_update, no_update
+    def update_hosting_filter(filter_mode, current_theme, filter_state, threshold_settings):
+        filter_mode = filter_mode or "all"
         filter_state = filter_state or {}
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
@@ -764,7 +762,11 @@ def register_callbacks(app, get_data_fn=None):
                 discovered = getattr(data, "discovered_patch_titles", []) or []
             except Exception:
                 pass
-            disc_options = [{"label": t, "value": t} for t in discovered]
+            disc_options = (
+                [{"label": t, "value": t} for t in discovered]
+                if discovered
+                else [{"label": "No uninstalled approved patches detected in fleet", "value": "none", "disabled": True}]
+            )
             return True, no_update, no_update, no_update, disc_options
 
         if triggered == "settings-cancel-btn":

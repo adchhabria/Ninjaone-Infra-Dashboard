@@ -363,3 +363,54 @@ class TestServerComplianceAndCustomEOL:
         assert s1_row["is_compliant"] is False
         assert s1_row["status"] == "Non-Compliant"
 
+    def test_dynamic_recalculation_with_all_uninstalled_patch_names(self):
+        from src.metrics.patch_compliance import compute_patch_metrics
+
+        # Server with generic uninstalled patches in all_uninstalled_patch_names
+        dev = Device(
+            id=401,
+            organizationId=1,
+            nodeClass="WINDOWS_SERVER",
+            displayName="SRV-DYNAMIC-01",
+            all_uninstalled_patch_names=[
+                "Special Feature Pack 2024",
+                "2024-10 Cumulative Update for Windows Server 2022",
+            ],
+        )
+
+        # Default keywords: includes "Cumulative Update", so 1 match -> Non-compliant
+        res1 = compute_patch_metrics([dev], patch_type="os")
+        assert res1["non_compliant_count"] == 1
+        assert res1["compliant_count"] == 0
+
+        # Change keywords to only look for "Special Feature": now matched as well
+        res2 = compute_patch_metrics([dev], patch_type="os", included_keywords=["Special Feature"])
+        assert res2["non_compliant_count"] == 1
+
+        # Change keywords to look for non-existent keyword "NonExistentPatch": now compliant!
+        res3 = compute_patch_metrics([dev], patch_type="os", included_keywords=["NonExistentPatch"])
+        assert res3["compliant_count"] == 1
+        assert res3["non_compliant_count"] == 0
+
+    def test_compute_dashboard_slice_region_fuzzy_matching(self):
+        from src.metrics.aggregator import compute_dashboard_slice
+        from src.api.models import Organization
+
+        orgs = [Organization(id=1, name="EMEA Corp")]
+        devs = [
+            Device(id=501, organizationId=1, nodeClass="WINDOWS_SERVER", region="EMEA / Europe", location_name="Frankfurt DC", ipAddress="10.1.1.1"),
+            Device(id=502, organizationId=1, nodeClass="WINDOWS_SERVER", region="USA / North America", location_name="New York Office", ipAddress="10.2.2.2"),
+        ]
+
+        # Slicing by "Europe" should match "EMEA / Europe"
+        slice_res = compute_dashboard_slice(
+            devices=devs,
+            organizations=orgs,
+            activities=[],
+            active_region="Europe",
+        )
+        assert slice_res.active_region == "Europe"
+        assert slice_res.total_servers == 1
+        assert slice_res.devices_raw[0].id == 501
+
+

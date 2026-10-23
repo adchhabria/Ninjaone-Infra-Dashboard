@@ -61,17 +61,18 @@ def is_os_security_or_cumulative_patch(
 class FleetPatchResult(tuple):
     """
     Backwards-compatible tuple that unpacks as (os_counts, sw_counts) for legacy callers,
-    while providing attributes for os_sec_counts, os_sec_names, and discovered_titles.
+    while providing attributes for os_sec_counts, os_sec_names, discovered_titles, and all_uninstalled_names.
     """
-    def __new__(cls, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None):
+    def __new__(cls, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None, all_uninstalled_names=None):
         return super().__new__(cls, (os_counts, sw_counts))
 
-    def __init__(self, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None):
+    def __init__(self, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None, all_uninstalled_names=None):
         self.os_counts = os_counts
         self.sw_counts = sw_counts
         self.os_sec_counts = os_sec_counts or {}
         self.os_sec_names = os_sec_names or {}
         self.discovered_titles = discovered_titles or []
+        self.all_uninstalled_names = all_uninstalled_names or {}
 
 
 def get_all_os_patches(client: NinjaOneClient) -> list[dict[str, Any]]:
@@ -148,6 +149,7 @@ def get_fleet_patch_counts(
     pending_sec_map: Dict[int, int] = {}
     approved_sec_names: Dict[int, list[str]] = {}
     pending_sec_names: Dict[int, list[str]] = {}
+    dev_all_uninstalled_names: Dict[int, list[str]] = {}
     discovered_titles: list[str] = []
     seen_titles: set[str] = set()
 
@@ -173,12 +175,19 @@ def get_fleet_patch_counts(
         except (ValueError, TypeError):
             continue
 
-        p_name = str(p.get("name") or p.get("title") or "").strip()
+        status = str(p.get("status") or "").upper()
+        # Skip patches that are already installed or completed
+        if status in ["INSTALLED", "SUCCESS", "COMPLETED", "SUPERSEDED"]:
+            continue
+
+        p_name = str(p.get("name") or p.get("title") or p.get("description") or "").strip()
+        if not p_name and p.get("kbNumber"):
+            p_name = f"Update ({p.get('kbNumber')})"
+
         if p_name and p_name not in seen_titles:
             seen_titles.add(p_name)
             discovered_titles.append(p_name)
 
-        status = str(p.get("status") or "").upper()
         approval = str(p.get("approvalStatus") or p.get("approval_status") or p.get("approval") or "").upper()
         is_approved_flag = p.get("approved") is True or p.get("isApproved") is True
 
@@ -196,6 +205,9 @@ def get_fleet_patch_counts(
             excluded_products=excluded_products,
             selected_patch_titles=selected_patch_titles,
         )
+
+        if p_name and (is_approved or status not in ["REJECTED", "DECLINED", "IGNORED", "EXCLUDED"]):
+            dev_all_uninstalled_names.setdefault(dev_id, []).append(p_name)
 
         if is_approved:
             approved_os_map[dev_id] = approved_os_map.get(dev_id, 0) + 1
@@ -267,4 +279,4 @@ def get_fleet_patch_counts(
     else:
         sw_counts = {}
 
-    return FleetPatchResult(os_counts, sw_counts, sec_counts, sec_names, discovered_titles)
+    return FleetPatchResult(os_counts, sw_counts, sec_counts, sec_names, discovered_titles, dev_all_uninstalled_names)

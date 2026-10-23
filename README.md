@@ -3,8 +3,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Dash](https://img.shields.io/badge/Dash-2.16+-00D8FF.svg)](https://dash.plotly.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Release](https://img.shields.io/badge/Release-v1.0.19-brightgreen.svg)](https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases)
-[![Tests](https://img.shields.io/badge/tests-72%20passed-success.svg)](tests/)
+[![Release](https://img.shields.io/badge/Release-v1.0.20-brightgreen.svg)](https://github.com/adchhabria/Ninjaone-Infra-Dashboard/releases)
+[![Tests](https://img.shields.io/badge/tests-74%20passed-success.svg)](tests/)
 
 An enterprise-grade infrastructure intelligence and operational patch management toolkit designed for **NinjaOne RMM**. Built for MSPs, IT infrastructure leaders, and compliance auditors to monitor multi-tenant device health, SLA aging backlogs, OS compliance thresholds, and multi-cloud hosting environments in real time.
 
@@ -119,7 +119,7 @@ ninjaone-dashboard/
 ├── launcher.py                        # Desktop launcher with auto-browser opening
 ├── Ninjaone-Infra-Dashboard.exe       # Pre-compiled standalone Windows binary
 ├── requirements.txt                   # Production dependencies
-└── version.json                       # Version manifest (v1.0.19)
+└── version.json                       # Version manifest (v1.0.20)
 ```
 
 ---

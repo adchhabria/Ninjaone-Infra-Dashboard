@@ -356,8 +356,7 @@ class DataCoordinator:
                     selected_patch_titles=selected_patch_titles,
                 )
             except Exception as e:
-                print(f"[!] Live data fetch failed, tripping circuit breaker to offline/demo: {e}")
-                self._is_live = False
+                print(f"[!] Live data query notice (returning fallback for this request): {e}")
                 self._last_error = str(e)
 
         # Fallback to mock data

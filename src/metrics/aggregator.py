@@ -252,11 +252,32 @@ def compute_dashboard_slice(
             except (ValueError, TypeError):
                 pass
 
-    # Filter by Region
-    if active_region is not None and active_region not in ["Global / All", "all", None, ""]:
-        filtered_devices = [d for d in filtered_devices if d.region == active_region]
-        filtered_org_ids = {d.organization_id for d in filtered_devices}
-        filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids or o.region == active_region]
+    # Filter by Region (supports string, list, and fuzzy/substring matching like 'Europe')
+    if active_region is not None:
+        def _match_region(device_region: str | None, target_regions: set[str], location_name: str | None = None) -> bool:
+            for t in target_regions:
+                t_lower = t.lower()
+                if device_region:
+                    d_reg = str(device_region).lower()
+                    if t_lower in d_reg or d_reg in t_lower:
+                        return True
+                if location_name:
+                    loc_lower = str(location_name).lower()
+                    if t_lower in loc_lower:
+                        return True
+            return False
+
+        if isinstance(active_region, (list, tuple, set)):
+            target_regs = {str(x) for x in active_region if str(x) not in ["Global / All", "all", None, ""]}
+            if target_regs:
+                filtered_devices = [d for d in filtered_devices if _match_region(d.region, target_regs, d.location_name)]
+                filtered_org_ids = {d.organization_id for d in filtered_devices}
+                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids or _match_region(o.region, target_regs)]
+        elif str(active_region) not in ["Global / All", "all", None, ""]:
+            target_regs = {str(active_region)}
+            filtered_devices = [d for d in filtered_devices if _match_region(d.region, target_regs, d.location_name)]
+            filtered_org_ids = {d.organization_id for d in filtered_devices}
+            filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids or _match_region(o.region, target_regs)]
 
     # Filter by Location (supports str, list[str])
     if active_location is not None:
@@ -475,10 +496,10 @@ def compute_dashboard_slice(
     all_discovered_patches = sorted(list({
         name
         for d in devices
-        for name in (getattr(d, "os_security_patch_names", []) or [])
+        for name in (getattr(d, "all_uninstalled_patch_names", None) or getattr(d, "os_security_patch_names", []) or [])
         if name
     }))
-    if not all_discovered_patches:
+    if not all_discovered_patches and not devices:
         all_discovered_patches = [
             "2024-10 Cumulative Update for Windows Server 2022 (KB5044281)",
             "2024-08 Cumulative Update for Windows 11 Version 23H2 (KB5041585)",
@@ -705,6 +726,11 @@ class MetricsAggregator:
             if hasattr(os_patch_counts, "os_sec_counts") and d.id in os_patch_counts.os_sec_counts:
                 d.os_security_patch_count = os_patch_counts.os_sec_counts[d.id]
                 d.os_security_patch_names = os_patch_counts.os_sec_names.get(d.id, [])
+
+            if hasattr(os_patch_counts, "all_uninstalled_names") and d.id in os_patch_counts.all_uninstalled_names:
+                d.all_uninstalled_patch_names = os_patch_counts.all_uninstalled_names[d.id]
+            elif hasattr(os_patch_counts, "os_sec_names") and d.id in os_patch_counts.os_sec_names:
+                d.all_uninstalled_patch_names = os_patch_counts.os_sec_names.get(d.id, [])
 
             if d.id in sw_patch_counts:
                 d.approved_software_count = sw_patch_counts[d.id]

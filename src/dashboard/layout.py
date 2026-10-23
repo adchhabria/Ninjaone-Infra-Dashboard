@@ -216,12 +216,37 @@ CUSTOM_CSS = """
     background-color: #F8FAFC !important;
     color: #0F172A !important;
 }
-.theme-light h1, .theme-light h2, .theme-light h3, .theme-light h4, .theme-light h5, .theme-light h6,
-.theme-light p, .theme-light span, .theme-light div, .theme-light label {
-    color: inherit;
+.theme-light h1, .theme-light h2, .theme-light h3, .theme-light h4, .theme-light h5, .theme-light h6 {
+    color: #0F172A !important;
+}
+.theme-light .card, .theme-light .card-header, .theme-light .card-body {
+    background-color: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+    color: #0F172A !important;
+}
+.theme-light .card p,
+.theme-light .card span:not(.badge),
+.theme-light .card label {
+    color: #0F172A;
 }
 .theme-light .text-muted, .theme-light .text-secondary {
-    color: #64748B !important;
+    color: #475569 !important;
+}
+/* Ensure white/near-white inline colors flip to dark slate in light mode */
+.theme-light [style*="#E6EDF3"],
+.theme-light [style*="#e6edf3"],
+.theme-light [style*="#FFFFFF"]:not(.badge):not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-info),
+.theme-light [style*="#ffffff"]:not(.badge):not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-info),
+.theme-light [style*="rgb(230, 237, 243)"],
+.theme-light [style*="rgb(255, 255, 255)"]:not(.badge):not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-info) {
+    color: #0F172A !important;
+}
+.theme-light [style*="#161B22"],
+.theme-light [style*="#161b22"],
+.theme-light [style*="#0D1117"],
+.theme-light [style*="#0d1117"] {
+    background-color: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
 }
 .theme-light #dashboard-header {
     background-color: #FFFFFF !important;
@@ -647,6 +672,7 @@ def build_body(
     location_opts = data.location_options or list({d.location_name for d in data.devices_raw if d.location_name})
     os_opts = data.os_family_options or ["Windows", "Linux", "macOS"]
     role_opts = getattr(data, "role_options", None) or list({d.device_role for d in data.devices_raw if getattr(d, "device_role", None)})
+    region_opts = getattr(data, "region_options", None)
 
     return html.Div(
         [
