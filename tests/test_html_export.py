@@ -39,3 +39,19 @@ class TestHTMLExport:
         data_sw = get_mock_dashboard_data(active_patch_type="software")
         html_sw = generate_html_report(data_sw)
         assert "Patches: SOFTWARE" in html_sw
+
+    def test_html_report_light_and_dark_theme(self):
+        """Verify that HTML export adapts to light and dark theme mode and styles larger KPI values."""
+        data = get_mock_dashboard_data()
+
+        # Light theme
+        html_light = generate_html_report(data, theme_mode="light")
+        assert "--bg-primary: #F8FAFC;" in html_light
+        assert "--text-primary: #0F172A;" in html_light
+        assert "font-size: 2.6rem;" in html_light
+
+        # Dark theme
+        html_dark = generate_html_report(data, theme_mode="dark")
+        assert "--bg-primary: #0D1117;" in html_dark
+        assert "--text-primary: #E6EDF3;" in html_dark
+        assert "font-size: 2.6rem;" in html_dark

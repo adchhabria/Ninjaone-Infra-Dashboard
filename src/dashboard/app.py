@@ -243,7 +243,8 @@ def create_app(get_data_fn=None) -> dash.Dash:
     def download_pdf_endpoint():
         try:
             data = _get_filtered_data_from_request()
-            pdf_bytes = generate_pdf_report(data)
+            theme_mode = request.args.get("theme", "dark")
+            pdf_bytes = generate_pdf_report(data, theme_mode=theme_mode)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             scope = re.sub(r'[^a-zA-Z0-9]+', '_', data.active_filter_label or 'Global_Overview').strip('_') or 'Global_Overview'
             return Response(
@@ -275,11 +276,13 @@ def create_app(get_data_fn=None) -> dash.Dash:
     def download_html_endpoint():
         try:
             data = _get_filtered_data_from_request()
+            theme_mode = request.args.get("theme", "dark")
             html_text = generate_html_report(
                 data,
                 patch_red=data.patch_red,
                 patch_amber=data.patch_amber,
                 patch_green=data.patch_green,
+                theme_mode=theme_mode,
             )
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             scope = re.sub(r'[^a-zA-Z0-9]+', '_', data.active_filter_label or 'Global_Overview').strip('_') or 'Global_Overview'

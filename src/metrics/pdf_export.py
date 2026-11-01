@@ -44,46 +44,66 @@ RAG_RED = colors.HexColor("#CF222E")
 LIGHT_BG = colors.HexColor("#F6F8FA")
 
 
-class MultiPageNumberedCanvas(canvas.Canvas):
-    """Two-pass canvas to draw running headers, footers, and 'Page X of Y'."""
+def get_numbered_canvas_class(theme_mode: str = "dark"):
+    """Factory returning a two-pass canvas class styled according to theme_mode ('light' or 'dark')."""
+    is_light = (theme_mode or "dark").lower() == "light"
+    border_col = colors.HexColor("#CBD5E1") if is_light else colors.HexColor("#30363D")
+    muted_col = colors.HexColor("#475569") if is_light else colors.HexColor("#8B949E")
+    page_bg_col = colors.HexColor("#0D1117") if not is_light else None
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._saved_page_states = []
+    class ThemedMultiPageNumberedCanvas(canvas.Canvas):
+        """Two-pass canvas to draw running headers, footers, and 'Page X of Y'."""
 
-    def showPage(self):
-        self._saved_page_states.append(dict(self.__dict__))
-        self._startPage()
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._saved_page_states = []
 
-    def save(self):
-        num_pages = len(self._saved_page_states)
-        for state in self._saved_page_states:
-            self.__dict__.update(state)
-            self.draw_page_decorations(num_pages)
-            super().showPage()
-        super().save()
+        def _startPage(self):
+            super()._startPage()
+            if page_bg_col is not None:
+                self.saveState()
+                self.setFillColor(page_bg_col)
+                self.rect(0, 0, self._pagesize[0], self._pagesize[1], fill=1, stroke=0)
+                self.restoreState()
 
-    def draw_page_decorations(self, page_count: int):
-        self.saveState()
-        self.setFont("Helvetica", 8)
-        self.setFillColor(MUTED_TEXT)
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
 
-        # Header (pages > 1)
-        if self._pageNumber > 1:
-            self.drawString(40, 580, "NinjaOne IT Infrastructure & Compliance Executive Audit Report")
-            self.drawRightString(750, 580, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
-            self.setStrokeColor(BORDER_COLOR)
+        def save(self):
+            num_pages = len(self._saved_page_states)
+            for state in self._saved_page_states:
+                self.__dict__.update(state)
+                self.draw_page_decorations(num_pages)
+                super().showPage()
+            super().save()
+
+        def draw_page_decorations(self, page_count: int):
+            self.saveState()
+            self.setFont("Helvetica", 8)
+            self.setFillColor(muted_col)
+
+            # Header (pages > 1)
+            if self._pageNumber > 1:
+                self.drawString(40, 580, "NinjaOne IT Infrastructure & Compliance Executive Audit Report")
+                self.drawRightString(750, 580, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
+                self.setStrokeColor(border_col)
+                self.setLineWidth(0.5)
+                self.line(40, 574, 750, 574)
+
+            # Footer (all pages)
+            self.setStrokeColor(border_col)
             self.setLineWidth(0.5)
-            self.line(40, 574, 750, 574)
+            self.line(40, 30, 750, 30)
 
-        # Footer (all pages)
-        self.setStrokeColor(BORDER_COLOR)
-        self.setLineWidth(0.5)
-        self.line(40, 30, 750, 30)
+            self.drawString(40, 20, "CONFIDENTIAL — For Internal Management & Compliance Audit Use Only")
+            self.drawRightString(750, 20, f"Page {self._pageNumber} of {page_count}")
+            self.restoreState()
 
-        self.drawString(40, 20, "CONFIDENTIAL — For Internal Management & Compliance Audit Use Only")
-        self.drawRightString(750, 20, f"Page {self._pageNumber} of {page_count}")
-        self.restoreState()
+    return ThemedMultiPageNumberedCanvas
+
+
+MultiPageNumberedCanvas = get_numbered_canvas_class("dark")
 
 
 def _fig_to_image_flowable(fig, width: int = 340, height: int = 180, scale: int = 1) -> Optional[Image]:
@@ -97,11 +117,46 @@ def _fig_to_image_flowable(fig, width: int = 340, height: int = 180, scale: int 
         return None
 
 
-def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -> bytes:
+def generate_pdf_report(
+    data: DashboardData,
+    dashboard_url: str | None = None,
+    theme_mode: str = "dark",
+) -> bytes:
     """
     Generates a high-fidelity multi-page PDF audit report with embedded Plotly charts,
-    world maps, speedometer gauges, and comprehensive compliance data tables.
+    world maps, speedometer gauges, and comprehensive compliance data tables matching active theme.
     """
+    theme_mode = (theme_mode or "dark").lower()
+    is_light = theme_mode == "light"
+
+    # Theme-adaptive color scheme
+    if is_light:
+        primary_color = colors.HexColor("#0F172A")
+        secondary_color = colors.HexColor("#1E293B")
+        accent_blue = colors.HexColor("#0969DA")
+        text_color = colors.HexColor("#0F172A")
+        muted_text = colors.HexColor("#475569")
+        border_color = colors.HexColor("#CBD5E1")
+        card_bg = colors.HexColor("#FFFFFF")
+        light_bg = colors.HexColor("#F8FAFC")
+        header_bg = colors.HexColor("#1E293B")
+        header_text_color = colors.white
+        kpi_bg = colors.HexColor("#F1F5F9")
+        kpi_val_bg = colors.HexColor("#FFFFFF")
+    else:
+        primary_color = colors.HexColor("#E6EDF3")
+        secondary_color = colors.HexColor("#161B22")
+        accent_blue = colors.HexColor("#2F81F7")
+        text_color = colors.HexColor("#E6EDF3")
+        muted_text = colors.HexColor("#8B949E")
+        border_color = colors.HexColor("#30363D")
+        card_bg = colors.HexColor("#161B22")
+        light_bg = colors.HexColor("#1C2128")
+        header_bg = colors.HexColor("#21262D")
+        header_text_color = colors.HexColor("#E6EDF3")
+        kpi_bg = colors.HexColor("#21262D")
+        kpi_val_bg = colors.HexColor("#161B22")
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -120,7 +175,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         fontName="Helvetica-Bold",
         fontSize=18,
         leading=22,
-        textColor=PRIMARY_COLOR,
+        textColor=primary_color,
         spaceAfter=3,
     )
 
@@ -130,7 +185,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         fontName="Helvetica",
         fontSize=9.5,
         leading=13,
-        textColor=MUTED_TEXT,
+        textColor=muted_text,
         spaceAfter=8,
     )
 
@@ -138,9 +193,9 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         "Heading2",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=12,
-        leading=15,
-        textColor=PRIMARY_COLOR,
+        fontSize=13,
+        leading=16,
+        textColor=primary_color,
         spaceBefore=8,
         spaceAfter=6,
     )
@@ -151,7 +206,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         fontName="Helvetica",
         fontSize=8,
         leading=10,
-        textColor=TEXT_COLOR,
+        textColor=text_color,
     )
 
     body_bold = ParagraphStyle(
@@ -160,13 +215,19 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         fontName="Helvetica-Bold",
     )
 
+    body_center = ParagraphStyle(
+        "BodyCenter",
+        parent=body_style,
+        alignment=1,
+    )
+
     header_cell_style = ParagraphStyle(
         "HeaderCell",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
         fontSize=8,
         leading=10,
-        textColor=colors.white,
+        textColor=header_text_color,
         alignment=0,
     )
 
@@ -185,7 +246,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
             subtitle_style,
         )
     )
-    story.append(HRFlowable(width="100%", thickness=1.5, color=ACCENT_BLUE, spaceBefore=0, spaceAfter=10))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=accent_blue, spaceBefore=0, spaceAfter=10))
 
     # Executive KPI Table Strip
     story.append(Paragraph("1. Executive Overview & Fleet Key Performance Indicators", h2_style))
@@ -203,26 +264,26 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
             Paragraph("EOL / At-Risk Devices", body_bold),
         ],
         [
-            Paragraph(f"<font size=13><b>{data.total_devices}</b></font>", body_style),
-            Paragraph(f"<font size=13><b>{data.online_pct:.1f}%</b></font>", body_style),
-            Paragraph(f"<font size=13 color='{rag_color.hexval()}'><b>{data.overall_compliance_score:.1f}% ({data.compliance_rag})</b></font>", body_style),
-            Paragraph(f"<font size=13><b>{patch_pct:.1f}%</b></font>", body_style),
-            Paragraph(f"<font size=13><b>{data.total_servers}</b></font>", body_style),
-            Paragraph(f"<font size=13 color='#CF222E'><b>{data.eol_risk_count}</b></font>", body_style),
+            Paragraph(f"<font size=17><b>{data.total_devices:,}</b></font>", body_center),
+            Paragraph(f"<font size=17><b>{data.online_pct:.1f}%</b></font>", body_center),
+            Paragraph(f"<font size=17 color='{rag_color.hexval()}'><b>{data.overall_compliance_score:.1f}% ({data.compliance_rag})</b></font>", body_center),
+            Paragraph(f"<font size=17><b>{patch_pct:.1f}%</b></font>", body_center),
+            Paragraph(f"<font size=17><b>{data.total_servers:,}</b></font>", body_center),
+            Paragraph(f"<font size=17 color='#CF222E'><b>{data.eol_risk_count:,}</b></font>", body_center),
         ],
     ]
 
     kpi_table = Table(kpi_data, colWidths=[120, 115, 135, 115, 110, 115])
     kpi_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), LIGHT_BG),
-            ("BACKGROUND", (0, 1), (-1, 1), colors.white),
-            ("BOX", (0, 0), (-1, -1), 1, BORDER_COLOR),
-            ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+            ("BACKGROUND", (0, 0), (-1, 0), kpi_bg),
+            ("BACKGROUND", (0, 1), (-1, 1), kpi_val_bg),
+            ("BOX", (0, 0), (-1, -1), 1, border_color),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ])
     )
     story.append(kpi_table)
@@ -230,7 +291,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
 
     # World Map Graphic
     story.append(Paragraph("2. Geographic Infrastructure & Fleet Distribution Map", h2_style))
-    map_fig = charts.world_map_chart(data.map_data, data.active_region)
+    map_fig = charts.world_map_chart(data.map_data, data.active_region, theme_mode=theme_mode)
     map_img = _fig_to_image_flowable(map_fig, width=710, height=270, scale=1)
     if map_img:
         story.append(map_img)
@@ -242,8 +303,8 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     # =======================================================================
     story.append(Paragraph("3. Operating System Landscape Breakdown (Windows & Linux)", h2_style))
 
-    win_donut_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}))
-    linux_donut_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}))
+    win_donut_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}), theme_mode=theme_mode)
+    linux_donut_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}), theme_mode=theme_mode)
 
     win_img = _fig_to_image_flowable(win_donut_fig, width=350, height=200, scale=1)
     linux_img = _fig_to_image_flowable(linux_donut_fig, width=350, height=200, scale=1)
@@ -259,8 +320,8 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
 
     story.append(Paragraph("4. Server Infrastructure: Multi-Cloud Hosting & Organization Distribution", h2_style))
 
-    host_donut_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}))
-    stacked_bar_fig = charts.hosting_org_stacked_bar(data.servers.get("org_distribution", []))
+    host_donut_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}), theme_mode=theme_mode)
+    stacked_bar_fig = charts.hosting_org_stacked_bar(data.servers.get("org_distribution", []), theme_mode=theme_mode)
 
     host_img = _fig_to_image_flowable(host_donut_fig, width=350, height=200, scale=1)
     stacked_img = _fig_to_image_flowable(stacked_bar_fig, width=350, height=200, scale=1)
@@ -284,6 +345,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         red_limit=getattr(data, "patch_red", 60.0),
         amber_limit=getattr(data, "patch_amber", 84.0),
         green_target=getattr(data, "patch_green", 85.0),
+        theme_mode=theme_mode,
     )
     gauge_img = _fig_to_image_flowable(gauge_fig, width=350, height=200, scale=1)
 
@@ -320,10 +382,10 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     sla_mini_table = Table(sla_data, colWidths=[130, 80, 130])
     sla_mini_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), SECONDARY_COLOR),
-            ("BOX", (0, 0), (-1, -1), 1, BORDER_COLOR),
-            ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
+            ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+            ("BOX", (0, 0), (-1, -1), 1, border_color),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [card_bg, light_bg]),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 4),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
@@ -342,8 +404,8 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
     # EOL Charts
     story.append(Paragraph("6. End-of-Life (EOL) Analytics & At-Risk OS Versions", h2_style))
 
-    eol_donut_fig = charts.eol_status_donut(data.os.get("eol_status_counts", {}))
-    eol_bar_fig = charts.eol_by_os_bar(data.os.get("eol_by_os", {}))
+    eol_donut_fig = charts.eol_status_donut(data.os.get("eol_status_counts", {}), theme_mode=theme_mode)
+    eol_bar_fig = charts.eol_by_os_bar(data.os.get("eol_by_os", {}), theme_mode=theme_mode)
 
     eol_donut_img = _fig_to_image_flowable(eol_donut_fig, width=350, height=200, scale=1)
     eol_bar_img = _fig_to_image_flowable(eol_bar_fig, width=350, height=200, scale=1)
@@ -390,10 +452,10 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         eol_doc_table = Table(eol_table_content, colWidths=[120, 130, 95, 140, 85, 65, 75])
         eol_doc_table.setStyle(
             TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), SECONDARY_COLOR),
-                ("BOX", (0, 0), (-1, -1), 1, BORDER_COLOR),
-                ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
+                ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+                ("BOX", (0, 0), (-1, -1), 1, border_color),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [card_bg, light_bg]),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -443,10 +505,10 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         org_doc_table = Table(org_content, colWidths=[140, 100, 55, 60, 60, 60, 65, 55, 75])
         org_doc_table.setStyle(
             TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), SECONDARY_COLOR),
-                ("BOX", (0, 0), (-1, -1), 1, BORDER_COLOR),
-                ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
+                ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+                ("BOX", (0, 0), (-1, -1), 1, border_color),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [card_bg, light_bg]),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -454,6 +516,7 @@ def generate_pdf_report(data: DashboardData, dashboard_url: str | None = None) -
         )
         story.append(org_doc_table)
 
-    # Build PDF
-    doc.build(story, canvasmaker=MultiPageNumberedCanvas)
+    # Build PDF with themed canvas
+    doc.build(story, canvasmaker=get_numbered_canvas_class(theme_mode))
+    return buffer.getvalue()
     return buffer.getvalue()

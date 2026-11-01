@@ -448,9 +448,10 @@ def register_callbacks(app, get_data_fn=None):
         Input("btn-generate-pdf-trigger", "n_clicks"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
+        State("theme-store", "data"),
         prevent_initial_call=True,
     )
-    def download_pdf_audit(btn_tab_clicks, filter_state, threshold_settings):
+    def download_pdf_audit(btn_tab_clicks, filter_state, threshold_settings, current_theme):
         if not btn_tab_clicks:
             return no_update
 
@@ -482,7 +483,8 @@ def register_callbacks(app, get_data_fn=None):
             patch_green=p_green,
         )
 
-        pdf_bytes = generate_pdf_report(data)
+        theme_mode = current_theme or "dark"
+        pdf_bytes = generate_pdf_report(data, theme_mode=theme_mode)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         scope = _get_scope_filename_tag(data)
         filename = f"NinjaOne_Executive_Compliance_Audit_{scope}_{ts}.pdf"
@@ -497,9 +499,10 @@ def register_callbacks(app, get_data_fn=None):
         Input("header-share-btn", "n_clicks"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
+        State("theme-store", "data"),
         prevent_initial_call=True,
     )
-    def download_html_report(btn_tab_clicks, btn_hdr_clicks, filter_state, threshold_settings):
+    def download_html_report(btn_tab_clicks, btn_hdr_clicks, filter_state, threshold_settings, current_theme):
         if not btn_tab_clicks and not btn_hdr_clicks:
             return no_update
 
@@ -531,11 +534,13 @@ def register_callbacks(app, get_data_fn=None):
             patch_green=p_green,
         )
 
+        theme_mode = current_theme or "dark"
         html_text = generate_html_report(
             data,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
+            theme_mode=theme_mode,
         )
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         scope = _get_scope_filename_tag(data)

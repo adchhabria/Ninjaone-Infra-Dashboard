@@ -22,11 +22,14 @@ def generate_html_report(
     patch_red: float | None = None,
     patch_amber: float | None = None,
     patch_green: float | None = None,
+    theme_mode: str = "dark",
 ) -> str:
     """
-    Builds a standalone, responsive, dark-themed HTML executive report matching active dashboard slicers
-    and dynamic compliance thresholds.
+    Builds a standalone, responsive executive HTML report matching active dashboard slicers,
+    active theme (dark or light), and dynamic compliance thresholds.
     """
+    theme_mode = (theme_mode or "dark").lower()
+    is_light = theme_mode == "light"
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     # Resolve dynamic compliance thresholds
@@ -34,17 +37,17 @@ def generate_html_report(
     amber_limit = float(patch_amber if patch_amber is not None else getattr(data, "patch_amber", 84.0))
     green_target = float(patch_green if patch_green is not None else getattr(data, "patch_green", 85.0))
 
-    # Generate Chart HTMLs
-    win_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}))
+    # Generate Chart HTMLs with theme_mode
+    win_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}), theme_mode=theme_mode)
     win_chart_html = pio.to_html(win_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
-    lin_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}))
+    lin_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}), theme_mode=theme_mode)
     lin_chart_html = pio.to_html(lin_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
-    host_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}))
+    host_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}), theme_mode=theme_mode)
     host_chart_html = pio.to_html(host_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
-    stacked_fig = charts.hosting_org_stacked_bar(data.servers.get("org_distribution", []))
+    stacked_fig = charts.hosting_org_stacked_bar(data.servers.get("org_distribution", []), theme_mode=theme_mode)
     stacked_chart_html = pio.to_html(stacked_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     patch_pct = data.patches.get("patch_coverage_pct", 0.0)
@@ -53,15 +56,16 @@ def generate_html_report(
         red_limit=red_limit,
         amber_limit=amber_limit,
         green_target=green_target,
+        theme_mode=theme_mode,
     )
     gauge_chart_html = pio.to_html(gauge_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     sla_counts = data.sla.get("sla_counts", {})
-    sla_fig = charts.patch_sla_aging_bar(sla_counts)
+    sla_fig = charts.patch_sla_aging_bar(sla_counts, theme_mode=theme_mode)
     sla_chart_html = pio.to_html(sla_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     type_counts = data.sla.get("type_counts", {})
-    type_fig = charts.patch_type_donut(type_counts)
+    type_fig = charts.patch_type_donut(type_counts, theme_mode=theme_mode)
     type_chart_html = pio.to_html(type_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
     # Build Org Rows HTML
@@ -95,16 +99,29 @@ def generate_html_report(
         </tr>
         """
 
-    html_content = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} — {data.active_filter_label}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-    <style>
-        :root {{
+    # Theme CSS variables
+    if is_light:
+        theme_vars = """
+            --bg-primary: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #F1F5F9;
+            --border: #CBD5E1;
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --accent-blue: #0969DA;
+            --accent-cyan: #059669;
+            --rag-green: #16A34A;
+            --rag-amber: #D97706;
+            --rag-red: #DC2626;
+            --badge-scope-bg: rgba(9, 105, 218, 0.12);
+            --badge-scope-border: #0969DA;
+            --badge-scope-color: #0969DA;
+            --table-header-bg: #F1F5F9;
+            --table-header-text: #334155;
+            --table-hover-bg: #F8FAFC;
+        """
+    else:
+        theme_vars = """
             --bg-primary: #0D1117;
             --bg-card: #161B22;
             --bg-card-hover: #21262D;
@@ -116,6 +133,25 @@ def generate_html_report(
             --rag-green: #2EA043;
             --rag-amber: #D29922;
             --rag-red: #CF222E;
+            --badge-scope-bg: rgba(47, 129, 247, 0.2);
+            --badge-scope-border: #2F81F7;
+            --badge-scope-color: #2F81F7;
+            --table-header-bg: #0D1117;
+            --table-header-text: #8B949E;
+            --table-hover-bg: #1C2128;
+        """
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} — {data.active_filter_label}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        :root {{
+{theme_vars}
         }}
         body {{
             background-color: var(--bg-primary);
@@ -139,13 +175,15 @@ def generate_html_report(
             height: 100%;
         }}
         .kpi-val {{
-            font-size: 2rem;
-            font-weight: 700;
+            font-size: 2.6rem;
+            font-weight: 800;
+            line-height: 1.15;
             color: var(--accent-blue);
             margin: 6px 0;
         }}
         .kpi-title {{
-            font-size: 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: var(--text-secondary);
@@ -177,8 +215,8 @@ def generate_html_report(
             color: var(--text-primary) !important;
         }}
         table thead th {{
-            background-color: var(--bg-primary) !important;
-            color: var(--text-secondary) !important;
+            background-color: var(--table-header-bg) !important;
+            color: var(--table-header-text) !important;
             border-color: var(--border) !important;
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -189,6 +227,9 @@ def generate_html_report(
             color: var(--text-primary) !important;
             font-size: 0.85rem;
         }}
+        table.table-hover tbody tr:hover td {{
+            background-color: var(--table-hover-bg) !important;
+        }}
         .badge {{
             padding: 6px 10px;
             border-radius: 6px;
@@ -197,7 +238,7 @@ def generate_html_report(
         .rag-green {{ background-color: var(--rag-green) !important; color: #fff; }}
         .rag-amber {{ background-color: var(--rag-amber) !important; color: #fff; }}
         .rag-red {{ background-color: var(--rag-red) !important; color: #fff; }}
-        .badge-scope {{ background-color: rgba(47, 129, 247, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }}
+        .badge-scope {{ background-color: var(--badge-scope-bg); color: var(--badge-scope-color); border: 1px solid var(--badge-scope-border); }}
     </style>
 </head>
 <body>
@@ -205,14 +246,14 @@ def generate_html_report(
         <!-- Header -->
         <div class="report-header d-flex justify-content-between align-items-center">
             <div>
-                <h3 class="mb-1 text-white">⚡ NinjaOne IT Infrastructure & Compliance Executive Audit</h3>
-                <div class="text-secondary" style="font-size: 0.85rem;">
+                <h3 class="mb-1" style="color: var(--text-primary); font-weight: 700;">⚡ NinjaOne IT Infrastructure & Compliance Executive Audit</h3>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
                     Generated: <strong>{now_str}</strong> &nbsp;|&nbsp; 
                     Scope: <span class="badge badge-scope">{data.active_filter_label}</span>
                 </div>
             </div>
             <div class="text-end">
-                <span class="badge {'rag-green' if data.compliance_rag == 'GREEN' else 'rag-amber' if data.compliance_rag == 'AMBER' else 'rag-red'}" style="font-size: 1rem; padding: 8px 16px;">
+                <span class="badge {'rag-green' if data.compliance_rag == 'GREEN' else 'rag-amber' if data.compliance_rag == 'AMBER' else 'rag-red'}" style="font-size: 1.05rem; font-weight: 700; padding: 10px 18px;">
                     Overall Compliance: {data.overall_compliance_score}% ({data.compliance_rag})
                 </span>
             </div>
@@ -309,7 +350,7 @@ def generate_html_report(
 
         <!-- Section 2: Organization Compliance Matrix -->
         <div class="table-card">
-            <h5 class="mb-3 text-white">🏢 Organization Compliance Scorecard</h5>
+            <h5 class="mb-3" style="color: var(--text-primary); font-weight: 600;">🏢 Organization Compliance Scorecard</h5>
             <div class="table-responsive">
                 <table class="table table-hover table-bordered mb-0">
                     <thead>

@@ -60,6 +60,16 @@ class TestFilteredDownloads:
         assert ".pdf" in cd
         assert resp.data.startswith(b"%PDF")
 
+    def test_flask_endpoint_html_theme_mode(self, app):
+        client = app.server.test_client()
+        resp = client.get("/download/html?theme=light")
+        assert resp.status_code == 200
+        assert b"--bg-primary: #F8FAFC;" in resp.data
+
+        resp_dark = client.get("/download/html?theme=dark")
+        assert resp_dark.status_code == 200
+        assert b"--bg-primary: #0D1117;" in resp_dark.data
+
     def test_no_duplicate_callback_outputs(self, app):
         from collections import Counter
         client = app.server.test_client()
