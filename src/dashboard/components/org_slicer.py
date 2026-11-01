@@ -138,9 +138,9 @@ def build_org_slicer(
     ]
     cur_patch_type = str(active_patch_type or "both").lower()
 
-    # Dropdown common style
+    # Dropdown common style (comfortable contrast in dark mode without eye-stressing glare)
     dd_style = {
-        "color": p["text_primary"],
+        "color": "#0F172A" if theme_mode == "light" else "#94A3B8",
         "fontSize": "0.80rem",
     }
 

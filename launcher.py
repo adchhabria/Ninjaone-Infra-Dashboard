@@ -84,6 +84,9 @@ def launch_browser(url: str = "http://localhost:8050"):
 def main():
     hide_console()
 
+    # Enable automatic process shutdown when the user closes the dashboard browser
+    os.environ["ENABLE_BROWSER_WATCHDOG"] = "1"
+
     # Synchronize local repository files in background if launched in a git clone
     threading.Thread(target=sync_local_git_repo, daemon=True).start()
 

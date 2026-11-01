@@ -18,6 +18,8 @@ import argparse
 import os
 import re
 import sys
+import threading
+import time
 
 from datetime import datetime
 import dash
@@ -42,6 +44,71 @@ from src.metrics.excel_export import generate_excel_workbook
 from src.reporting.html_export import generate_html_report
 
 console = Console()
+
+
+# ---------------------------------------------------------------------------
+# Background Browser Watchdog & Auto-Shutdown Monitor
+# ---------------------------------------------------------------------------
+
+class BrowserWatchdog:
+    """
+    Monitors active dashboard browser sessions via heartbeat pings.
+    If enabled (ENABLE_BROWSER_WATCHDOG=1), automatically terminates
+    the background desktop process when all dashboard browser tabs are closed.
+    """
+    def __init__(self, timeout_sec: float = 12.0, startup_grace_sec: float = 45.0):
+        self.timeout_sec = timeout_sec
+        self.startup_grace_sec = startup_grace_sec
+        self.start_time = time.time()
+        self.last_heartbeat = 0.0
+        self.has_connected = False
+        self.unload_requested_at = 0.0
+        self._lock = threading.Lock()
+        self._started = False
+
+    def ping(self):
+        with self._lock:
+            self.last_heartbeat = time.time()
+            self.has_connected = True
+            self.unload_requested_at = 0.0
+
+    def mark_unload(self):
+        with self._lock:
+            self.unload_requested_at = time.time()
+
+    def start_if_enabled(self):
+        if self._started:
+            return
+        if os.getenv("ENABLE_BROWSER_WATCHDOG") != "1":
+            return
+        self._started = True
+        t = threading.Thread(target=self._monitor_loop, daemon=True, name="BrowserWatchdog")
+        t.start()
+
+    def _monitor_loop(self):
+        while True:
+            time.sleep(2.0)
+            now = time.time()
+            with self._lock:
+                # 1. Unload event signaled (tab closed) and no fresh heartbeat in 2.5 seconds
+                if self.unload_requested_at > 0 and (now - self.unload_requested_at > 2.5):
+                    if self.last_heartbeat < self.unload_requested_at:
+                        console.log("[yellow]Dashboard browser closed. Automatically ending Ninja-infra-dashboard process...[/yellow]")
+                        os._exit(0)
+
+                # 2. Heartbeat timeout (no pings received for timeout_sec)
+                if self.has_connected:
+                    if (now - self.last_heartbeat) > self.timeout_sec:
+                        console.log("[yellow]Dashboard browser disconnected (heartbeat timed out). Ending process...[/yellow]")
+                        os._exit(0)
+                else:
+                    # Initial grace period waiting for user's browser to launch
+                    if (now - self.start_time) > self.startup_grace_sec:
+                        console.log("[yellow]No browser connected within startup window. Ending background process...[/yellow]")
+                        os._exit(0)
+
+
+watchdog = BrowserWatchdog()
 
 
 # ---------------------------------------------------------------------------
@@ -86,8 +153,50 @@ def create_app(get_data_fn=None) -> dash.Dash:
             {{%scripts%}}
             {{%renderer%}}
         </footer>
+        <script>
+            // Client-side Heartbeat & Auto-Shutdown beacon
+            (function() {{
+                function pingHeartbeat() {{
+                    try {{
+                        fetch('/api/heartbeat', {{ method: 'POST', keepalive: true }}).catch(function(){{}});
+                    }} catch(e) {{}}
+                }}
+                // Ping immediately on load, then every 3 seconds
+                pingHeartbeat();
+                setInterval(pingHeartbeat, 3000);
+
+                // Notify server immediately on close or navigate away
+                function notifyClose() {{
+                    try {{
+                        if (navigator.sendBeacon) {{
+                            navigator.sendBeacon('/api/heartbeat-close', '');
+                        }} else {{
+                            fetch('/api/heartbeat-close', {{ method: 'POST', keepalive: true }}).catch(function(){{}});
+                        }}
+                    }} catch(e) {{}}
+                }}
+                window.addEventListener('beforeunload', notifyClose);
+                window.addEventListener('pagehide', notifyClose);
+            }})();
+        </script>
     </body>
 </html>"""
+
+    # -----------------------------------------------------------------------
+    # Browser Heartbeat & Auto-Shutdown Endpoints
+    # -----------------------------------------------------------------------
+    @app.server.route("/api/heartbeat", methods=["GET", "POST"])
+    def api_heartbeat():
+        watchdog.ping()
+        return ("OK", 200)
+
+    @app.server.route("/api/heartbeat-close", methods=["GET", "POST"])
+    def api_heartbeat_close():
+        watchdog.mark_unload()
+        return ("OK", 200)
+
+    # Start watchdog monitoring if enabled
+    watchdog.start_if_enabled()
 
     # -----------------------------------------------------------------------
     # OAuth 2.0 PKCE Callback Endpoint (Supports /oauth/callback and /callback)

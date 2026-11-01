@@ -80,6 +80,7 @@ def get_device_os_security_patch_info(
     from src.api.patches import is_os_security_or_cumulative_patch
 
     # 1. Evaluate uninstalled patch list if names are available
+    has_selection = bool(selected_patch_titles and any(t and t.strip() for t in selected_patch_titles))
     raw_uninstalled = getattr(device, "all_uninstalled_patch_names", None) or getattr(device, "os_security_patch_names", None)
     if raw_uninstalled:
         matching_names = [
@@ -92,6 +93,10 @@ def get_device_os_security_patch_info(
             )
         ]
         return len(matching_names), matching_names
+
+    # If selective compliance mode is active and device has no uninstalled patch records, it is compliant
+    if has_selection:
+        return 0, []
 
     # 2. Check explicit os_security_patch_count attribute
     cnt_attr = getattr(device, "os_security_patch_count", None)
@@ -197,6 +202,7 @@ def compute_patch_metrics(
     compliant_count = 0
     non_compliant_count = 0
     org_patch_map: dict[int, dict[str, Any]] = {}
+    has_selection = bool(selected_patch_titles and any(t and t.strip() for t in selected_patch_titles))
 
     for d in devices:
         os_sec_cnt, _ = get_device_os_security_patch_info(
@@ -207,7 +213,10 @@ def compute_patch_metrics(
         )
         sw_cnt = get_device_approved_software_count(d)
 
-        if p_type == "os":
+        # In selective compliance mode, compliance is determined strictly by the selected patches/KBs
+        if has_selection:
+            cnt = os_sec_cnt
+        elif p_type == "os":
             cnt = os_sec_cnt
         elif p_type == "software":
             cnt = sw_cnt
@@ -267,7 +276,10 @@ def compute_patch_metrics(
         p_cnt = get_device_approved_patch_count(s)
         sw_cnt = get_device_approved_software_count(s)
 
-        if p_type == "os":
+        # In selective compliance mode, server compliance is determined strictly by the selected patches/KBs
+        if has_selection:
+            eval_cnt = s_sec_cnt
+        elif p_type == "os":
             eval_cnt = s_sec_cnt
         elif p_type == "software":
             eval_cnt = sw_cnt
@@ -284,6 +296,11 @@ def compute_patch_metrics(
         s_org = org_map.get(s.organization_id, f"Org {s.organization_id}")
         s_loc = s.location_name or "HQ"
 
+        if has_selection:
+            pending_str = ", ".join(s_sec_names) if s_sec_names else "All Selected Patches Installed (Compliant)"
+        else:
+            pending_str = ", ".join(s_sec_names) if s_sec_names else "None (Clean)"
+
         server_compliance_table.append({
             "device_id": s.id,
             "name": s.display_name or s.system_name or f"Server-{s.id}",
@@ -292,7 +309,7 @@ def compute_patch_metrics(
             "os": s.os_display,
             "os_security_patch_count": s_sec_cnt,
             "os_security_patch_names": s_sec_names,
-            "pending_security_patches_str": ", ".join(s_sec_names) if s_sec_names else "None (Clean)",
+            "pending_security_patches_str": pending_str,
             "approved_patch_count": p_cnt,
             "approved_software_count": sw_cnt,
             "effective_patch_count": eval_cnt,

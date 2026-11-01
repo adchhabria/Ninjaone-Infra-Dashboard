@@ -35,11 +35,16 @@ def is_os_security_or_cumulative_patch(
     if not name:
         return False
 
-    # 1. Exact user-selected patch titles match (if provided)
+    # 1. Exact user-selected patch titles/KBs match (strict selective compliance mode)
     if selected_patch_titles:
-        for title in selected_patch_titles:
-            if title and title.strip().lower() == name.lower():
-                return True
+        clean_selected = [t.strip().lower() for t in selected_patch_titles if t and t.strip()]
+        if clean_selected:
+            name_lower = name.lower()
+            for sel in clean_selected:
+                if sel == name_lower or sel in name_lower:
+                    return True
+            # In selective mode, only selected patches qualify; all others are non-qualifying
+            return False
 
     name_lower = name.lower()
 

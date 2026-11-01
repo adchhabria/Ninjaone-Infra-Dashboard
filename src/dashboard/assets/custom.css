@@ -245,8 +245,68 @@
     position: relative !important;
 }
 .filter-dd .Select-arrow-zone:hover > .Select-arrow {
-    border-top-color: #E6EDF3 !important;
+    border-top-color: #94A3B8 !important;
 }
+
+/* Dark Mode Filter Dropdown & Text Styling (Soft slate text, reduced contrast glare) */
+.filter-dd .Select-control {
+    background-color: #161B22 !important;
+    border: 1px solid #30363D !important;
+    color: #94A3B8 !important;
+}
+.filter-dd .Select-control:hover {
+    border-color: #484F58 !important;
+}
+.filter-dd .Select-placeholder {
+    color: #64748B !important;
+}
+.filter-dd .Select-input input {
+    color: #94A3B8 !important;
+}
+.filter-dd .Select-value {
+    background-color: #1E293B !important;
+    border: 1px solid #334155 !important;
+    color: #94A3B8 !important;
+}
+.filter-dd .Select-value-label {
+    color: #94A3B8 !important;
+    font-weight: 500 !important;
+}
+.filter-dd .Select-value-icon {
+    border-right: 1px solid #334155 !important;
+    color: #64748B !important;
+}
+.filter-dd .Select-value-icon:hover {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #F87171 !important;
+}
+.filter-dd .Select-menu-outer {
+    background-color: #161B22 !important;
+    border: 1px solid #30363D !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+.filter-dd .Select-option {
+    background-color: #161B22 !important;
+    color: #94A3B8 !important;
+}
+.filter-dd .Select-option.is-focused {
+    background-color: #21262D !important;
+    color: #CBD5E1 !important;
+}
+.filter-dd .Select-option.is-selected {
+    background-color: #1E293B !important;
+    color: #38BDF8 !important;
+    font-weight: 600 !important;
+}
+.Select--multi .Select-value {
+    background-color: #1E293B !important;
+    border: 1px solid #334155 !important;
+    color: #94A3B8 !important;
+}
+.Select--multi .Select-value-label {
+    color: #94A3B8 !important;
+}
+
 .theme-light .filter-dd .Select-arrow {
     border-color: #475569 transparent transparent !important;
 }
