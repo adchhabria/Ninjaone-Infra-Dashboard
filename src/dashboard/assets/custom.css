@@ -135,7 +135,42 @@
     box-shadow: 0 2px 4px rgba(47, 129, 247, 0.25) !important;
 }
 
-/* Multi-Dimensional Filter Bar & Dropdowns */
+/* Multi-Dimensional Filter Bar & Dropdowns (Dynamic Single-Row Sizing) */
+.filter-bar-card .card-body {
+    padding: 8px 14px !important;
+}
+.filter-dd .Select-control {
+    min-height: 34px !important;
+    height: 34px !important;
+    max-height: 34px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+}
+.filter-dd .Select-placeholder {
+    line-height: 32px !important;
+    font-size: 0.78rem !important;
+}
+.filter-dd .Select-input {
+    height: 32px !important;
+    line-height: 32px !important;
+}
+.filter-dd .Select-input > input {
+    padding: 0 !important;
+    line-height: 32px !important;
+}
+.filter-dd .Select-value {
+    max-width: 120px !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    font-size: 0.74rem !important;
+    line-height: 1.3 !important;
+    margin: 1px 2px !important;
+}
 .theme-light .filter-dd .Select-control {
     background-color: #FFFFFF !important;
     color: #0F172A !important;

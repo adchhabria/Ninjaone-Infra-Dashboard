@@ -160,9 +160,10 @@ class DashboardData:
     compliance_excluded_keywords: list[str] = field(default_factory=list)
     compliance_selected_patch_titles: list[str] = field(default_factory=list)
 
-    # Raw entities (for in-memory slicing)
+    # Raw & Filtered entities (for in-memory slicing)
     organizations: list[Organization] = field(default_factory=list)
     devices_raw: list[Device] = field(default_factory=list)
+    devices_filtered: list[Device] = field(default_factory=list)
     activities_raw: list[Activity] = field(default_factory=list)
 
 
@@ -218,7 +219,16 @@ def compute_dashboard_slice(
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
     # 1. Available Slicer Options (derived from total fleet)
-    all_locations = sorted(list({d.location_name for d in devices if d.location_name}))
+    detected_countries = sorted(list({
+        str(d.country).strip() for d in devices
+        if d.country and str(d.country).strip() not in ["all", "None", ""]
+    }))
+    detected_locations = sorted(list({
+        str(d.location_name).strip() for d in devices
+        if d.location_name and str(d.location_name).strip() not in ["all", "None", ""]
+    }))
+    # Combine detected countries and locations cleanly for the dropdown
+    all_locations = detected_countries + [loc for loc in detected_locations if loc not in detected_countries]
     all_os_families = ["Windows", "Linux", "macOS"]
     all_role_options = sorted(list({d.device_role for d in devices if d.device_role}))
     if not all_role_options:
@@ -233,24 +243,39 @@ def compute_dashboard_slice(
             "Workstation",
         ]
 
+    # Pre-build org name map so Org filtering can support both IDs and Org Names safely
+    org_name_map = {o.id: o.name for o in organizations}
+
     # 2. Apply active filtering
     filtered_devices = devices
     filtered_orgs = organizations
 
-    # Filter by Org (supports int, list[int], or 'all'/None)
+    # Filter by Org (supports int, list[int], string ID, or string Name without crashing)
     if active_org_id is not None:
-        if isinstance(active_org_id, (list, tuple, set)):
-            target_ids = {int(x) for x in active_org_id if str(x) not in ["all", "All Organizations", "None", ""]}
-            if target_ids:
-                filtered_devices = [d for d in filtered_devices if d.organization_id in target_ids]
-                filtered_orgs = [o for o in filtered_orgs if o.id in target_ids]
-        elif str(active_org_id) not in ["all", "All Organizations", "None", ""]:
-            try:
-                oid = int(active_org_id)
-                filtered_devices = [d for d in filtered_devices if d.organization_id == oid]
-                filtered_orgs = [o for o in filtered_orgs if o.id == oid]
-            except (ValueError, TypeError):
-                pass
+        target_ids = set()
+        target_names = set()
+        items = active_org_id if isinstance(active_org_id, (list, tuple, set)) else [active_org_id]
+        for x in items:
+            s = str(x).strip()
+            if s and s.lower() not in ["all", "all organizations", "none", ""]:
+                try:
+                    target_ids.add(int(s))
+                except (ValueError, TypeError):
+                    target_names.add(s.lower())
+
+        if target_ids or target_names:
+            filtered_devices = [
+                d for d in filtered_devices
+                if (d.organization_id in target_ids)
+                or (org_name_map.get(d.organization_id, "").lower() in target_names)
+                or any(t in org_name_map.get(d.organization_id, "").lower() for t in target_names)
+            ]
+            filtered_orgs = [
+                o for o in filtered_orgs
+                if (o.id in target_ids)
+                or (o.name.lower() in target_names)
+                or any(t in o.name.lower() for t in target_names)
+            ]
 
     # Filter by Region (supports string, list, and fuzzy/substring matching like 'Europe')
     if active_region is not None:
@@ -279,59 +304,90 @@ def compute_dashboard_slice(
             filtered_org_ids = {d.organization_id for d in filtered_devices}
             filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids or _match_region(o.region, target_regs)]
 
-    # Filter by Location (supports str, list[str])
+    # Filter by Country / Location (supports Country Codes, Country Names, Regions, and Sites)
     if active_location is not None:
-        if isinstance(active_location, (list, tuple, set)):
-            loc_set = {str(x) for x in active_location if x not in ["All Locations", "all", None, ""]}
-            if loc_set:
-                filtered_devices = [d for d in filtered_devices if d.location_name in loc_set]
-                filtered_org_ids = {d.organization_id for d in filtered_devices}
-                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
-        elif active_location not in ["All Locations", "all", None, ""]:
-            filtered_devices = [d for d in filtered_devices if d.location_name == active_location]
+        items = active_location if isinstance(active_location, (list, tuple, set)) else [active_location]
+        loc_set = {str(x).strip().lower() for x in items if str(x).strip().lower() not in ["all locations", "all countries", "all", "none", ""]}
+        if loc_set:
+            def _match_device_country_loc(dev: Device) -> bool:
+                d_loc = (dev.location_name or "").lower()
+                d_ctry = (dev.country or "").lower()
+                d_reg = (dev.region or "").lower()
+                for target in loc_set:
+                    if target in d_loc or d_loc in target:
+                        return True
+                    if target == d_ctry or target in d_ctry or d_ctry in target:
+                        return True
+                    if target in d_reg or d_reg in target:
+                        return True
+                    # Country aliases
+                    if target in ["usa", "united states", "us"] and d_ctry in ["usa", "us"]:
+                        return True
+                    if target in ["gbr", "uk", "united kingdom", "britain"] and d_ctry in ["gbr", "uk"]:
+                        return True
+                    if target in ["deu", "germany", "deutschland"] and d_ctry in ["deu", "de"]:
+                        return True
+                    if target in ["jpn", "japan"] and d_ctry in ["jpn", "jp"]:
+                        return True
+                    if target in ["ind", "india"] and d_ctry in ["ind", "in"]:
+                        return True
+                    if target in ["aus", "australia"] and d_ctry in ["aus", "au"]:
+                        return True
+                    if target in ["can", "canada"] and d_ctry in ["can", "ca"]:
+                        return True
+                    if target in ["bra", "brazil"] and d_ctry in ["bra", "br"]:
+                        return True
+                    if target in ["sgp", "singapore"] and d_ctry in ["sgp", "sg"]:
+                        return True
+                return False
+
+            filtered_devices = [d for d in filtered_devices if _match_device_country_loc(d)]
             filtered_org_ids = {d.organization_id for d in filtered_devices}
             filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
 
     # Filter by OS Family (supports str, list[str])
     if active_os_family is not None:
-        if isinstance(active_os_family, (list, tuple, set)):
-            os_set = {str(x) for x in active_os_family if x not in ["All OS Families", "all", None, ""]}
-            if os_set:
-                filtered_devices = [
-                    d for d in filtered_devices
-                    if _classify_os_family(d.os.name if d.os else None) in os_set
-                ]
-                filtered_org_ids = {d.organization_id for d in filtered_devices}
-                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
-        elif active_os_family not in ["All OS Families", "all", None, ""]:
+        items = active_os_family if isinstance(active_os_family, (list, tuple, set)) else [active_os_family]
+        os_set = {str(x).strip().lower() for x in items if str(x).strip().lower() not in ["all os families", "all", "none", ""]}
+        if os_set:
+            def _match_os(os_name: str | None) -> bool:
+                fam = _classify_os_family(os_name).lower()
+                for target in os_set:
+                    if target in fam or fam in target:
+                        return True
+                    if "win" in target and "win" in fam:
+                        return True
+                    if "lin" in target and "lin" in fam:
+                        return True
+                    if "mac" in target and "mac" in fam:
+                        return True
+                return False
+
             filtered_devices = [
                 d for d in filtered_devices
-                if _classify_os_family(d.os.name if d.os else None) == active_os_family
+                if _match_os(d.os.name if d.os else None)
             ]
             filtered_org_ids = {d.organization_id for d in filtered_devices}
             filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
 
     # Filter by Device Roles (supports str, list[str])
     if active_roles is not None:
-        if isinstance(active_roles, (list, tuple, set)):
-            role_set = {str(x) for x in active_roles if x not in ["All Roles", "all", None, ""]}
-            if role_set:
-                filtered_devices = [
-                    d for d in filtered_devices
-                    if (d.device_role or "General Server") in role_set
-                ]
-                filtered_org_ids = {d.organization_id for d in filtered_devices}
-                filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
-        elif active_roles not in ["All Roles", "all", None, ""]:
+        items = active_roles if isinstance(active_roles, (list, tuple, set)) else [active_roles]
+        role_set = {str(x).strip().lower() for x in items if str(x).strip().lower() not in ["all roles", "all", "none", ""]}
+        if role_set:
+            def _match_role(dev_role: str | None) -> bool:
+                r = (dev_role or "General Server").lower()
+                for target in role_set:
+                    if target in r or r in target:
+                        return True
+                return False
+
             filtered_devices = [
                 d for d in filtered_devices
-                if (d.device_role or "General Server") == active_roles
+                if _match_role(d.device_role)
             ]
             filtered_org_ids = {d.organization_id for d in filtered_devices}
             filtered_orgs = [o for o in filtered_orgs if o.id in filtered_org_ids]
-
-    # Build org name map
-    org_name_map = {o.id: o.name for o in organizations}
 
     # 3. Compute sub-metrics on filtered slice
     os_metrics = compute_os_metrics(
@@ -457,12 +513,16 @@ def compute_dashboard_slice(
         if isinstance(active_org_id, (list, tuple, set)) and len(active_org_id) > 1:
             filter_label_parts.append(f"{len(active_org_id)} Orgs")
         elif isinstance(active_org_id, (list, tuple, set)) and len(active_org_id) == 1:
-            filter_label_parts.append(f"Org: {org_name_map.get(int(list(active_org_id)[0]), 'Org')}")
+            raw_val = list(active_org_id)[0]
+            try:
+                filter_label_parts.append(f"Org: {org_name_map.get(int(raw_val), str(raw_val))}")
+            except (ValueError, TypeError):
+                filter_label_parts.append(f"Org: {raw_val}")
         elif str(active_org_id) not in ["all", "None"]:
             try:
                 filter_label_parts.append(f"Org: {org_name_map.get(int(active_org_id), f'Org {active_org_id}')}")
             except (ValueError, TypeError):
-                pass
+                filter_label_parts.append(f"Org: {active_org_id}")
 
     if active_location and active_location not in ["All Locations", "all"]:
         if isinstance(active_location, (list, tuple, set)):
@@ -544,6 +604,7 @@ def compute_dashboard_slice(
         compliance_selected_patch_titles=selected_patch_titles or [],
         organizations=organizations,
         devices_raw=devices,
+        devices_filtered=filtered_devices,
         activities_raw=activities,
     )
 

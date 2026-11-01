@@ -154,22 +154,20 @@ def test_device_roles_filtering():
     assert slice_app.total_devices == 1
 
 
-def test_filter_bar_two_line_layout():
-    """Verify that filter dropdowns are organized across two comfortable rows."""
+def test_filter_bar_single_line_layout():
+    """Verify that filter dropdowns and reset button are organized in a compact single dynamic row to save scrolling."""
     slicer = build_org_slicer(
         org_options=[{"label": "Acme Corp", "value": "1"}],
         location_options=["London Office", "NY HQ"],
         os_family_options=["Windows", "Linux"],
         role_options=["Domain Controller", "Database Server"],
     )
-    # slicer is a Card whose children is CardBody containing 2 dbc.Row children
+    # slicer is a Card whose children is CardBody containing 1 responsive dbc.Row
     card_body = slicer.children
-    rows = card_body.children
-    assert len(rows) == 2, "Filter bar must have 2 rows for comfortable spacing"
-    # Row 1 has Org, Location, OS Family (3 columns)
-    assert len(rows[0].children) == 3
-    # Row 2 has Device Roles, Patch Scope, Reset button (3 columns)
-    assert len(rows[1].children) == 3
+    row = card_body.children
+    # Single row contains 6 columns: Org, Country/Location, OS Family, Device Roles, Patch Scope, Reset Button
+    assert len(row.children) == 6, "Filter bar must contain all 5 filters + reset button in a single dynamic row"
+
 
 
 def test_light_theme_chart_styling():
@@ -295,6 +293,61 @@ def test_settings_compliance_thresholds_layout_and_no_threshold_input():
     idx_discovered = all_ids.index("settings-discovered-patch-titles")
     idx_keywords = all_ids.index("settings-patch-included-keywords")
     assert idx_discovered < idx_keywords, "Discovered Fleet Patch Titles must appear as the first option before patch keywords"
+
+
+def test_country_and_org_name_slicer_filtering():
+    """Verify that filtering by Country, Country Name, Org Name, and Org ID recalculates live slice correctly."""
+    from scripts.generate_sample_data import _generate_raw_mock
+    from src.metrics.aggregator import compute_dashboard_slice
+
+    orgs, devices, activities = _generate_raw_mock()
+    assert len(devices) > 0
+
+    # 1. Test filtering by Country code (USA)
+    slice_usa = compute_dashboard_slice(devices, orgs, activities, active_location=["USA"])
+    assert slice_usa.total_devices > 0
+    assert all((d.country == "USA" or "usa" in (d.location_name or "").lower() or "usa" in (d.region or "").lower()) for d in slice_usa.devices_filtered)
+
+    # 2. Test filtering by Friendly Country Name (Germany)
+    slice_germany = compute_dashboard_slice(devices, orgs, activities, active_location=["Germany"])
+    assert slice_germany.total_devices > 0
+    assert all((d.country == "DEU" or "germany" in (d.location_name or "").lower() or "europe" in (d.region or "").lower()) for d in slice_germany.devices_filtered)
+
+    # 3. Test filtering by Organization Name string without crashing int()
+    sample_org = orgs[0]
+    slice_org_name = compute_dashboard_slice(devices, orgs, activities, active_org_id=[sample_org.name])
+    assert slice_org_name.total_devices > 0
+    assert all(d.organization_id == sample_org.id for d in slice_org_name.devices_filtered)
+
+    # 4. Test Slicer Bar Country / Location placeholder and single-row layout
+    slicer = build_org_slicer(
+        org_options=[{"label": sample_org.name, "value": str(sample_org.id)}],
+        location_options=["USA", "DEU", "London Office"],
+        os_family_options=["Windows", "Linux"],
+        role_options=["Domain Controller"],
+    )
+    # Check that country options are formatted with flags and friendly names
+    def _find_component_by_id(comp, target_id):
+        if comp is None:
+            return None
+        if getattr(comp, "id", None) == target_id:
+            return comp
+        children = getattr(comp, "children", None)
+        if isinstance(children, (list, tuple)):
+            for c in children:
+                res = _find_component_by_id(c, target_id)
+                if res is not None:
+                    return res
+        elif children is not None:
+            return _find_component_by_id(children, target_id)
+        return None
+
+    loc_dd = _find_component_by_id(slicer, "filter-location-dropdown")
+    assert loc_dd is not None
+    assert loc_dd.placeholder == "All Countries / Locations..."
+    loc_vals = [opt["value"] for opt in loc_dd.options]
+    assert "USA" in loc_vals and "DEU" in loc_vals
+
 
 
 

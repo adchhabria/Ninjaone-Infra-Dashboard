@@ -96,6 +96,10 @@ def register_callbacks(app, get_data_fn=None):
         Output("filter-os-dropdown", "value"),
         Output("filter-roles-dropdown", "value"),
         Output("filter-patch-type-dropdown", "value"),
+        Output("filter-org-dropdown", "options"),
+        Output("filter-location-dropdown", "options"),
+        Output("filter-os-dropdown", "options"),
+        Output("filter-roles-dropdown", "options"),
         Input("filter-org-dropdown", "value"),
         Input("filter-location-dropdown", "value"),
         Input("filter-os-dropdown", "value"),
@@ -256,22 +260,25 @@ def register_callbacks(app, get_data_fn=None):
         # Fast path for tab switching: do NOT re-render map, filter badge, or dropdowns
         if is_tab_switch_only:
             return (
-                tab_content,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                tab_to_show,
-                is_exec,
-                is_patch,
-                is_reboot,
-                is_reports,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
-                no_update,
+                tab_content,  # 1: tab-content-container
+                no_update,    # 2: world-map-graph
+                no_update,    # 3: header-filter-badge
+                no_update,    # 4: last-updated-text
+                no_update,    # 5: filter-state-store
+                tab_to_show,  # 6: active-tab-store
+                is_exec,      # 7: nav-tab-executive
+                is_patch,     # 8: nav-tab-patch-ops
+                is_reboot,    # 9: nav-tab-reboots
+                is_reports,   # 10: nav-tab-reports
+                no_update,    # 11: filter-org-dropdown value
+                no_update,    # 12: filter-location-dropdown value
+                no_update,    # 13: filter-os-dropdown value
+                no_update,    # 14: filter-roles-dropdown value
+                no_update,    # 15: filter-patch-type-dropdown value
+                no_update,    # 16: filter-org-dropdown options
+                no_update,    # 17: filter-location-dropdown options
+                no_update,    # 18: filter-os-dropdown options
+                no_update,    # 19: filter-roles-dropdown options
             )
 
         badge_label = data.active_filter_label
@@ -280,7 +287,6 @@ def register_callbacks(app, get_data_fn=None):
 
         if is_reset:
             org_out = []
-            region_out = []
             loc_out = []
             os_out = []
             roles_out = []
@@ -292,22 +298,90 @@ def register_callbacks(app, get_data_fn=None):
             roles_out = no_update
             patch_type_out = no_update
 
+        # Dynamically build dropdown options from fresh live data
+        country_display_map = {
+            "USA": "🇺🇸 United States (USA)",
+            "US": "🇺🇸 United States",
+            "GBR": "🇬🇧 United Kingdom (GBR)",
+            "UK": "🇬🇧 United Kingdom",
+            "DEU": "🇩🇪 Germany (DEU)",
+            "JPN": "🇯🇵 Japan (JPN)",
+            "IND": "🇮🇳 India (IND)",
+            "AUS": "🇦🇺 Australia (AUS)",
+            "CAN": "🇨🇦 Canada (CAN)",
+            "BRA": "🇧🇷 Brazil (BRA)",
+            "SGP": "🇸🇬 Singapore (SGP)",
+            "FRA": "🇫🇷 France (FRA)",
+            "NLD": "🇳🇱 Netherlands (NLD)",
+            "IRL": "🇮🇪 Ireland (IRL)",
+        }
+        clean_org_opts = [
+            {"label": f"🏢 {o['label']}", "value": str(o["value"])}
+            for o in (data.org_options or [])
+            if str(o.get("value")) not in ["all", "All Organizations"]
+        ]
+        clean_loc_opts = [
+            {"label": country_display_map.get(loc, f"📍 {loc}"), "value": loc}
+            for loc in sorted(data.location_options or [])
+            if loc not in ["all", "All Locations", "All Countries", None, ""]
+        ]
+
+        def _os_icon(fam: str) -> str:
+            f = fam.lower()
+            if "win" in f:
+                return "🪟"
+            if "lin" in f:
+                return "🐧"
+            if "mac" in f or "apple" in f:
+                return "🍏"
+            return "💻"
+
+        clean_os_opts = [
+            {"label": f"{_os_icon(fam)} {fam}", "value": fam}
+            for fam in (data.os_family_options or ["Windows", "Linux", "macOS"])
+            if fam not in ["all", "All OS Families", None, ""]
+        ]
+        clean_role_opts = [
+            {"label": f"🛡️ {r}", "value": r}
+            for r in (getattr(data, "role_options", []) or [
+                "Domain Controller", "Database Server", "Web Server", "File Server",
+                "Application Server", "Backup Server", "General Server", "Workstation",
+            ])
+            if r not in ["all", "All Roles", None, ""]
+        ]
+
+        # Update options when refreshing data, switching auth mode, or resetting
+        if triggered_id in ["refresh-btn", "auto-refresh", "auth-state-store", "threshold-settings-store", "reset-filters-btn"] or not current_filter_state:
+            org_opts_out = clean_org_opts
+            loc_opts_out = clean_loc_opts
+            os_opts_out = clean_os_opts
+            roles_opts_out = clean_role_opts
+        else:
+            org_opts_out = no_update
+            loc_opts_out = no_update
+            os_opts_out = no_update
+            roles_opts_out = no_update
+
         return (
-            tab_content,
-            map_fig,
-            badge_label,
-            ts_text,
-            filter_state,
-            tab_to_show,
-            is_exec,
-            is_patch,
-            is_reboot,
-            is_reports,
-            org_out,
-            loc_out,
-            os_out,
-            roles_out,
-            patch_type_out,
+            tab_content,         # 1: tab-content-container
+            map_fig,             # 2: world-map-graph
+            badge_label,         # 3: header-filter-badge
+            ts_text,             # 4: last-updated-text
+            filter_state,        # 5: filter-state-store
+            tab_to_show,         # 6: active-tab-store
+            is_exec,             # 7: nav-tab-executive
+            is_patch,            # 8: nav-tab-patch-ops
+            is_reboot,           # 9: nav-tab-reboots
+            is_reports,          # 10: nav-tab-reports
+            org_out,             # 11: filter-org-dropdown value
+            loc_out,             # 12: filter-location-dropdown value
+            os_out,              # 13: filter-os-dropdown value
+            roles_out,           # 14: filter-roles-dropdown value
+            patch_type_out,      # 15: filter-patch-type-dropdown value
+            org_opts_out,        # 16: filter-org-dropdown options
+            loc_opts_out,        # 17: filter-location-dropdown options
+            os_opts_out,         # 18: filter-os-dropdown options
+            roles_opts_out,      # 19: filter-roles-dropdown options
         )
 
     # -----------------------------------------------------------------------

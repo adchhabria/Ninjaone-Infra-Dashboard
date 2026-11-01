@@ -52,16 +52,33 @@ def build_org_slicer(
     else:
         cur_org_val = []
 
-    # 2. Location Dropdown Options & Value
+    # 2. Location / Country Dropdown Options & Value
+    country_display_map = {
+        "USA": "🇺🇸 United States (USA)",
+        "US": "🇺🇸 United States",
+        "GBR": "🇬🇧 United Kingdom (GBR)",
+        "UK": "🇬🇧 United Kingdom",
+        "DEU": "🇩🇪 Germany (DEU)",
+        "JPN": "🇯🇵 Japan (JPN)",
+        "IND": "🇮🇳 India (IND)",
+        "AUS": "🇦🇺 Australia (AUS)",
+        "CAN": "🇨🇦 Canada (CAN)",
+        "BRA": "🇧🇷 Brazil (BRA)",
+        "SGP": "🇸🇬 Singapore (SGP)",
+        "FRA": "🇫🇷 France (FRA)",
+        "NLD": "🇳🇱 Netherlands (NLD)",
+        "IRL": "🇮🇪 Ireland (IRL)",
+    }
+
     clean_loc_opts = [
-        {"label": f"📍 {loc}", "value": loc}
+        {"label": country_display_map.get(loc, f"📍 {loc}"), "value": loc}
         for loc in sorted(location_options)
-        if loc not in ["all", "All Locations", None, ""]
+        if loc not in ["all", "All Locations", "All Countries", None, ""]
     ]
 
     if isinstance(active_location, (list, tuple, set)):
-        cur_loc_val = [str(x) for x in active_location if x not in ["all", "All Locations", None, ""]]
-    elif active_location and active_location not in ["all", "All Locations", None, ""]:
+        cur_loc_val = [str(x) for x in active_location if x not in ["all", "All Locations", "All Countries", None, ""]]
+    elif active_location and active_location not in ["all", "All Locations", "All Countries", None, ""]:
         cur_loc_val = [str(active_location)]
     else:
         cur_loc_val = []
@@ -124,184 +141,165 @@ def build_org_slicer(
     # Dropdown common style
     dd_style = {
         "color": p["text_primary"],
-        "fontSize": "0.85rem",
+        "fontSize": "0.80rem",
     }
 
     return dbc.Card(
         dbc.CardBody(
-            [
-                # Row 1: Organizations, Locations, OS Families
-                dbc.Row(
-                    [
-                        # Organization Multi-Select
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    [
-                                        html.Span("🏢 Organization", style={**T.FONT_KPI_LABEL, "color": T.ACCENT_CYAN}),
-                                        dbc.Badge(f"{len(cur_org_val)} selected", color="info", className="ms-1", style={"fontSize": "0.68rem"}) if cur_org_val else None,
-                                    ],
-                                    className="d-flex align-items-center mb-1",
-                                ),
-                                dcc.Dropdown(
-                                    id="filter-org-dropdown",
-                                    options=clean_org_opts,
-                                    value=cur_org_val,
-                                    multi=True,
-                                    placeholder="All Organizations...",
-                                    className="filter-dd",
-                                    style=dd_style,
-                                ),
-                            ],
-                            lg=4,
-                            md=6,
-                            sm=12,
-                            className="mb-2",
-                        ),
-                        # Location Multi-Select
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    [
-                                        html.Span("📍 Location", style={**T.FONT_KPI_LABEL, "color": T.ACCENT_PURPLE}),
-                                        dbc.Badge(f"{len(cur_loc_val)} selected", color="primary", className="ms-1", style={"fontSize": "0.68rem"}) if cur_loc_val else None,
-                                    ],
-                                    className="d-flex align-items-center mb-1",
-                                ),
-                                dcc.Dropdown(
-                                    id="filter-location-dropdown",
-                                    options=clean_loc_opts,
-                                    value=cur_loc_val,
-                                    multi=True,
-                                    placeholder="All Locations...",
-                                    className="filter-dd",
-                                    style=dd_style,
-                                ),
-                            ],
-                            lg=4,
-                            md=6,
-                            sm=12,
-                            className="mb-2",
-                        ),
-                        # OS Family Multi-Select
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    [
-                                        html.Span("💻 OS Family", style={**T.FONT_KPI_LABEL, "color": T.ACCENT_TEAL}),
-                                        dbc.Badge(f"{len(cur_os_val)} selected", color="success", className="ms-1", style={"fontSize": "0.68rem"}) if cur_os_val else None,
-                                    ],
-                                    className="d-flex align-items-center mb-1",
-                                ),
-                                dcc.Dropdown(
-                                    id="filter-os-dropdown",
-                                    options=clean_os_opts,
-                                    value=cur_os_val,
-                                    multi=True,
-                                    placeholder="All OS Families...",
-                                    className="filter-dd",
-                                    style=dd_style,
-                                ),
-                            ],
-                            lg=4,
-                            md=12,
-                            sm=12,
-                            className="mb-2",
-                        ),
-                    ],
-                    className="g-3 mb-1",
-                ),
+            dbc.Row(
+                [
+                    # 1. Organization Dropdown
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Span("🏢 Organization", style={**T.FONT_KPI_LABEL, "fontSize": "0.70rem", "color": T.ACCENT_CYAN}),
+                                    dbc.Badge(f"{len(cur_org_val)}", color="info", className="ms-1", style={"fontSize": "0.62rem", "padding": "2px 5px"}) if cur_org_val else None,
+                                ],
+                                className="d-flex align-items-center mb-1",
+                            ),
+                            dcc.Dropdown(
+                                id="filter-org-dropdown",
+                                options=clean_org_opts,
+                                value=cur_org_val,
+                                multi=True,
+                                placeholder="All Organizations...",
+                                className="filter-dd",
+                                style=dd_style,
+                            ),
+                        ],
+                        className="col-xl col-lg-4 col-md-6 col-12 mb-1",
+                    ),
 
-                # Row 2: Device Roles, Patch Scope, Reset Button
-                dbc.Row(
-                    [
-                        # Device Roles Multi-Select
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    [
-                                        html.Span("🛡️ Device Roles", style={**T.FONT_KPI_LABEL, "color": T.ACCENT_BLUE}),
-                                        dbc.Badge(f"{len(cur_roles_val)} selected", color="secondary", className="ms-1", style={"fontSize": "0.68rem"}) if cur_roles_val else None,
-                                    ],
-                                    className="d-flex align-items-center mb-1",
-                                ),
-                                dcc.Dropdown(
-                                    id="filter-roles-dropdown",
-                                    options=clean_role_opts,
-                                    value=cur_roles_val,
-                                    multi=True,
-                                    placeholder="All Device Roles...",
-                                    className="filter-dd",
-                                    style=dd_style,
-                                ),
-                            ],
-                            lg=6,
-                            md=12,
-                            sm=12,
-                            className="mb-1",
-                        ),
-                        # Patch Scope Dropdown
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    html.Span("🩹 Patch Scope", style={**T.FONT_KPI_LABEL, "color": T.RAG_AMBER}),
-                                    className="d-flex align-items-center mb-1",
-                                ),
-                                dcc.Dropdown(
-                                    id="filter-patch-type-dropdown",
-                                    options=patch_type_opts,
-                                    value=cur_patch_type,
-                                    multi=False,
-                                    clearable=False,
-                                    className="filter-dd",
-                                    style=dd_style,
-                                ),
-                            ],
-                            lg=4,
-                            md=8,
-                            sm=8,
-                            className="mb-1",
-                        ),
-                        # Reset Filters Button
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    html.Span("‎", style={"fontSize": "0.75rem", "visibility": "hidden"}),
-                                    className="mb-1",
-                                ),
-                                dbc.Button(
-                                    "↺ Reset Filters",
-                                    id="reset-filters-btn",
-                                    color="secondary",
-                                    outline=True,
-                                    size="sm",
-                                    className="w-100",
-                                    title="Clear all filters back to Global Overview",
-                                    style={
-                                        "fontSize": "0.85rem",
-                                        "padding": "7px 14px",
-                                        "borderColor": p["border"],
-                                        "whiteSpace": "nowrap",
-                                        "fontWeight": "600",
-                                    },
-                                ),
-                            ],
-                            lg=2,
-                            md=4,
-                            sm=4,
-                            className="mb-1",
-                        ),
-                    ],
-                    className="g-3 align-items-end",
-                ),
-            ],
-            style={"padding": "14px 18px", "backgroundColor": p["bg_card"]},
+                    # 2. Country / Location Dropdown
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Span("🌍 Country / Location", style={**T.FONT_KPI_LABEL, "fontSize": "0.70rem", "color": T.ACCENT_PURPLE}),
+                                    dbc.Badge(f"{len(cur_loc_val)}", color="primary", className="ms-1", style={"fontSize": "0.62rem", "padding": "2px 5px"}) if cur_loc_val else None,
+                                ],
+                                className="d-flex align-items-center mb-1",
+                            ),
+                            dcc.Dropdown(
+                                id="filter-location-dropdown",
+                                options=clean_loc_opts,
+                                value=cur_loc_val,
+                                multi=True,
+                                placeholder="All Countries / Locations...",
+                                className="filter-dd",
+                                style=dd_style,
+                            ),
+                        ],
+                        className="col-xl col-lg-4 col-md-6 col-12 mb-1",
+                    ),
+
+                    # 3. OS Family Dropdown
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Span("💻 OS Family", style={**T.FONT_KPI_LABEL, "fontSize": "0.70rem", "color": T.ACCENT_TEAL}),
+                                    dbc.Badge(f"{len(cur_os_val)}", color="success", className="ms-1", style={"fontSize": "0.62rem", "padding": "2px 5px"}) if cur_os_val else None,
+                                ],
+                                className="d-flex align-items-center mb-1",
+                            ),
+                            dcc.Dropdown(
+                                id="filter-os-dropdown",
+                                options=clean_os_opts,
+                                value=cur_os_val,
+                                multi=True,
+                                placeholder="All OS Families...",
+                                className="filter-dd",
+                                style=dd_style,
+                            ),
+                        ],
+                        className="col-xl col-lg-4 col-md-4 col-12 mb-1",
+                    ),
+
+                    # 4. Device Roles Dropdown
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Span("🛡️ Device Role", style={**T.FONT_KPI_LABEL, "fontSize": "0.70rem", "color": T.ACCENT_BLUE}),
+                                    dbc.Badge(f"{len(cur_roles_val)}", color="secondary", className="ms-1", style={"fontSize": "0.62rem", "padding": "2px 5px"}) if cur_roles_val else None,
+                                ],
+                                className="d-flex align-items-center mb-1",
+                            ),
+                            dcc.Dropdown(
+                                id="filter-roles-dropdown",
+                                options=clean_role_opts,
+                                value=cur_roles_val,
+                                multi=True,
+                                placeholder="All Device Roles...",
+                                className="filter-dd",
+                                style=dd_style,
+                            ),
+                        ],
+                        className="col-xl col-lg-4 col-md-4 col-12 mb-1",
+                    ),
+
+                    # 5. Patch Scope Dropdown
+                    dbc.Col(
+                        [
+                            html.Div(
+                                html.Span("🩹 Patch Scope", style={**T.FONT_KPI_LABEL, "fontSize": "0.70rem", "color": T.RAG_AMBER}),
+                                className="d-flex align-items-center mb-1",
+                            ),
+                            dcc.Dropdown(
+                                id="filter-patch-type-dropdown",
+                                options=patch_type_opts,
+                                value=cur_patch_type,
+                                multi=False,
+                                clearable=False,
+                                className="filter-dd",
+                                style=dd_style,
+                            ),
+                        ],
+                        className="col-xl col-lg-4 col-md-4 col-12 mb-1",
+                    ),
+
+                    # 6. Reset Filters Button
+                    dbc.Col(
+                        [
+                            html.Div(
+                                html.Span("‎", style={"fontSize": "0.70rem", "visibility": "hidden", "lineHeight": "1"}),
+                                className="mb-1",
+                            ),
+                            dbc.Button(
+                                "↺ Reset",
+                                id="reset-filters-btn",
+                                color="secondary",
+                                outline=True,
+                                size="sm",
+                                title="Clear all filters back to Global Overview",
+                                style={
+                                    "height": "34px",
+                                    "fontSize": "0.80rem",
+                                    "padding": "4px 12px",
+                                    "borderColor": p["border"],
+                                    "whiteSpace": "nowrap",
+                                    "fontWeight": "600",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                            ),
+                        ],
+                        className="col-xl-auto col-lg-auto col-md-auto col-12 mb-1 d-flex flex-column justify-content-end",
+                    ),
+                ],
+                className="g-2 align-items-end",
+            ),
+            style={"padding": "8px 14px", "backgroundColor": p["bg_card"]},
         ),
+        className="filter-bar-card",
         style={
             "backgroundColor": p["bg_card"],
             "border": f"1px solid {p['border']}",
             "borderRadius": "8px",
-            "marginBottom": "16px",
-            "boxShadow": "0 2px 10px rgba(0,0,0,0.12)",
+            "marginBottom": "12px",
+            "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",
         },
     )
