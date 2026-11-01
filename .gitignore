@@ -55,6 +55,18 @@ Thumbs.db
 scratch/
 temp/
 brag-output/
+brag-output*/
+brag*
 .agents/
 .archify/
 skills-lock.json
+
+# Media & Video Assets
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.mp3
+*.ogg
+*.wav

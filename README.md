@@ -10,26 +10,13 @@ An enterprise-grade infrastructure intelligence and operational patch management
 
 ---
 
-## 🎬 30-Second Infrastructure Intelligence Showcase
-
-<div align="center">
-
-<a href="./brag.mp4" title="Click to Watch Full HD Video with Audio (brag.mp4)">
-  <img src="./brag.gif" alt="NinjaOne Infra Dashboard 30s Showcase Preview" width="100%" style="max-width: 860px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.6);" />
-</a>
-
-<p>
-  <b><a href="./brag.mp4">▶️ Click Here to Watch Full HD Video with Sound (`brag.mp4`)</a></b> &nbsp;•&nbsp; 
-  <b><a href="./ninjaone-architecture-showcase.html">🌐 Interactive Architecture Showcase (`HTML`)</a></b>
-</p>
-
-</div>
-
----
-
 ## 📐 Architecture & Telemetry Pipeline
 
 ![NinjaOne Toolkit Architecture](./ninjaone-management-dashboard-toolkit.svg)
+
+<p align="center">
+  <b><a href="./ninjaone-architecture-showcase.html">🌐 Open Interactive Architecture Showcase (`HTML`)</a></b>
+</p>
 
 ---
 
