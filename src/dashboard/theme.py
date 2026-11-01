@@ -20,10 +20,10 @@ TEXT_MUTED = "#484F58"       # Very muted
 LIGHT_BG_PRIMARY = "#F8FAFC"
 LIGHT_BG_CARD = "#FFFFFF"
 LIGHT_BG_CARD_HOVER = "#F1F5F9"
-LIGHT_BORDER = "#E2E8F0"
+LIGHT_BORDER = "#CBD5E1"
 LIGHT_TEXT_PRIMARY = "#0F172A"
-LIGHT_TEXT_SECONDARY = "#475569"
-LIGHT_TEXT_MUTED = "#94A3B8"
+LIGHT_TEXT_SECONDARY = "#334155"
+LIGHT_TEXT_MUTED = "#64748B"
 
 # Accent Colors
 ACCENT_BLUE = "#2F81F7"      # Primary brand
@@ -137,11 +137,11 @@ DBC_THEME_OVERRIDE = {
 # ---------------------------------------------------------------------------
 
 FONT_KPI_VALUE = {"fontSize": "2.4rem", "fontWeight": "700", "lineHeight": "1"}
-FONT_KPI_LABEL = {"fontSize": "0.75rem", "fontWeight": "500", "letterSpacing": "0.08em",
-                  "textTransform": "uppercase", "color": TEXT_SECONDARY}
+FONT_KPI_LABEL = {"fontSize": "0.75rem", "fontWeight": "600", "letterSpacing": "0.08em",
+                  "textTransform": "uppercase"}
 FONT_SECTION_TITLE = {"fontSize": "0.9rem", "fontWeight": "600",
                        "textTransform": "uppercase", "letterSpacing": "0.06em"}
-FONT_BODY = {"fontSize": "0.875rem", "color": TEXT_SECONDARY}
+FONT_BODY = {"fontSize": "0.875rem"}
 
 
 def get_theme_palette(theme: str = "dark") -> dict:

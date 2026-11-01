@@ -168,7 +168,8 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                 [
                                                     html.P(
                                                         "For automated headless servers or background daemons using a static Client Secret.",
-                                                        style={"fontSize": "0.80rem", "color": T.TEXT_MUTED, "marginTop": "8px"},
+                                                        className="text-secondary",
+                                                        style={"fontSize": "0.80rem", "marginTop": "8px"},
                                                     ),
                                                     dbc.Label("Client Secret", style=T.FONT_KPI_LABEL),
                                                     dbc.Input(
@@ -235,14 +236,15 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                             dbc.Label("1. OS Patch Compliance & Title Selection", style=T.FONT_KPI_LABEL),
                                             html.P(
                                                 "Configure patch titles and keywords that flag a machine as Non-Compliant. Machines with zero uninstalled matches remain Compliant.",
-                                                style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "10px"},
+                                                className="text-secondary",
+                                                style={"fontSize": "0.78rem", "marginBottom": "10px"},
                                             ),
                                             # Option 1: Discovered Fleet Patch Titles (Direct Match Override)
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("📋 Discovered Fleet Patch Titles (Direct Match Override)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
+                                                            dbc.Label("📋 Discovered Fleet Patch Titles (Direct Match Override)", style={"fontSize": "0.78rem", "fontWeight": "600"}),
                                                             dcc.Dropdown(
                                                                 id="settings-discovered-patch-titles",
                                                                 options=[],
@@ -252,7 +254,7 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                                 className="filter-dd mb-2",
                                                                 style={"fontSize": "0.82rem"},
                                                             ),
-                                                            html.Span("Any machine with an uninstalled patch matching any selected title here will immediately be marked Non-Compliant.", style={"fontSize": "0.74rem", "color": T.TEXT_MUTED}),
+                                                            html.Span("Any machine with an uninstalled patch matching any selected title here will immediately be marked Non-Compliant.", className="text-secondary", style={"fontSize": "0.74rem"}),
                                                         ],
                                                         md=12,
                                                         className="mb-3",
@@ -265,7 +267,7 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("🎯 Target Patch Keywords (Trigger Non-Compliance)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
+                                                            dbc.Label("🎯 Target Patch Keywords (Trigger Non-Compliance)", style={"fontSize": "0.78rem", "fontWeight": "600"}),
                                                             dcc.Dropdown(
                                                                 id="settings-patch-included-keywords",
                                                                 options=[
@@ -281,14 +283,14 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                                 className="filter-dd mb-2",
                                                                 style={"fontSize": "0.82rem"},
                                                             ),
-                                                            html.Span("Patches matching any of these keywords will be audited for compliance.", style={"fontSize": "0.74rem", "color": T.TEXT_MUTED}),
+                                                            html.Span("Patches matching any of these keywords will be audited for compliance.", className="text-secondary", style={"fontSize": "0.74rem"}),
                                                         ],
                                                         md=6,
                                                         className="mb-2",
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("🚫 Excluded Products (Exempted from Non-Compliance)", style={"fontSize": "0.78rem", "color": T.TEXT_SECONDARY, "fontWeight": "600"}),
+                                                            dbc.Label("🚫 Excluded Products (Exempted from Non-Compliance)", style={"fontSize": "0.78rem", "fontWeight": "600"}),
                                                             dcc.Dropdown(
                                                                 id="settings-patch-excluded-keywords",
                                                                 options=[
@@ -305,7 +307,7 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                                 className="filter-dd mb-2",
                                                                 style={"fontSize": "0.82rem"},
                                                             ),
-                                                            html.Span("Non-OS application updates matching these products will NOT trigger non-compliance.", style={"fontSize": "0.74rem", "color": T.TEXT_MUTED}),
+                                                            html.Span("Non-OS application updates matching these products will NOT trigger non-compliance.", className="text-secondary", style={"fontSize": "0.74rem"}),
                                                         ],
                                                         md=6,
                                                         className="mb-2",
@@ -323,75 +325,76 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                         [
                                             dbc.Label("2. OS Server EOL Dates (MM/DD/YYYY format)", style=T.FONT_KPI_LABEL),
                                             html.P("User input fields in Settings > Compliance Thresholds for server operating systems (Windows Server 2008, 2012, 2016, 2019, 2022, 2025; Ubuntu Server LTS, RHEL, CentOS, Debian).",
-                                                   style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "8px"}),
+                                                   className="text-secondary",
+                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2008 / R2", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Windows Server 2008 / R2", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-win2008", type="text", placeholder="01/14/2020", value="01/14/2020", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2012 / R2", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Windows Server 2012 / R2", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-win2012", type="text", placeholder="10/10/2023", value="10/10/2023", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2016", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Windows Server 2016", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-win2016", type="text", placeholder="01/12/2027", value="01/12/2027", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2019", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Windows Server 2019", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-win2019", type="text", placeholder="01/09/2029", value="01/09/2029", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2022", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Windows Server 2022", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-win2022", type="text", placeholder="10/14/2031", value="10/14/2031", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2025", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Windows Server 2025", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-win2025", type="text", placeholder="10/10/2034", value="10/10/2034", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Ubuntu Server LTS", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Ubuntu Server LTS", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-ubuntu", type="text", placeholder="04/30/2025", value="04/30/2025", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("RHEL Server", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("RHEL Server", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-rhel", type="text", placeholder="06/30/2024", value="06/30/2024", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("CentOS Server", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("CentOS Server", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-centos", type="text", placeholder="06/30/2024", value="06/30/2024", className="mb-2"),
                                                         ],
                                                         md=6,
                                                     ),
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Debian Server", style={"fontSize": "0.75rem", "color": T.TEXT_SECONDARY}),
+                                                            dbc.Label("Debian Server", style={"fontSize": "0.75rem"}),
                                                             dbc.Input(id="settings-eol-debian", type="text", placeholder="06/30/2026", value="06/30/2026", className="mb-2"),
                                                         ],
                                                         md=6,
@@ -409,7 +412,8 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                         [
                                             dbc.Label("⚠️ Approaching EOL Alert Horizon (Days)", style=T.FONT_KPI_LABEL),
                                             html.P("Configure how many days in advance devices are flagged as 'Approaching EOL'.",
-                                                   style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "8px"}),
+                                                   className="text-secondary",
+                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
                                             dbc.InputGroup(
                                                 [
                                                     dbc.Input(
@@ -434,7 +438,8 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                         [
                                             dbc.Label("🎯 Patch Coverage Speedometer Gauge Thresholds (%)", style=T.FONT_KPI_LABEL),
                                             html.P("Configure the Red Alert, Amber Warning, and Green Compliance target brackets for the fleet gauge.",
-                                                   style={"fontSize": "0.78rem", "color": T.TEXT_MUTED, "marginBottom": "8px"}),
+                                                   className="text-secondary",
+                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
@@ -504,21 +509,22 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                                         html.Span("📦", style={"fontSize": "1.8rem", "marginRight": "12px"}),
                                                                         html.Div(
                                                                             [
-                                                                                html.H6("NinjaOne Infra Dashboard Toolkit", style={"margin": "0", "fontWeight": "700", "color": T.TEXT_PRIMARY}),
+                                                                                html.H6("NinjaOne Infra Dashboard Toolkit", style={"margin": "0", "fontWeight": "700"}),
                                                                                 html.Span(f"Current Installed Version: v{CURRENT_VERSION}", style={"fontSize": "0.82rem", "color": T.ACCENT_CYAN, "fontWeight": "600"}),
                                                                             ]
                                                                         ),
                                                                     ],
                                                                     style={"display": "flex", "alignItems": "center"},
                                                                 ),
-                                                                dbc.Badge("Release Channel: GitHub Stable", color="dark", style={"fontSize": "0.75rem", "borderColor": T.BORDER, "border": f"1px solid {T.BORDER}"}),
+                                                                dbc.Badge("Release Channel: GitHub Stable", color="dark", className="text-secondary", style={"fontSize": "0.75rem"}),
                                                             ],
                                                             style={"display": "flex", "alignItems": "center", "justifyContent": "space-between"},
                                                         ),
                                                         html.Hr(style={"borderColor": T.BORDER, "margin": "12px 0"}),
                                                         html.P(
                                                             "Check for new releases, feature updates, bug fixes, and security patches directly from the official repository.",
-                                                            style={"fontSize": "0.80rem", "color": T.TEXT_MUTED, "marginBottom": "12px"},
+                                                            className="text-secondary",
+                                                            style={"fontSize": "0.80rem", "marginBottom": "12px"},
                                                         ),
                                                         html.Div(
                                                             [

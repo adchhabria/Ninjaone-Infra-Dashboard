@@ -22,9 +22,6 @@ def build_windows_os_panel(os_data: dict, theme_mode: str = "dark") -> dbc.Card:
     p = T.get_theme_palette(theme_mode)
     win_counts = os_data.get("windows_version_counts", {})
     win_fig = charts.windows_os_donut(win_counts, theme_mode=theme_mode)
-    if hasattr(win_fig, "update_layout"):
-        win_fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        win_fig.update_layout(font_color=p["text_primary"])
     win_total = sum(win_counts.values())
 
     return dbc.Card(
@@ -61,9 +58,6 @@ def build_linux_os_panel(os_data: dict, theme_mode: str = "dark") -> dbc.Card:
     p = T.get_theme_palette(theme_mode)
     linux_counts = os_data.get("linux_version_counts", {})
     linux_fig = charts.linux_os_donut(linux_counts, theme_mode=theme_mode)
-    if hasattr(linux_fig, "update_layout"):
-        linux_fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        linux_fig.update_layout(font_color=p["text_primary"])
     linux_total = sum(linux_counts.values())
 
     return dbc.Card(

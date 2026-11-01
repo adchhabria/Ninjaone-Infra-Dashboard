@@ -475,7 +475,7 @@ def register_callbacks(app, get_data_fn=None):
         Output("hosting-donut-graph", "figure"),
         Output("hosting-stacked-bar-graph", "figure"),
         Input("hosting-filter-radio", "value"),
-        Input("theme-store", "data"),
+        State("theme-store", "data"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
         prevent_initial_call=True,

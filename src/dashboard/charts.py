@@ -23,9 +23,20 @@ from src.dashboard import theme as T
 def _apply_theme(fig: go.Figure, title: str = "", theme_mode: str = "dark") -> go.Figure:
     """Apply the shared theme template (dark or light) and optional title to any figure."""
     tmpl = T.get_plotly_template(theme_mode)
+    p = T.get_theme_palette(theme_mode)
     fig.update_layout(**tmpl["layout"])
+    fig.update_layout(
+        paper_bgcolor=p["bg_card"],
+        plot_bgcolor=p["bg_card"],
+        font=dict(family="Inter, -apple-system, sans-serif", color=p["text_primary"], size=12),
+        legend=dict(
+            bgcolor=p["bg_card"],
+            bordercolor=p["border"],
+            borderwidth=1,
+            font=dict(color=p["text_secondary"], size=11),
+        ),
+    )
     if title:
-        p = T.get_theme_palette(theme_mode)
         fig.update_layout(title_text=title, title_font=dict(color=p["text_primary"], size=14))
     return fig
 
@@ -87,11 +98,11 @@ def world_map_chart(map_data: list[dict], selected_region: Optional[str] = None,
     geo_config: dict[str, Any] = dict(
         bgcolor=p["bg_card"],
         showland=True,
-        landcolor="#E2E8F0" if not p["is_dark"] else "#1F242C",
+        landcolor="#F1F5F9" if not p["is_dark"] else "#1F242C",
         showocean=True,
-        oceancolor=p["bg_primary"],
+        oceancolor=p["bg_card"],
         showlakes=True,
-        lakecolor=p["bg_primary"],
+        lakecolor=p["bg_card"],
         showcountries=True,
         countrycolor=p["border"],
         coastlinecolor=p["border"],
