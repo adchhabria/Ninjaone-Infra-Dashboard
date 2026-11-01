@@ -504,21 +504,29 @@ def compute_dashboard_slice(
             }
         )
 
-    # Filter label construction
+    # Filter label construction - show actual selected names for all filters
     filter_label_parts = []
-    if active_region and active_region != "Global / All":
+    if active_region and active_region not in ["Global / All", "all", "None"]:
         filter_label_parts.append(f"Region: {active_region}")
 
     if active_org_id:
-        if isinstance(active_org_id, (list, tuple, set)) and len(active_org_id) > 1:
-            filter_label_parts.append(f"{len(active_org_id)} Orgs")
-        elif isinstance(active_org_id, (list, tuple, set)) and len(active_org_id) == 1:
-            raw_val = list(active_org_id)[0]
-            try:
-                filter_label_parts.append(f"Org: {org_name_map.get(int(raw_val), str(raw_val))}")
-            except (ValueError, TypeError):
-                filter_label_parts.append(f"Org: {raw_val}")
-        elif str(active_org_id) not in ["all", "None"]:
+        if isinstance(active_org_id, (list, tuple, set)):
+            clean_org_ids = [x for x in active_org_id if str(x) not in ["all", "All Organizations", "None", ""]]
+            if len(clean_org_ids) > 1:
+                resolved_names = []
+                for raw_val in clean_org_ids:
+                    try:
+                        resolved_names.append(org_name_map.get(int(raw_val), str(raw_val)))
+                    except (ValueError, TypeError):
+                        resolved_names.append(str(raw_val))
+                filter_label_parts.append(f"Orgs: {', '.join(resolved_names)}")
+            elif len(clean_org_ids) == 1:
+                raw_val = clean_org_ids[0]
+                try:
+                    filter_label_parts.append(f"Org: {org_name_map.get(int(raw_val), str(raw_val))}")
+                except (ValueError, TypeError):
+                    filter_label_parts.append(f"Org: {raw_val}")
+        elif str(active_org_id) not in ["all", "All Organizations", "None", ""]:
             try:
                 filter_label_parts.append(f"Org: {org_name_map.get(int(active_org_id), f'Org {active_org_id}')}")
             except (ValueError, TypeError):
@@ -526,19 +534,29 @@ def compute_dashboard_slice(
 
     if active_location and active_location not in ["All Locations", "all"]:
         if isinstance(active_location, (list, tuple, set)):
-            filter_label_parts.append(f"{len(active_location)} Locs" if len(active_location) > 1 else f"Loc: {list(active_location)[0]}")
+            clean_locs = [str(x) for x in active_location if str(x) not in ["all", "All Locations", "All Countries", "None", ""]]
+            if len(clean_locs) > 1:
+                filter_label_parts.append(f"Locations: {', '.join(clean_locs)}")
+            elif len(clean_locs) == 1:
+                filter_label_parts.append(f"Location: {clean_locs[0]}")
         else:
-            filter_label_parts.append(f"Loc: {active_location}")
+            filter_label_parts.append(f"Location: {active_location}")
 
     if active_os_family and active_os_family not in ["All OS Families", "all"]:
         if isinstance(active_os_family, (list, tuple, set)):
-            filter_label_parts.append(f"OS: {', '.join(active_os_family)}")
+            clean_os = [str(x) for x in active_os_family if str(x) not in ["all", "All OS Families", "None", ""]]
+            if clean_os:
+                filter_label_parts.append(f"OS: {', '.join(clean_os)}")
         else:
             filter_label_parts.append(f"OS: {active_os_family}")
 
     if active_roles and active_roles not in ["All Roles", "all"]:
         if isinstance(active_roles, (list, tuple, set)):
-            filter_label_parts.append(f"{len(active_roles)} Roles" if len(active_roles) > 1 else f"Role: {list(active_roles)[0]}")
+            clean_roles = [str(x) for x in active_roles if str(x) not in ["all", "All Roles", "None", ""]]
+            if len(clean_roles) > 1:
+                filter_label_parts.append(f"Roles: {', '.join(clean_roles)}")
+            elif len(clean_roles) == 1:
+                filter_label_parts.append(f"Role: {clean_roles[0]}")
         else:
             filter_label_parts.append(f"Role: {active_roles}")
 

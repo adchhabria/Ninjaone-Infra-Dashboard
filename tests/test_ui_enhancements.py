@@ -349,5 +349,50 @@ def test_country_and_org_name_slicer_filtering():
     assert "USA" in loc_vals and "DEU" in loc_vals
 
 
+def test_actual_filter_names_in_active_filter_label_and_reports():
+    """Verify that multiple selected organizations, locations, and roles show actual names, not '2 Orgs'."""
+    from scripts.generate_sample_data import _generate_raw_mock
+    from src.metrics.aggregator import compute_dashboard_slice
+    from src.reporting.html_export import generate_html_report
+    from src.metrics.pdf_export import generate_pdf_report
+
+    orgs, devices, activities = _generate_raw_mock()
+    assert len(orgs) >= 2
+
+    # Multiple orgs selected by ID
+    selected_org_ids = [orgs[0].id, orgs[1].id]
+    slice_data = compute_dashboard_slice(
+        devices,
+        orgs,
+        activities,
+        active_org_id=selected_org_ids,
+        active_location=["USA", "DEU"],
+        active_roles=["Domain Controller", "Web Server"],
+    )
+
+    # Label MUST contain actual organization names, location names, and role names
+    label = slice_data.active_filter_label
+    assert "2 Orgs" not in label
+    assert "2 Locs" not in label
+    assert "2 Roles" not in label
+    assert orgs[0].name in label
+    assert orgs[1].name in label
+    assert "USA" in label
+    assert "DEU" in label
+    assert "Domain Controller" in label
+    assert "Web Server" in label
+
+    # Verify that exported HTML contains actual organization names in scope badge
+    html_out = generate_html_report(slice_data)
+    assert orgs[0].name in html_out
+    assert orgs[1].name in html_out
+    assert "2 Orgs" not in html_out
+
+    # Verify that exported PDF contains actual organization names in scope
+    pdf_out = generate_pdf_report(slice_data)
+    assert isinstance(pdf_out, bytes)
+    assert len(pdf_out) > 1000
+
+
 
 
