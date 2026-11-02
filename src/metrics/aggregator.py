@@ -75,14 +75,85 @@ REGION_DEFINITIONS = {
 
 COUNTRY_COORDINATES = {
     "USA": {"name": "United States", "lat": 37.0902, "lon": -95.7129, "region": "USA / North America"},
+    "US": {"name": "United States", "lat": 37.0902, "lon": -95.7129, "region": "USA / North America"},
     "GBR": {"name": "United Kingdom", "lat": 55.3781, "lon": -3.4360, "region": "EMEA / Europe"},
+    "UK": {"name": "United Kingdom", "lat": 55.3781, "lon": -3.4360, "region": "EMEA / Europe"},
+    "GB": {"name": "United Kingdom", "lat": 55.3781, "lon": -3.4360, "region": "EMEA / Europe"},
     "DEU": {"name": "Germany", "lat": 51.1657, "lon": 10.4515, "region": "EMEA / Europe"},
+    "DE": {"name": "Germany", "lat": 51.1657, "lon": 10.4515, "region": "EMEA / Europe"},
     "SGP": {"name": "Singapore", "lat": 1.3521, "lon": 103.8198, "region": "APAC / Asia"},
+    "SG": {"name": "Singapore", "lat": 1.3521, "lon": 103.8198, "region": "APAC / Asia"},
     "JPN": {"name": "Japan", "lat": 36.2048, "lon": 138.2529, "region": "APAC / Asia"},
+    "JP": {"name": "Japan", "lat": 36.2048, "lon": 138.2529, "region": "APAC / Asia"},
     "IND": {"name": "India", "lat": 20.5937, "lon": 78.9629, "region": "APAC / Asia"},
+    "IN": {"name": "India", "lat": 20.5937, "lon": 78.9629, "region": "APAC / Asia"},
     "AUS": {"name": "Australia", "lat": -25.2744, "lon": 133.7751, "region": "APAC / Asia"},
+    "AU": {"name": "Australia", "lat": -25.2744, "lon": 133.7751, "region": "APAC / Asia"},
+    "CAN": {"name": "Canada", "lat": 56.1304, "lon": -106.3468, "region": "USA / North America"},
+    "CA": {"name": "Canada", "lat": 56.1304, "lon": -106.3468, "region": "USA / North America"},
     "BRA": {"name": "Brazil", "lat": -14.2350, "lon": -51.9253, "region": "Latin America"},
+    "BR": {"name": "Brazil", "lat": -14.2350, "lon": -51.9253, "region": "Latin America"},
+    "FRA": {"name": "France", "lat": 46.2276, "lon": 2.2137, "region": "EMEA / Europe"},
+    "FR": {"name": "France", "lat": 46.2276, "lon": 2.2137, "region": "EMEA / Europe"},
+    "NLD": {"name": "Netherlands", "lat": 52.1326, "lon": 5.2913, "region": "EMEA / Europe"},
+    "NL": {"name": "Netherlands", "lat": 52.1326, "lon": 5.2913, "region": "EMEA / Europe"},
+    "IRL": {"name": "Ireland", "lat": 53.1424, "lon": -7.6921, "region": "EMEA / Europe"},
+    "IE": {"name": "Ireland", "lat": 53.1424, "lon": -7.6921, "region": "EMEA / Europe"},
+    "NZL": {"name": "New Zealand", "lat": -40.9006, "lon": 174.8860, "region": "APAC / Asia"},
+    "NZ": {"name": "New Zealand", "lat": -40.9006, "lon": 174.8860, "region": "APAC / Asia"},
+    "HKG": {"name": "Hong Kong", "lat": 22.3193, "lon": 114.1694, "region": "APAC / Asia"},
+    "HK": {"name": "Hong Kong", "lat": 22.3193, "lon": 114.1694, "region": "APAC / Asia"},
+    "KOR": {"name": "South Korea", "lat": 35.9078, "lon": 127.7669, "region": "APAC / Asia"},
+    "KR": {"name": "South Korea", "lat": 35.9078, "lon": 127.7669, "region": "APAC / Asia"},
 }
+
+
+def _resolve_device_country(d: Device, org_country: str | None = None) -> tuple[str, str, str, float, float]:
+    """
+    Infers Country Code, Country Name, Region, Lat, and Lon for an individual device.
+    Uses device's country, location_name, or organization fallback.
+    """
+    # 1. Device direct country property
+    candidate = str(d.country or "").strip().upper()
+    if candidate in COUNTRY_COORDINATES:
+        c = COUNTRY_COORDINATES[candidate]
+        return candidate, c["name"], c["region"], c["lat"], c["lon"]
+
+    # 2. Location name or description keywords
+    loc = str(d.location_name or "").lower()
+    if any(k in loc for k in ["sydney", "melbourne", "brisbane", "perth", "australia", "au"]):
+        c = COUNTRY_COORDINATES["AUS"]
+        return "AUS", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["tokyo", "osaka", "japan", "jp"]):
+        c = COUNTRY_COORDINATES["JPN"]
+        return "JPN", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["singapore", "sg"]):
+        c = COUNTRY_COORDINATES["SGP"]
+        return "SGP", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["india", "mumbai", "delhi", "bangalore", "in"]):
+        c = COUNTRY_COORDINATES["IND"]
+        return "IND", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["london", "uk", "manchester"]):
+        c = COUNTRY_COORDINATES["GBR"]
+        return "GBR", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["germany", "frankfurt", "berlin", "munich", "de"]):
+        c = COUNTRY_COORDINATES["DEU"]
+        return "DEU", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["canada", "toronto", "vancouver", "montreal", "ca"]):
+        c = COUNTRY_COORDINATES["CAN"]
+        return "CAN", c["name"], c["region"], c["lat"], c["lon"]
+    if any(k in loc for k in ["brazil", "sao paulo", "rio", "br"]):
+        c = COUNTRY_COORDINATES["BRA"]
+        return "BRA", c["name"], c["region"], c["lat"], c["lon"]
+
+    # 3. Fallback to org country or USA
+    fallback = str(org_country or "USA").strip().upper()
+    if fallback in COUNTRY_COORDINATES:
+        c = COUNTRY_COORDINATES[fallback]
+        return fallback, c["name"], c["region"], c["lat"], c["lon"]
+
+    c = COUNTRY_COORDINATES["USA"]
+    return "USA", c["name"], c["region"], c["lat"], c["lon"]
 
 
 def resolve_geo(org_name: str, desc: str | None = None) -> tuple[str, str, str, float, float]:
@@ -134,8 +205,8 @@ class DashboardData:
 
     # Compliance & Speedometer Thresholds
     patch_red: float = 60.0
-    patch_amber: float = 84.0
-    patch_green: float = 85.0
+    patch_amber: float = 90.0
+    patch_green: float = 90.0
 
     # KPI Summary
     total_devices: int = 0
@@ -228,8 +299,8 @@ def compute_dashboard_slice(
     approaching_days: int = 180,
     custom_eol_dates: Optional[dict[str, str]] = None,
     patch_red: float = 60.0,
-    patch_amber: float = 84.0,
-    patch_green: float = 85.0,
+    patch_amber: float = 90.0,
+    patch_green: float = 90.0,
     included_keywords: list[str] | None = None,
     excluded_products: list[str] | None = None,
     selected_patch_titles: list[str] | None = None,
@@ -487,31 +558,52 @@ def compute_dashboard_slice(
 
     org_table_rows = sorted(org_table_rows, key=lambda r: r["compliance_score"])
 
-    # 6. Build Map Data (aggregated by country)
+    # 6. Build Map Data (aggregated by device country)
     country_groups: dict[str, dict[str, Any]] = {}
-    for row in org_table_rows:
-        cc = row.get("country", "USA")
-        if cc not in country_groups:
-            coord = COUNTRY_COORDINATES.get(cc, {"lat": 37.09, "lon": -95.71, "name": cc, "region": row["region"]})
-            country_groups[cc] = {
-                "country_code": cc,
-                "country_name": coord["name"],
-                "region": coord["region"],
-                "lat": coord["lat"],
-                "lon": coord["lon"],
+    eol_dev_ids = {d.id for d in eol_devs} if "eol_devs" in locals() else set()
+    org_country_lookup = {o.id: o.country for o in filtered_orgs}
+
+    for d in filtered_devices:
+        org_c = org_country_lookup.get(d.organization_id)
+        cc, cname, reg, lat, lon = _resolve_device_country(d, org_c)
+        canonical_cc = (
+            "AUS" if cc in ["AU", "AUS"]
+            else "USA" if cc in ["US", "USA"]
+            else "GBR" if cc in ["GB", "UK", "GBR"]
+            else "DEU" if cc in ["DE", "DEU"]
+            else "SGP" if cc in ["SG", "SGP"]
+            else "JPN" if cc in ["JP", "JPN"]
+            else "IND" if cc in ["IN", "IND"]
+            else "BRA" if cc in ["BR", "BRA"]
+            else "CAN" if cc in ["CA", "CAN"]
+            else cc
+        )
+
+        if canonical_cc not in country_groups:
+            country_groups[canonical_cc] = {
+                "country_code": canonical_cc,
+                "country_name": cname,
+                "region": reg,
+                "lat": lat,
+                "lon": lon,
                 "device_count": 0,
-                "org_count": 0,
-                "scores": [],
+                "org_ids": set(),
+                "online_count": 0,
                 "eol_count": 0,
             }
-        country_groups[cc]["device_count"] += row["device_count"]
-        country_groups[cc]["org_count"] += 1
-        country_groups[cc]["scores"].append(row["compliance_score"])
-        country_groups[cc]["eol_count"] += row.get("eol_count", 0)
+        country_groups[canonical_cc]["device_count"] += 1
+        country_groups[canonical_cc]["org_ids"].add(d.organization_id)
+        if d.is_online:
+            country_groups[canonical_cc]["online_count"] += 1
+        if d.id in eol_dev_ids:
+            country_groups[canonical_cc]["eol_count"] += 1
 
     map_data = []
     for cc, g in country_groups.items():
-        avg_score = round(sum(g["scores"]) / len(g["scores"]), 1) if g["scores"] else 0.0
+        dev_cnt = g["device_count"]
+        onl_ratio = g["online_count"] / dev_cnt if dev_cnt > 0 else 1.0
+        eol_ratio = 1.0 - (g["eol_count"] / dev_cnt) if dev_cnt > 0 else 1.0
+        c_score = round((onl_ratio * 0.3 + eol_ratio * 0.3 + (patch_metrics["patch_coverage_pct"] / 100.0) * 0.4) * 100, 1)
         map_data.append(
             {
                 "country_code": cc,
@@ -519,10 +611,10 @@ def compute_dashboard_slice(
                 "region": g["region"],
                 "lat": g["lat"],
                 "lon": g["lon"],
-                "device_count": g["device_count"],
-                "org_count": g["org_count"],
-                "compliance_score": avg_score,
-                "rag": _rag(avg_score),
+                "device_count": dev_cnt,
+                "org_count": len(g["org_ids"]),
+                "compliance_score": c_score,
+                "rag": _rag(c_score),
                 "eol_count": g["eol_count"],
             }
         )
@@ -679,8 +771,8 @@ class MetricsAggregator:
         approaching_days: int = 180,
         custom_eol_dates: Optional[dict[str, str]] = None,
         patch_red: float = 60.0,
-        patch_amber: float = 84.0,
-        patch_green: float = 85.0,
+        patch_amber: float = 90.0,
+        patch_green: float = 90.0,
         included_keywords: list[str] | None = None,
         excluded_products: list[str] | None = None,
         selected_patch_titles: list[str] | None = None,
@@ -780,7 +872,9 @@ class MetricsAggregator:
             orgs = get_organizations_detailed(self._client)
             devices = get_devices_detailed(self._client, page_size=1000)
             activities = get_recent_activities(self._client, days=30)
-            os_patch_counts, sw_patch_counts = get_fleet_patch_counts(self._client)
+            patch_result = get_fleet_patch_counts(self._client)
+            os_patch_counts = patch_result[0]
+            sw_patch_counts = patch_result[1]
         else:
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -792,7 +886,9 @@ class MetricsAggregator:
                 orgs = fut_orgs.result()
                 devices = fut_devices.result()
                 activities = fut_activities.result()
-                os_patch_counts, sw_patch_counts = fut_patches.result()
+                patch_result = fut_patches.result()
+                os_patch_counts = patch_result[0]
+                sw_patch_counts = patch_result[1]
 
         # Enrich organizations with geographic regions and build location dictionary
         org_geo_map = {}
@@ -834,22 +930,22 @@ class MetricsAggregator:
             elif getattr(d, "approved_patch_count", None) is None:
                 d.approved_patch_count = 0
 
-            if hasattr(os_patch_counts, "os_sec_counts") and d.id in os_patch_counts.os_sec_counts:
-                d.os_security_patch_count = os_patch_counts.os_sec_counts[d.id]
-                d.os_security_patch_names = os_patch_counts.os_sec_names.get(d.id, [])
+            if hasattr(patch_result, "os_sec_counts") and d.id in patch_result.os_sec_counts:
+                d.os_security_patch_count = patch_result.os_sec_counts[d.id]
+                d.os_security_patch_names = patch_result.os_sec_names.get(d.id, [])
 
-            if hasattr(os_patch_counts, "all_uninstalled_names") and d.id in os_patch_counts.all_uninstalled_names:
-                d.all_uninstalled_patch_names = os_patch_counts.all_uninstalled_names[d.id]
-            elif hasattr(os_patch_counts, "os_sec_names") and d.id in os_patch_counts.os_sec_names:
-                d.all_uninstalled_patch_names = os_patch_counts.os_sec_names.get(d.id, [])
+            if hasattr(patch_result, "all_uninstalled_names") and d.id in patch_result.all_uninstalled_names:
+                d.all_uninstalled_patch_names = patch_result.all_uninstalled_names[d.id]
+            elif hasattr(patch_result, "os_sec_names") and d.id in patch_result.os_sec_names:
+                d.all_uninstalled_patch_names = patch_result.os_sec_names.get(d.id, [])
 
             if d.id in sw_patch_counts:
                 d.approved_software_count = sw_patch_counts[d.id]
             elif getattr(d, "approved_software_count", None) is None:
                 d.approved_software_count = 0
 
-        raw_os = getattr(os_patch_counts, "raw_os_patches", []) or []
-        raw_sw = getattr(os_patch_counts, "raw_sw_patches", []) or []
+        raw_os = getattr(patch_result, "raw_os_patches", []) or []
+        raw_sw = getattr(patch_result, "raw_sw_patches", []) or []
         self._raw_os_patches = raw_os
         self._raw_sw_patches = raw_sw
         return orgs, devices, activities, raw_os, raw_sw

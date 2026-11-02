@@ -60,6 +60,8 @@ def compute_patch_sla_metrics(
     reboot_devices = []
     failed_patches = []
 
+    dev_lookup = {d.id: d for d in devices}
+
     # Map to track patches and device occurrences for Top 10 Patches Pending
     live_patch_meta: dict[str, dict[str, Any]] = {}
 
@@ -79,14 +81,42 @@ def compute_patch_sla_metrics(
                     continue
 
                 status = str(p.get("status") or "").upper()
-                if status in ["INSTALLED", "SUCCESS", "COMPLETED", "SUPERSEDED", "REJECTED", "DECLINED"]:
-                    continue
-
                 p_name = str(p.get("name") or p.get("title") or p.get("description") or "").strip()
                 if not p_name and p.get("kbNumber"):
                     p_name = f"Update ({p.get('kbNumber')})"
                 if not p_name:
                     p_name = "Windows Security Update"
+
+                # Check if this is a live failed patch
+                is_failed = (
+                    "FAIL" in status
+                    or p.get("failed") is True
+                    or bool(p.get("error"))
+                    or bool(p.get("errorCode"))
+                )
+                if is_failed:
+                    d_obj = dev_lookup.get(dev_id)
+                    d_name = d_obj.display_name or d_obj.system_name if d_obj else f"Device-{dev_id}"
+                    d_org = org_map.get(d_obj.organization_id, f"Org {d_obj.organization_id}") if d_obj else "Unknown"
+                    d_loc = d_obj.location_name or "HQ" if d_obj else "HQ"
+                    d_reg = d_obj.region or "USA / North America" if d_obj else "USA / North America"
+                    err_cd = str(p.get("errorCode") or p.get("error") or p.get("errorMessage") or "0x80240020")
+                    f_date = str(p.get("lastAttempt") or p.get("installedAt") or p.get("timestamp") or "")[:10] or now.strftime("%Y-%m-%d")
+                    att = int(p.get("attempts") or p.get("retryCount") or 1)
+                    failed_patches.append({
+                        "device_id": dev_id,
+                        "device_name": d_name,
+                        "org_name": d_org,
+                        "location": d_loc,
+                        "region": d_reg,
+                        "patch_name": p_name,
+                        "error_code": err_cd,
+                        "failed_date": f_date,
+                        "attempts": att,
+                    })
+
+                if status in ["INSTALLED", "SUCCESS", "COMPLETED", "SUPERSEDED", "REJECTED", "DECLINED"]:
+                    continue
 
                 sev = str(p.get("severity") or p.get("patchSeverity") or "IMPORTANT").upper()
                 if "CRIT" in sev:
@@ -126,12 +156,40 @@ def compute_patch_sla_metrics(
                     continue
 
                 status = str(sp.get("status") or "").upper()
-                if status in ["INSTALLED", "SUCCESS", "COMPLETED", "SUPERSEDED", "REJECTED", "DECLINED"]:
-                    continue
-
                 sp_name = str(sp.get("name") or sp.get("title") or "").strip()
                 if not sp_name:
                     sp_name = "3rd-Party Software Update"
+
+                # Check if this is a live failed software patch
+                is_failed = (
+                    "FAIL" in status
+                    or sp.get("failed") is True
+                    or bool(sp.get("error"))
+                    or bool(sp.get("errorCode"))
+                )
+                if is_failed:
+                    d_obj = dev_lookup.get(dev_id)
+                    d_name = d_obj.display_name or d_obj.system_name if d_obj else f"Device-{dev_id}"
+                    d_org = org_map.get(d_obj.organization_id, f"Org {d_obj.organization_id}") if d_obj else "Unknown"
+                    d_loc = d_obj.location_name or "HQ" if d_obj else "HQ"
+                    d_reg = d_obj.region or "USA / North America" if d_obj else "USA / North America"
+                    err_cd = str(sp.get("errorCode") or sp.get("error") or sp.get("errorMessage") or "0x80070643")
+                    f_date = str(sp.get("lastAttempt") or sp.get("installedAt") or sp.get("timestamp") or "")[:10] or now.strftime("%Y-%m-%d")
+                    att = int(sp.get("attempts") or sp.get("retryCount") or 1)
+                    failed_patches.append({
+                        "device_id": dev_id,
+                        "device_name": d_name,
+                        "org_name": d_org,
+                        "location": d_loc,
+                        "region": d_reg,
+                        "patch_name": sp_name,
+                        "error_code": err_cd,
+                        "failed_date": f_date,
+                        "attempts": att,
+                    })
+
+                if status in ["INSTALLED", "SUCCESS", "COMPLETED", "SUPERSEDED", "REJECTED", "DECLINED"]:
+                    continue
 
                 sev = str(sp.get("severity") or sp.get("patchSeverity") or "IMPORTANT").upper()
                 if "CRIT" in sev:
@@ -153,6 +211,12 @@ def compute_patch_sla_metrics(
                         "devices": set(),
                     }
                 live_patch_meta[sp_name]["devices"].add(dev_id)
+
+    # In live data, if raw_sw_patches was empty but devices have approved_software_count, tally them
+    if has_live_patches and type_counts["3rd-Party Applications"] == 0:
+        total_sw = sum(getattr(d, "approved_software_count", 0) or 0 for d in devices)
+        if total_sw > 0:
+            type_counts["3rd-Party Applications"] = total_sw
 
     for d in devices:
         org_name = org_map.get(d.organization_id, f"Org {d.organization_id}")
@@ -249,20 +313,21 @@ def compute_patch_sla_metrics(
                     "status": "Pending Approval" if age_days < 7 else "Approved",
                 })
 
-        # C. Patch Failure Tracking
-        cf_failure = d.custom_fields.get("patchFailure", False) if d.custom_fields else False
-        if cf_failure or (d.id % 8 == 0):
-            failed_patches.append({
-                "device_id": d.id,
-                "device_name": d.display_name or d.system_name or f"Device-{d.id}",
-                "org_name": org_name,
-                "location": loc_name,
-                "region": region,
-                "patch_name": f"KB503{(d.id * 23) % 9999:04d} Cumulative Update",
-                "error_code": ["0x80070002", "0x80240020", "0x800f081f", "0x80070643"][d.id % 4],
-                "failed_date": (now - timedelta(days=((d.id % 12) + 1))).strftime("%Y-%m-%d"),
-                "attempts": (d.id % 4) + 2,
-            })
+        # C. Patch Failure Tracking (Mock fallback only when live patch API was not available)
+        if not has_live_patches:
+            cf_failure = d.custom_fields.get("patchFailure", False) if d.custom_fields else False
+            if cf_failure or (d.id % 8 == 0):
+                failed_patches.append({
+                    "device_id": d.id,
+                    "device_name": d.display_name or d.system_name or f"Device-{d.id}",
+                    "org_name": org_name,
+                    "location": loc_name,
+                    "region": region,
+                    "patch_name": f"KB503{(d.id * 23) % 9999:04d} Cumulative Update",
+                    "error_code": ["0x80070002", "0x80240020", "0x800f081f", "0x80070643"][d.id % 4],
+                    "failed_date": (now - timedelta(days=((d.id % 12) + 1))).strftime("%Y-%m-%d"),
+                    "attempts": (d.id % 4) + 2,
+                })
 
     # D. Table 1: Top 10 Servers with Max Pending Patches
     server_candidates = [d for d in devices if d.is_server]
@@ -276,7 +341,8 @@ def compute_patch_sla_metrics(
         s_loc = s.location_name or "HQ"
         s_os = s.os_display or (s.system_info.os_name if s.system_info else "Windows Server")
         s_role = getattr(s, "device_role", None) or (
-            "Domain Controller" if s.id % 4 == 0
+            "General Server" if has_live_patches
+            else "Domain Controller" if s.id % 4 == 0
             else "Database Server" if s.id % 4 == 1
             else "Web / App Server" if s.id % 4 == 2
             else "File / Storage Server"
@@ -284,8 +350,9 @@ def compute_patch_sla_metrics(
         appr_count = get_device_approved_patch_count(s)
         if appr_count == 0 and hasattr(s, "all_uninstalled_patch_names") and s.all_uninstalled_patch_names:
             appr_count = len(s.all_uninstalled_patch_names)
-        if appr_count == 0 and (s.id % 3 == 0):
-            appr_count = (s.id % 7) + 2
+        if not has_live_patches:
+            if appr_count == 0 and (s.id % 3 == 0):
+                appr_count = (s.id % 7) + 2
 
         top_servers_list.append({
             "name": s_name,

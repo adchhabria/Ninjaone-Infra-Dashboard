@@ -106,8 +106,20 @@ def get_numbered_canvas_class(theme_mode: str = "dark"):
 MultiPageNumberedCanvas = get_numbered_canvas_class("dark")
 
 
+def _safe_xml_text(val: Any, default: str = "N/A") -> str:
+    """Escapes XML entities and guards against None for ReportLab Paragraph."""
+    if val is None or val == "":
+        return default
+    s = str(val).strip()
+    if not s:
+        return default
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _fig_to_image_flowable(fig, width: int = 340, height: int = 180, scale: int = 1) -> Optional[Image]:
     """Converts a Plotly figure to a ReportLab Image Flowable via Kaleido."""
+    if fig is None:
+        return None
     try:
         img_bytes = fig.to_image(format="png", width=width, height=height, scale=scale, engine="kaleido")
         buf = io.BytesIO(img_bytes)
@@ -349,8 +361,8 @@ def generate_pdf_report(
     gauge_fig = charts.patch_gauge(
         patch_pct,
         red_limit=getattr(data, "patch_red", 60.0),
-        amber_limit=getattr(data, "patch_amber", 84.0),
-        green_target=getattr(data, "patch_green", 85.0),
+        amber_limit=getattr(data, "patch_amber", 90.0),
+        green_target=getattr(data, "patch_green", 90.0),
         theme_mode=theme_mode,
     )
     gauge_img = _fig_to_image_flowable(gauge_fig, width=350, height=200, scale=1)
@@ -446,13 +458,13 @@ def generate_pdf_report(
         for r in eol_rows[:28]:
             risk_color = "#CF222E" if r.get("risk_level") in ["CRITICAL", "HIGH"] else "#D29922"
             eol_table_content.append([
-                Paragraph(r.get("name", "N/A"), body_bold),
-                Paragraph(r.get("org_name", "N/A"), body_style),
-                Paragraph(r.get("region", "N/A"), body_style),
-                Paragraph(r.get("os", "N/A"), body_style),
-                Paragraph(str(r.get("eol_date", "N/A")), body_style),
+                Paragraph(_safe_xml_text(r.get("name")), body_bold),
+                Paragraph(_safe_xml_text(r.get("org_name")), body_style),
+                Paragraph(_safe_xml_text(r.get("region")), body_style),
+                Paragraph(_safe_xml_text(r.get("os")), body_style),
+                Paragraph(_safe_xml_text(r.get("eol_date")), body_style),
                 Paragraph(f"{r.get('days_overdue', 0)}d", body_style),
-                Paragraph(f"<font color='{risk_color}'><b>{r.get('risk_level', 'MEDIUM')}</b></font>", body_style),
+                Paragraph(f"<font color='{risk_color}'><b>{_safe_xml_text(r.get('risk_level'), 'MEDIUM')}</b></font>", body_style),
             ])
 
         eol_doc_table = Table(eol_table_content, colWidths=[120, 130, 95, 140, 85, 65, 75])
@@ -493,11 +505,11 @@ def generate_pdf_report(
         srv_content = [srv_headers]
         for s in top_servers:
             srv_content.append([
-                Paragraph(s.get("name", "N/A"), body_bold),
-                Paragraph(s.get("org_name", "N/A"), body_style),
-                Paragraph(s.get("location", "N/A"), body_style),
-                Paragraph(s.get("os_name", "N/A"), body_style),
-                Paragraph(s.get("device_role", "Server"), body_style),
+                Paragraph(_safe_xml_text(s.get("name")), body_bold),
+                Paragraph(_safe_xml_text(s.get("org_name")), body_style),
+                Paragraph(_safe_xml_text(s.get("location")), body_style),
+                Paragraph(_safe_xml_text(s.get("os_name")), body_style),
+                Paragraph(_safe_xml_text(s.get("device_role"), "Server"), body_style),
                 Paragraph(f"<font color='#CF222E'><b>{s.get('approved_patch_count', 0)}</b></font>", body_bold),
             ])
         srv_table = Table(srv_content, colWidths=[130, 130, 110, 140, 110, 85])
@@ -531,14 +543,14 @@ def generate_pdf_report(
         ]
         patch_content = [patch_headers]
         for p_item in top_patches:
-            sev = p_item.get("severity", "IMPORTANT")
+            sev = _safe_xml_text(p_item.get("severity"), "IMPORTANT")
             s_col = "#CF222E" if "CRIT" in sev.upper() else "#D29922"
             patch_content.append([
-                Paragraph(p_item.get("patch_name", "N/A"), body_bold),
+                Paragraph(_safe_xml_text(p_item.get("patch_name")), body_bold),
                 Paragraph(f"<font color='{s_col}'><b>{sev}</b></font>", body_style),
-                Paragraph(p_item.get("patch_category", "OS Security Updates"), body_style),
+                Paragraph(_safe_xml_text(p_item.get("patch_category"), "OS Security Updates"), body_style),
                 Paragraph(f"<b>{p_item.get('pending_device_count', 0)}</b>", body_style),
-                Paragraph(p_item.get("release_date", "N/A"), body_style),
+                Paragraph(_safe_xml_text(p_item.get("release_date")), body_style),
             ])
         pt_table = Table(patch_content, colWidths=[240, 100, 145, 110, 110])
         pt_table.setStyle(
@@ -573,11 +585,11 @@ def generate_pdf_report(
         fail_content = [fail_headers]
         for f in failed_rows:
             fail_content.append([
-                Paragraph(f.get("device_name", "N/A"), body_bold),
-                Paragraph(f.get("org_name", "N/A"), body_style),
-                Paragraph(f.get("patch_name", "N/A"), body_style),
-                Paragraph(f"<font color='#CF222E'><b>{f.get('error_code', '0x80240020')}</b></font>", body_style),
-                Paragraph(f.get("failed_date", "N/A"), body_style),
+                Paragraph(_safe_xml_text(f.get("device_name")), body_bold),
+                Paragraph(_safe_xml_text(f.get("org_name")), body_style),
+                Paragraph(_safe_xml_text(f.get("patch_name")), body_style),
+                Paragraph(f"<font color='#CF222E'><b>{_safe_xml_text(f.get('error_code'), '0x80240020')}</b></font>", body_style),
+                Paragraph(_safe_xml_text(f.get("failed_date")), body_style),
                 Paragraph(str(f.get("attempts", 1)), body_style),
             ])
         fail_table = Table(fail_content, colWidths=[130, 130, 200, 95, 90, 60])
@@ -622,8 +634,8 @@ def generate_pdf_report(
             rag = org.get("rag", "RED")
             r_col = "#2EA043" if rag == "GREEN" else "#D29922" if rag == "AMBER" else "#CF222E"
             org_content.append([
-                Paragraph(org.get("org_name", "N/A"), body_bold),
-                Paragraph(org.get("region", "N/A"), body_style),
+                Paragraph(_safe_xml_text(org.get("org_name")), body_bold),
+                Paragraph(_safe_xml_text(org.get("region")), body_style),
                 Paragraph(str(org.get("device_count", 0)), body_style),
                 Paragraph(f"{org.get('online_pct', 0.0):.1f}%", body_style),
                 Paragraph(f"{org.get('patch_pct', 0.0):.1f}%", body_style),

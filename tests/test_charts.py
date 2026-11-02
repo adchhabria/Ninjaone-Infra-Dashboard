@@ -61,7 +61,7 @@ class TestCharts:
         assert isinstance(fig_red, go.Figure)
 
     def test_patching_cycle_rules(self):
-        # On 2nd Tuesday of Nov 2026 (Nov 10, 2026), current cycle is Oct-26 (N-1)
+        # With today's date N-1 rule: Any day in November 2026 (Nov 10 or Nov 2) has current cycle as Oct-26 (N-1)
         cycle_year, cycle_month = get_patch_cycle_current_month(date(2026, 11, 10))
         assert (cycle_year, cycle_month) == (2026, 10)
         months_nov10 = get_patch_cycle_12_months(date(2026, 11, 10))
@@ -69,28 +69,35 @@ class TestCharts:
         assert months_nov10[-1] == "Oct-26"
         assert months_nov10[0] == "Nov-25"
 
-        # On Nov 5, 2026 (before 2nd Tuesday), current cycle is Sep-26 (N-2)
-        cycle_year_pre, cycle_month_pre = get_patch_cycle_current_month(date(2026, 11, 5))
-        assert (cycle_year_pre, cycle_month_pre) == (2026, 9)
-        months_nov5 = get_patch_cycle_12_months(date(2026, 11, 5))
-        assert len(months_nov5) == 12
-        assert months_nov5[-1] == "Sep-26"
-        assert months_nov5[0] == "Oct-25"
+        # On Nov 2, 2026, current cycle is also Oct-26 (N-1) rolling back 12 months to Nov-25
+        cycle_year_pre, cycle_month_pre = get_patch_cycle_current_month(date(2026, 11, 2))
+        assert (cycle_year_pre, cycle_month_pre) == (2026, 10)
+        months_nov2 = get_patch_cycle_12_months(date(2026, 11, 2))
+        assert len(months_nov2) == 12
+        assert months_nov2[-1] == "Oct-26"
+        assert months_nov2[0] == "Nov-25"
+
+        # On Jan 15, 2026, current cycle is Dec-25 (N-1) rolling back to Jan-25
+        cycle_year_jan, cycle_month_jan = get_patch_cycle_current_month(date(2026, 1, 15))
+        assert (cycle_year_jan, cycle_month_jan) == (2025, 12)
+        months_jan = get_patch_cycle_12_months(date(2026, 1, 15))
+        assert months_jan[-1] == "Dec-25"
+        assert months_jan[0] == "Jan-25"
 
     def test_patch_compliance_ytd_trend_line(self):
-        # Default 12-month data aligned to active cycle
+        # Default 12-month data aligned to active cycle (ref_date in Nov 2026 -> ends in Oct-26)
         fig_default = patch_compliance_ytd_trend_line(ref_date=date(2026, 11, 5))
         assert isinstance(fig_default, go.Figure)
         assert len(fig_default.data) == 2  # Target line + Compliance trend
         assert len(fig_default.data[1].x) == 12
-        assert fig_default.data[1].x[-1] == "Sep-26"
-        assert fig_default.data[1].x[0] == "Oct-25"
+        assert fig_default.data[1].x[-1] == "Oct-26"
+        assert fig_default.data[1].x[0] == "Nov-25"
 
         # Custom user data
         custom_data = {
-            "Oct-25": 80, "Nov-25": 82, "Dec-25": 90, "Jan-26": 85,
-            "Feb-26": 88, "Mar-26": 74, "Apr-26": 95, "May-26": 90,
-            "Jun-26": 50, "Jul-26": 70, "Aug-26": 85, "Sep-26": 96,
+            "Nov-25": 80, "Dec-25": 82, "Jan-26": 90, "Feb-26": 85,
+            "Mar-26": 88, "Apr-26": 74, "May-26": 95, "Jun-26": 90,
+            "Jul-26": 50, "Aug-26": 70, "Sep-26": 85, "Oct-26": 96,
         }
         fig_custom = patch_compliance_ytd_trend_line(custom_data, theme_mode="light", ref_date=date(2026, 11, 5))
         assert isinstance(fig_custom, go.Figure)

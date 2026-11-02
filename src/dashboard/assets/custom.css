@@ -16,6 +16,29 @@
     transition: all 0.4s ease-in-out;
 }
 
+/* Form Controls & Radio Buttons */
+.form-check-input {
+    border: 1.8px solid #475569 !important;
+    background-color: #FFFFFF !important;
+    cursor: pointer;
+}
+.theme-dark .form-check-input {
+    border: 1.8px solid #8B949E !important;
+    background-color: #161B22 !important;
+}
+.form-check-input:checked {
+    background-color: #0969DA !important;
+    border-color: #0969DA !important;
+}
+.theme-light .form-check-label {
+    color: #0F172A !important;
+    font-weight: 600;
+}
+.theme-dark .form-check-label {
+    color: #E6EDF3 !important;
+    font-weight: 600;
+}
+
 /* Light Theme Core */
 .theme-light {
     background-color: #F8FAFC !important;

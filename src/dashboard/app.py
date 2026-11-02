@@ -328,14 +328,14 @@ def create_app(get_data_fn=None) -> dash.Dash:
             p_red = 60.0
 
         try:
-            p_amber = float(request.args.get("patch_amber", 84.0))
+            p_amber = float(request.args.get("patch_amber", 90.0))
         except (ValueError, TypeError):
-            p_amber = 84.0
+            p_amber = 90.0
 
         try:
-            p_green = float(request.args.get("patch_green", 85.0))
+            p_green = float(request.args.get("patch_green", 90.0))
         except (ValueError, TypeError):
-            p_green = 85.0
+            p_green = 90.0
 
         return get_data_fn(
             active_org_id=org_id,

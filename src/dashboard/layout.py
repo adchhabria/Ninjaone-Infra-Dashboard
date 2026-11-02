@@ -907,8 +907,9 @@ def build_tab_content(
     active_tab: str = "tab-executive",
     eol_days: int = 180,
     patch_red: float = 60.0,
-    patch_amber: float = 84.0,
-    patch_green: float = 85.0,
+    patch_amber: float = 90.0,
+    green_target: float = 90.0,
+    patch_green: float = 90.0,
     theme_mode: str = "light",
 ) -> html.Div:
     """Renders the inner content for the currently active tab."""
@@ -993,8 +994,9 @@ def build_body(
     active_tab: str = "tab-executive",
     eol_days: int = 180,
     patch_red: float = 60.0,
-    patch_amber: float = 84.0,
-    patch_green: float = 85.0,
+    patch_amber: float = 90.0,
+    green_target: float = 90.0,
+    patch_green: float = 90.0,
     theme_mode: str = "light",
 ) -> html.Div:
     """Builds the main container with dropdown filters, map, tab bar, and tab content."""
@@ -1130,8 +1132,8 @@ def build_layout(data, theme_mode: str = "light") -> html.Div:
             dcc.Store(id="threshold-settings-store", data={
                 "eol_days": int(os.getenv("EOL_THRESHOLD_DAYS", "180")),
                 "patch_red": float(os.getenv("PATCH_RED_LIMIT", "60.0")),
-                "patch_amber": float(os.getenv("PATCH_AMBER_LIMIT", "84.0")),
-                "patch_green": float(os.getenv("PATCH_GREEN_TARGET", "85.0")),
+                "patch_amber": float(os.getenv("PATCH_AMBER_LIMIT", "90.0")),
+                "patch_green": float(os.getenv("PATCH_GREEN_TARGET", "90.0")),
                 "custom_eol_dates": {
                     "Windows Server 2008": "01/14/2020",
                     "Windows Server 2012": "10/10/2023",

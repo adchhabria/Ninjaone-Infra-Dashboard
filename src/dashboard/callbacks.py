@@ -36,6 +36,7 @@ from src.utils.updater import (
     get_update_state,
     reset_update_state,
     apply_update_and_restart,
+    execute_restart_and_exit,
 )
 
 console = Console()
@@ -151,8 +152,8 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {
             "eol_days": 180,
             "patch_red": 60.0,
-            "patch_amber": 84.0,
-            "patch_green": 85.0,
+            "patch_amber": 90.0,
+            "patch_green": 90.0,
         }
 
         is_tab_switch_only = triggered_id in [
@@ -204,8 +205,8 @@ def register_callbacks(app, get_data_fn=None):
         # Query metrics using coordinator
         eol_days_val = int(ts_settings.get("eol_days", 180))
         p_red = float(ts_settings.get("patch_red", 60.0))
-        p_amber = float(ts_settings.get("patch_amber", 84.0))
-        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_amber = float(ts_settings.get("patch_amber", 90.0))
+        p_green = float(ts_settings.get("patch_green", 90.0))
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
         inc_kw = ts_settings.get("included_keywords", None)
         exc_prod = ts_settings.get("excluded_products", None)
@@ -403,8 +404,8 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
         p_red = float(ts_settings.get("patch_red", 60.0))
-        p_amber = float(ts_settings.get("patch_amber", 84.0))
-        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_amber = float(ts_settings.get("patch_amber", 90.0))
+        p_green = float(ts_settings.get("patch_green", 90.0))
         p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
@@ -452,8 +453,8 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
         p_red = float(ts_settings.get("patch_red", 60.0))
-        p_amber = float(ts_settings.get("patch_amber", 84.0))
-        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_amber = float(ts_settings.get("patch_amber", 90.0))
+        p_green = float(ts_settings.get("patch_green", 90.0))
         p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
@@ -477,11 +478,17 @@ def register_callbacks(app, get_data_fn=None):
         )
 
         theme_mode = current_theme or "dark"
-        pdf_bytes = generate_pdf_report(data, theme_mode=theme_mode)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        scope = _get_scope_filename_tag(data)
-        filename = f"NinjaOne_Executive_Compliance_Audit_{scope}_{ts}.pdf"
-        return dcc.send_bytes(pdf_bytes, filename=filename)
+        try:
+            pdf_bytes = generate_pdf_report(data, theme_mode=theme_mode)
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            scope = _get_scope_filename_tag(data)
+            filename = f"NinjaOne_Executive_Compliance_Audit_{scope}_{ts}.pdf"
+            return dcc.send_bytes(pdf_bytes, filename=filename)
+        except Exception as e:
+            console.log(f"[bold red]PDF Generation Exception:[/bold red] {e}")
+            import traceback
+            traceback.print_exc()
+            return no_update
 
     # -----------------------------------------------------------------------
     # 2c. Standalone Interactive HTML Report Download / Share (.html)
@@ -503,8 +510,8 @@ def register_callbacks(app, get_data_fn=None):
         ts_settings = threshold_settings or {"eol_days": 180}
         eol_days_val = int(ts_settings.get("eol_days", 180))
         p_red = float(ts_settings.get("patch_red", 60.0))
-        p_amber = float(ts_settings.get("patch_amber", 84.0))
-        p_green = float(ts_settings.get("patch_green", 85.0))
+        p_amber = float(ts_settings.get("patch_amber", 90.0))
+        p_green = float(ts_settings.get("patch_green", 90.0))
         p_type = filter_state.get("patch_type", "both")
         c_eol_dates = ts_settings.get("custom_eol_dates", None)
 
@@ -874,8 +881,8 @@ def register_callbacks(app, get_data_fn=None):
 
             eol_val = int(eol_threshold or 180)
             p_red = float(patch_red_limit or 60.0)
-            p_amber = float(patch_amber_limit or 84.0)
-            p_green = float(patch_green_target or 85.0)
+            p_amber = float(patch_amber_limit or 90.0)
+            p_green = float(patch_green_target or 90.0)
 
             custom_eol = {
                 "Windows Server 2008": eol_win2008 or "01/14/2020",
@@ -1236,7 +1243,7 @@ def register_callbacks(app, get_data_fn=None):
             )
             return content, content, False
 
-        elif status == "restarting":
+        elif status in ("restarting", "completed"):
             content = html.Div(
                 [
                     dbc.Progress(
@@ -1248,15 +1255,34 @@ def register_callbacks(app, get_data_fn=None):
                     ),
                     dbc.Alert(
                         [
-                            html.B("✅ Download Complete! "),
-                            "Synchronizing local files and restarting NinjaOne Infra Dashboard in 2 seconds...",
+                            html.H6("✅ Update Downloaded & Ready to Apply!", className="alert-heading mb-1"),
+                            html.P(
+                                "The latest build has been downloaded and staged. Click 'Restart Dashboard Now' to launch the updated version, or simply relaunch the application later at your convenience.",
+                                style={"fontSize": "0.85rem", "marginBottom": "10px"},
+                            ),
+                            html.Div(
+                                [
+                                    dbc.Button(
+                                        "🔄 Restart Dashboard Now",
+                                        id="btn-restart-app-now",
+                                        color="success",
+                                        size="sm",
+                                        className="me-2",
+                                    ),
+                                    html.Span(
+                                        "Manual restart: close this window and start Ninjaone-Infra-Dashboard.exe",
+                                        style={"fontSize": "0.78rem", "color": "#64748B"},
+                                    ),
+                                ],
+                                className="d-flex align-items-center flex-wrap gap-2",
+                            ),
                         ],
                         color="success",
                         className="mb-0",
                     ),
                 ]
             )
-            return content, content, False
+            return content, content, True
 
         elif status == "failed":
             content = dbc.Alert(
@@ -1270,4 +1296,18 @@ def register_callbacks(app, get_data_fn=None):
             return content, content, True
 
         return no_update, no_update, no_update
+
+    @app.callback(
+        Output("update-prompt-status", "children", allow_duplicate=True),
+        Input("btn-restart-app-now", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def handle_restart_now(n_clicks):
+        if not n_clicks:
+            return no_update
+        try:
+            execute_restart_and_exit()
+        except Exception as e:
+            console.log(f"[bold red]Restart error:[/bold red] {e}")
+        return dbc.Alert("Restarting dashboard...", color="info")
 

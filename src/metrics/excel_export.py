@@ -176,14 +176,6 @@ def generate_excel_workbook(data: DashboardData) -> bytes:
             df_top_patches.to_excel(writer, sheet_name="Top Pending Patches", index=False)
         if not df_orgs.empty:
             df_orgs.to_excel(writer, sheet_name="Organization Compliance", index=False)
-        if not df_eol.empty:
-            df_eol.to_excel(writer, sheet_name="EOL Device Ledger", index=False)
-        if not df_patches.empty:
-            df_patches.to_excel(writer, sheet_name="Patch SLA Aging", index=False)
-        if not df_failed.empty:
-            df_failed.to_excel(writer, sheet_name="Patch Failures", index=False)
-        if not df_reboot.empty:
-            df_reboot.to_excel(writer, sheet_name="Needs Reboot", index=False)
 
         # 3. Format and Style All Sheets
         wb = writer.book

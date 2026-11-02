@@ -22,12 +22,14 @@ class TestExcelExport:
 
         assert "Executive Summary" in sheet_names
         assert "Organization Compliance" in sheet_names
-        assert "EOL Device Ledger" in sheet_names
-        assert "Patch SLA Aging" in sheet_names
-        assert "Needs Reboot" in sheet_names
-        assert "Patch Failures" in sheet_names
         assert "Top Pending Servers" in sheet_names
         assert "Top Pending Patches" in sheet_names
+
+        # User requirement 3: verify removed sheets
+        assert "EOL Device Ledger" not in sheet_names
+        assert "Patch SLA Aging" not in sheet_names
+        assert "Needs Reboot" not in sheet_names
+        assert "Patch Failures" not in sheet_names
 
         # Verify Executive Summary has rows
         ws = wb["Executive Summary"]

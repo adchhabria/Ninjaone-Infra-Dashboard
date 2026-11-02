@@ -20,7 +20,7 @@ import urllib.request
 from typing import Callable, Optional
 from packaging import version
 
-CURRENT_VERSION = "1.0.20"
+CURRENT_VERSION = "1.0.21"
 GITHUB_REPO = "adchhabria/Ninjaone-Infra-Dashboard"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RAW_VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
@@ -288,14 +288,6 @@ def _run_update_download(download_url: str) -> None:
                     message=f"Downloading: {dl_mb:.1f} MB / {tot_mb:.1f} MB ({pct}%)",
                 )
 
-        _set_update_state(
-            status="restarting",
-            progress=100,
-            downloaded_mb=tot_mb,
-            total_mb=tot_mb,
-            message="Download complete! Synchronizing files and restarting...",
-        )
-
         # 2. Write self-updating Windows batch script
         batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
         current_pid = os.getpid()
@@ -319,7 +311,27 @@ del /F /Q "{current_target}.old" > nul 2>&1
         with open(batch_path, "w", encoding="utf-8") as f:
             f.write(batch_content)
 
-        # 3. Launch batch updater detached from this process
+        _set_update_state(
+            status="completed",
+            progress=100,
+            downloaded_mb=tot_mb,
+            total_mb=tot_mb,
+            message="Download complete! The update has been staged.",
+        )
+
+    except Exception as e:
+        _set_update_state(
+            status="failed",
+            error=str(e),
+            message=f"Update failed: {str(e)}",
+        )
+
+
+def execute_restart_and_exit() -> None:
+    """Executes the detached updater batch script and cleanly terminates the current instance."""
+    temp_dir = tempfile.gettempdir()
+    batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
+    if os.path.exists(batch_path):
         creation_flags = 0
         if sys.platform == "win32":
             creation_flags = (
@@ -335,14 +347,5 @@ del /F /Q "{current_target}.old" > nul 2>&1
             )
         else:
             subprocess.Popen(["bash", batch_path], close_fds=True)
-
-        # 4. Wait 2 seconds so Dash can send the 'restarting' state to the UI, then cleanly exit
-        time.sleep(2.0)
-        os._exit(0)
-
-    except Exception as e:
-        _set_update_state(
-            status="failed",
-            error=str(e),
-            message=f"Update failed: {str(e)}",
-        )
+    time.sleep(1.0)
+    os._exit(0)

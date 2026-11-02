@@ -35,8 +35,8 @@ def generate_html_report(
 
     # Resolve dynamic compliance thresholds
     red_limit = float(patch_red if patch_red is not None else getattr(data, "patch_red", 60.0))
-    amber_limit = float(patch_amber if patch_amber is not None else getattr(data, "patch_amber", 84.0))
-    green_target = float(patch_green if patch_green is not None else getattr(data, "patch_green", 85.0))
+    amber_limit = float(patch_amber if patch_amber is not None else getattr(data, "patch_amber", 90.0))
+    green_target = float(patch_green if patch_green is not None else getattr(data, "patch_green", 90.0))
 
     # Generate Chart HTMLs with theme_mode
     win_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}), theme_mode=theme_mode)

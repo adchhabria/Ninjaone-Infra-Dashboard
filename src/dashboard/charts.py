@@ -111,8 +111,11 @@ def world_map_chart(map_data: list[dict], selected_region: Optional[str] = None,
         resolution=110,
     )
 
-    # Region focus zoom
-    if selected_region == "APAC / Asia":
+    # Region focus zoom or single-country focus zoom
+    if len(map_data) == 1:
+        geo_config["center"] = dict(lat=map_data[0].get("lat", 20), lon=map_data[0].get("lon", 0))
+        geo_config["projection_scale"] = 3.6
+    elif selected_region == "APAC / Asia":
         geo_config["center"] = dict(lat=20, lon=105)
         geo_config["projection_scale"] = 2.2
     elif selected_region == "USA / North America":
@@ -151,14 +154,13 @@ def windows_os_donut(windows_version_counts: dict[str, int], theme_mode: str = "
         go.Pie(
             labels=labels,
             values=values,
-            hole=0.55,
+            hole=0.60,
             marker=dict(line=dict(color=p["bg_card"], width=2)),
-            textinfo="label+percent",
-            textfont=dict(color=p["text_primary"], size=10),
+            textinfo="none",
             hovertemplate="<b>%{label}</b><br>%{value} Windows devices (%{percent})<extra></extra>",
         )
     )
-    fig.update_layout(showlegend=True, height=270)
+    fig.update_layout(showlegend=True, height=285, margin=dict(t=30, b=15, l=15, r=15))
     return _apply_theme(fig, "Windows OS Builds Breakdown", theme_mode=theme_mode)
 
 
@@ -175,14 +177,13 @@ def linux_os_donut(linux_version_counts: dict[str, int], theme_mode: str = "dark
         go.Pie(
             labels=labels,
             values=values,
-            hole=0.55,
+            hole=0.60,
             marker=dict(line=dict(color=p["bg_card"], width=2)),
-            textinfo="label+percent",
-            textfont=dict(color=p["text_primary"], size=10),
+            textinfo="none",
             hovertemplate="<b>%{label}</b><br>%{value} Linux systems (%{percent})<extra></extra>",
         )
     )
-    fig.update_layout(showlegend=True, height=270)
+    fig.update_layout(showlegend=True, height=285, margin=dict(t=30, b=15, l=15, r=15))
     return _apply_theme(fig, "Linux Distributions Breakdown", theme_mode=theme_mode)
 
 
@@ -201,14 +202,13 @@ def eol_status_donut(eol_status_counts: dict[str, int], theme_mode: str = "dark"
         go.Pie(
             labels=labels,
             values=values,
-            hole=0.60,
+            hole=0.62,
             marker=dict(colors=colors, line=dict(color=p["bg_card"], width=2)),
-            textinfo="label+value",
-            textfont=dict(color=p["text_primary"], size=11),
+            textinfo="none",
             hovertemplate="<b>%{label}</b><br>%{value} devices (%{percent})<extra></extra>",
         )
     )
-    fig.update_layout(showlegend=True, height=240)
+    fig.update_layout(showlegend=True, height=255, margin=dict(t=30, b=15, l=15, r=15))
     return _apply_theme(fig, "Lifecycle & Support Status", theme_mode=theme_mode)
 
 
@@ -229,15 +229,12 @@ def eol_by_os_bar(eol_by_os_counts: dict[str, int], theme_mode: str = "dark") ->
             orientation="h",
             marker=dict(color=T.RAG_RED, line=dict(color=p["bg_card"], width=1)),
             hovertemplate="<b>%{y}</b><br>%{x} at-risk devices<extra></extra>",
-            text=values,
-            textposition="outside",
-            textfont=dict(color=p["text_primary"], size=10),
         )
     )
     fig.update_layout(
         xaxis_title="Affected Devices",
         yaxis_title="",
-        height=240,
+        height=250,
         xaxis=dict(tickfont=dict(color=p["text_secondary"]), title=dict(font=dict(color=p["text_secondary"]))),
         yaxis=dict(tickfont=dict(color=p["text_secondary"])),
     )
@@ -265,15 +262,12 @@ def server_role_bar(role_counts: dict[str, int], theme_mode: str = "dark") -> go
                 line=dict(color=p["bg_card"], width=1),
             ),
             hovertemplate="<b>%{y}</b><br>%{x} servers<extra></extra>",
-            text=values,
-            textposition="outside",
-            textfont=dict(color=p["text_primary"], size=10),
         )
     )
     fig.update_layout(
         xaxis_title="Count",
         yaxis_title="",
-        height=260,
+        height=270,
         xaxis=dict(tickfont=dict(color=p["text_secondary"]), title=dict(font=dict(color=p["text_secondary"]))),
         yaxis=dict(tickfont=dict(color=p["text_secondary"])),
     )
@@ -307,14 +301,13 @@ def hosting_donut(hosting_counts: dict[str, int], filter_mode: str = "all", them
         go.Pie(
             labels=labels,
             values=values,
-            hole=0.55,
+            hole=0.60,
             marker=dict(colors=colors, line=dict(color=p["bg_card"], width=2)),
-            textinfo="label+percent",
-            textfont=dict(color=p["text_primary"], size=11),
+            textinfo="none",
             hovertemplate="<b>%{label}</b><br>%{value} devices (%{percent})<extra></extra>",
         )
     )
-    fig.update_layout(showlegend=True, height=270)
+    fig.update_layout(showlegend=True, height=285, margin=dict(t=30, b=15, l=15, r=15))
     return _apply_theme(fig, title, theme_mode=theme_mode)
 
 
@@ -432,10 +425,8 @@ DEFAULT_YTD_TREND: dict[str, float] = {
 def get_patch_cycle_current_month(ref_date: datetime | date | None = None) -> tuple[int, int]:
     """
     Returns (year, month) of the current completed patching cycle.
-    In enterprise IT, Microsoft Patch Tuesday occurs on the 2nd Tuesday of each month.
-    The current compliance cycle being published is N-1 (the previous calendar month).
-    If ref_date is on or after the 2nd Tuesday of month M, the published cycle is M-1.
-    If ref_date is before the 2nd Tuesday of month M, the published cycle is M-2.
+    The current compliance cycle being published is N-1 (the previous calendar month based on today's date).
+    For example, on November 2, 2026, the current completed month is October 2026.
     """
     if ref_date is None:
         ref_date = datetime.now().date()
@@ -445,19 +436,8 @@ def get_patch_cycle_current_month(ref_date: datetime | date | None = None) -> tu
     year = ref_date.year
     month = ref_date.month
 
-    # Find the 2nd Tuesday of the current month
-    # weekday(): Monday=0, Tuesday=1, ..., Sunday=6
-    first_day_weekday = date(year, month, 1).weekday()
-    first_tuesday_day = 1 + (1 - first_day_weekday) % 7
-    second_tuesday_day = first_tuesday_day + 7
-    second_tuesday = date(year, month, second_tuesday_day)
-
-    if ref_date >= second_tuesday:
-        cycle_offset = 1  # N-1
-    else:
-        cycle_offset = 2  # N-2 (prior cycle still active)
-
-    total_months = year * 12 + (month - 1) - cycle_offset
+    # Always N-1 relative to today's month
+    total_months = year * 12 + (month - 1) - 1
     cycle_year = total_months // 12
     cycle_month = (total_months % 12) + 1
     return cycle_year, cycle_month
@@ -482,14 +462,15 @@ def get_patch_cycle_12_months(ref_date: datetime | date | None = None) -> list[s
 def patch_gauge(
     patch_pct: float,
     red_limit: float = 60.0,
-    amber_limit: float = 84.0,
-    green_target: float = 85.0,
+    amber_limit: float = 90.0,
+    green_target: float = 90.0,
     theme_mode: str = "light",
 ) -> go.Figure:
     """
     Speedometer gauge — overall patch coverage % with 5-point meter bar divisions.
     Solid RAG color steps: Red (0 to red_limit), Amber (red_limit to amber_limit), Green (amber_limit to 100).
     Title: 'Current month patch compliance'.
+    Default thresholds: Red Max = 60%, Amber Max = 90%, Green Target = 90%.
     """
     p = T.get_theme_palette(theme_mode)
     color = (
@@ -539,13 +520,13 @@ def patch_gauge(
 
 def patch_compliance_ytd_trend_line(
     trend_data: dict[str, float] | None = None,
-    green_target: float = 85.0,
+    green_target: float = 90.0,
     theme_mode: str = "light",
     ref_date: datetime | date | None = None,
 ) -> go.Figure:
     """
     Line chart — Year-to-Date (YTD) Patch Compliance trend over 12 rolling months
-    aligned to the enterprise 2nd Tuesday patching cycle (N-1).
+    aligned to the enterprise patching cycle (N-1 from today's date).
     """
     p = T.get_theme_palette(theme_mode)
     rolling_months = get_patch_cycle_12_months(ref_date)
@@ -563,7 +544,7 @@ def patch_compliance_ytd_trend_line(
 
     fig = go.Figure()
 
-    # Target Benchmark Line (e.g. 85%)
+    # Target Benchmark Line (e.g. 90%)
     fig.add_trace(
         go.Scatter(
             x=months,
@@ -589,7 +570,7 @@ def patch_compliance_ytd_trend_line(
         go.Scatter(
             x=months,
             y=values,
-            mode="lines+markers+text",
+            mode="lines+markers",
             name="Compliance %",
             line=dict(color=line_color, width=3, shape="spline"),
             marker=dict(
@@ -597,9 +578,6 @@ def patch_compliance_ytd_trend_line(
                 color=marker_colors,
                 line=dict(color="#FFFFFF" if theme_mode == "dark" else "#1E293B", width=1.5),
             ),
-            text=[f"{v:.0f}%" for v in values],
-            textposition="top center",
-            textfont=dict(size=10, color=p["text_primary"]),
             fill="tozeroy",
             fillcolor=fill_color,
             hovertemplate="<b>%{x}</b><br>Compliance: <b>%{y:.1f}%</b><extra></extra>",
@@ -656,9 +634,6 @@ def patch_sla_aging_bar(sla_counts: dict[str, int], theme_mode: str = "dark") ->
             y=values,
             marker=dict(color=colors, line=dict(color=p["bg_card"], width=1)),
             hovertemplate="<b>%{x}</b><br>%{y} pending patches<extra></extra>",
-            text=values,
-            textposition="outside",
-            textfont=dict(color=p["text_primary"], size=11, family="Inter, sans-serif"),
         )
     )
     fig.update_layout(
@@ -682,14 +657,13 @@ def patch_type_donut(type_counts: dict[str, int], theme_mode: str = "dark") -> g
         go.Pie(
             labels=labels,
             values=values,
-            hole=0.55,
+            hole=0.60,
             marker=dict(colors=colors, line=dict(color=p["bg_card"], width=2)),
-            textinfo="label+percent",
-            textfont=dict(color=p["text_primary"], size=11),
+            textinfo="none",
             hovertemplate="<b>%{label}</b><br>%{value} patches (%{percent})<extra></extra>",
         )
     )
-    fig.update_layout(showlegend=True, height=250)
+    fig.update_layout(showlegend=True, height=285, margin=dict(t=30, b=15, l=15, r=15))
     return _apply_theme(fig, "Patch Category Breakdown", theme_mode=theme_mode)
 
 

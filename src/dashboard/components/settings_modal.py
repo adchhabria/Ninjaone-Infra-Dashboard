@@ -42,11 +42,11 @@ def build_settings_modal(theme_mode: str = "light") -> dbc.Modal:
     has_secret = bool(os.getenv("NINJA_CLIENT_SECRET"))
     auth_method = os.getenv("NINJA_AUTH_METHOD", "pkce")
 
-    # Threshold defaults
+    # Threshold defaults (Red Max = 60%, Amber Max = 90%, Green Target = 90%)
     eol_threshold = int(os.getenv("EOL_THRESHOLD_DAYS", "180"))
     patch_red = float(os.getenv("PATCH_RED_LIMIT", "60.0"))
-    patch_amber = float(os.getenv("PATCH_AMBER_LIMIT", "84.0"))
-    patch_green = float(os.getenv("PATCH_GREEN_TARGET", "85.0"))
+    patch_amber = float(os.getenv("PATCH_AMBER_LIMIT", "90.0"))
+    patch_green = float(os.getenv("PATCH_GREEN_TARGET", "90.0"))
 
     # Determine initial region dropdown value
     initial_region = current_url if any(r["value"] == current_url for r in NINJA_REGIONS[:-1]) else "custom"
