@@ -394,5 +394,71 @@ def test_actual_filter_names_in_active_filter_label_and_reports():
     assert len(pdf_out) > 1000
 
 
+def test_patch_operations_details_tab_and_tables():
+    """Verify that Patch Operations Details renders the 2 new tables with exact requested columns."""
+    from src.dashboard.components.sla_panel import build_sla_panel, _TOP_SERVERS_COLUMNS, _TOP_PATCHES_COLUMNS
+    from scripts.generate_sample_data import get_mock_dashboard_data
+
+    mock_data = get_mock_dashboard_data()
+    panel = build_sla_panel(mock_data.sla, mock_data.patches, theme_mode="light")
+    panel_str = str(panel)
+
+    # Check table IDs
+    assert "top-servers-pending-table" in panel_str
+    assert "top-patches-pending-table" in panel_str
+
+    # Check Table 1 column headers
+    server_col_names = [col["name"] for col in _TOP_SERVERS_COLUMNS]
+    assert server_col_names == ["Server Name", "Org", "Loc", "OS name", "Device Role", "Approve patch Count"]
+
+    # Check Table 2 column headers
+    patch_col_names = [col["name"] for col in _TOP_PATCHES_COLUMNS]
+    assert patch_col_names == [
+        "Patch Name",
+        "Patch Type (Critical / Important)",
+        "OS/Software type patch",
+        "Pending device count",
+        "Patch release date",
+    ]
+
+
+def test_patch_panel_donut_chart_inclusion():
+    """Verify that OS vs 3rd-Party Software Breakdown donut chart is in build_patch_panel."""
+    from src.dashboard.components.patch_panel import build_patch_panel
+    from scripts.generate_sample_data import get_mock_dashboard_data
+
+    mock_data = get_mock_dashboard_data()
+    panel = build_patch_panel(mock_data.patches, theme_mode="light", sla_data=mock_data.sla)
+    panel_str = str(panel)
+
+    assert "patch-type-donut" in panel_str
+    assert "fleet-patch-coverage-gauge" in panel_str
+    assert "patch-compliance-ytd-line" in panel_str
+
+
+def test_navigation_renamed_patch_operations_details():
+    """Verify navigation tab is renamed to 'Patch Operations Details'."""
+    from src.dashboard.layout import build_body
+    from scripts.generate_sample_data import get_mock_dashboard_data
+
+    mock_data = get_mock_dashboard_data()
+    body = build_body(mock_data)
+    body_str = str(body)
+
+    assert "Patch Operations Details" in body_str
+    assert "Patch Operations & SLA Aging" not in body_str
+
+
+def test_settings_modal_5_columns_eol_layout():
+    """Verify Section 5 in Settings Modal uses 5-column layout for compact display."""
+    from src.dashboard.components.settings_modal import build_settings_modal
+
+    modal = build_settings_modal(theme_mode="light")
+    modal_str = str(modal)
+
+    assert "0 0 20%" in modal_str
+
+
+
 
 

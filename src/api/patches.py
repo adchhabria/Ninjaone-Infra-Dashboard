@@ -66,18 +66,21 @@ def is_os_security_or_cumulative_patch(
 class FleetPatchResult(tuple):
     """
     Backwards-compatible tuple that unpacks as (os_counts, sw_counts) for legacy callers,
-    while providing attributes for os_sec_counts, os_sec_names, discovered_titles, and all_uninstalled_names.
+    while providing attributes for os_sec_counts, os_sec_names, discovered_titles, all_uninstalled_names,
+    raw_os_patches, and raw_sw_patches.
     """
-    def __new__(cls, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None, all_uninstalled_names=None):
+    def __new__(cls, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None, all_uninstalled_names=None, raw_os_patches=None, raw_sw_patches=None):
         return super().__new__(cls, (os_counts, sw_counts))
 
-    def __init__(self, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None, all_uninstalled_names=None):
+    def __init__(self, os_counts, sw_counts, os_sec_counts=None, os_sec_names=None, discovered_titles=None, all_uninstalled_names=None, raw_os_patches=None, raw_sw_patches=None):
         self.os_counts = os_counts
         self.sw_counts = sw_counts
         self.os_sec_counts = os_sec_counts or {}
         self.os_sec_names = os_sec_names or {}
         self.discovered_titles = discovered_titles or []
         self.all_uninstalled_names = all_uninstalled_names or {}
+        self.raw_os_patches = raw_os_patches or []
+        self.raw_sw_patches = raw_sw_patches or []
 
 
 def get_all_os_patches(client: NinjaOneClient) -> list[dict[str, Any]]:
@@ -284,4 +287,13 @@ def get_fleet_patch_counts(
     else:
         sw_counts = {}
 
-    return FleetPatchResult(os_counts, sw_counts, sec_counts, sec_names, discovered_titles, dev_all_uninstalled_names)
+    return FleetPatchResult(
+        os_counts,
+        sw_counts,
+        sec_counts,
+        sec_names,
+        discovered_titles,
+        dev_all_uninstalled_names,
+        raw_os_patches=os_patches,
+        raw_sw_patches=sw_patches,
+    )

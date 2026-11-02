@@ -931,9 +931,9 @@ def build_tab_content(
                     dbc.Col(build_server_hosting_panel(data.servers, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
-                # Row 4: Speedometer Patch Gauge & Year-to-Date (YTD) Trend Line Chart
+                # Row 4: Speedometer Patch Gauge, YTD Trend Line Chart & OS vs 3rd-Party Breakdown
                 dbc.Row(
-                    dbc.Col(build_patch_panel(data.patches, red_limit=patch_red, amber_limit=patch_amber, green_target=patch_green, theme_mode=theme_mode, ytd_trend_data=getattr(data, "ytd_trend", None)), width=12),
+                    dbc.Col(build_patch_panel(data.patches, red_limit=patch_red, amber_limit=patch_amber, green_target=patch_green, theme_mode=theme_mode, ytd_trend_data=getattr(data, "ytd_trend", None), sla_data=getattr(data, "sla", None)), width=12),
                     className="mb-4",
                 ),
                 # Row 5: EOL Compliance & Risk Analysis
@@ -1050,7 +1050,7 @@ def build_body(
                                     style={"fontWeight": "600", "cursor": "pointer"},
                                 ),
                                 dbc.NavLink(
-                                    [html.Span("⏱️", style={"marginRight": "6px"}), "Patch Operations & SLA Aging"],
+                                    [html.Span("⏱️", style={"marginRight": "6px"}), "Patch Operations Details"],
                                     id="nav-tab-patch-ops",
                                     active=(active_tab == "tab-patch-ops"),
                                     href="#",

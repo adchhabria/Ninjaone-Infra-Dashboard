@@ -454,11 +454,11 @@ def build_settings_modal(theme_mode: str = "light") -> dbc.Modal:
 
                                     html.Hr(style={"borderColor": T.BORDER}),
 
-                                    # 5. OS Server EOL Dates (MM/DD/YYYY format) - Compact 4 per line
+                                    # 5. OS Server EOL Dates (MM/DD/YYYY format) - Compact 5 per line
                                     html.Div(
                                         [
                                             dbc.Label("5. OS Server EOL Dates (MM/DD/YYYY format)", style=T.FONT_KPI_LABEL),
-                                            html.P("Operating system End-of-Life deadlines (compact grid view).",
+                                            html.P("Operating system End-of-Life deadlines (compact 5 per row).",
                                                    className="text-secondary",
                                                    style={"fontSize": "0.78rem", "marginBottom": "8px"}),
                                             dbc.Row(
@@ -468,80 +468,80 @@ def build_settings_modal(theme_mode: str = "light") -> dbc.Modal:
                                                             dbc.Label("Win Server 2008 / R2", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-win2008", type="text", size="sm", placeholder="01/14/2020", value="01/14/2020", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Win Server 2012 / R2", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-win2012", type="text", size="sm", placeholder="10/10/2023", value="10/10/2023", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Win Server 2016", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-win2016", type="text", size="sm", placeholder="01/12/2027", value="01/12/2027", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Win Server 2019", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-win2019", type="text", size="sm", placeholder="01/09/2029", value="01/09/2029", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Win Server 2022", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-win2022", type="text", size="sm", placeholder="10/14/2031", value="10/14/2031", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Win Server 2025", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-win2025", type="text", size="sm", placeholder="10/10/2034", value="10/10/2034", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Ubuntu Server LTS", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-ubuntu", type="text", size="sm", placeholder="04/30/2025", value="04/30/2025", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("RHEL Server", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-rhel", type="text", size="sm", placeholder="06/30/2024", value="06/30/2024", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("CentOS Server", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-centos", type="text", size="sm", placeholder="06/30/2024", value="06/30/2024", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                     dbc.Col(
                                                         [
                                                             dbc.Label("Debian Server", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
                                                             dbc.Input(id="settings-eol-debian", type="text", size="sm", placeholder="06/30/2026", value="06/30/2026", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        lg=3, md=4, sm=6, xs=12,
-                                                        className="mb-2",
+                                                        className="col-12 col-sm-6 col-md-4 col-lg-custom-5 mb-2",
+                                                        style={"flex": "0 0 20%", "maxWidth": "20%"},
                                                     ),
                                                 ],
                                                 className="g-2 mb-2",

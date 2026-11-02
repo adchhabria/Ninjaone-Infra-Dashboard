@@ -234,6 +234,8 @@ def compute_dashboard_slice(
     excluded_products: list[str] | None = None,
     selected_patch_titles: list[str] | None = None,
     ytd_trend: dict[str, float] | None = None,
+    raw_os_patches: list[dict] | None = None,
+    raw_sw_patches: list[dict] | None = None,
 ) -> DashboardData:
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
@@ -430,6 +432,8 @@ def compute_dashboard_slice(
         activities,
         org_name_map=org_name_map,
         patch_type=active_patch_type,
+        raw_os_patches=raw_os_patches,
+        raw_sw_patches=raw_sw_patches,
     )
 
     # 4. KPI Summary
@@ -740,7 +744,11 @@ class MetricsAggregator:
                         self._cache.set(cache_key, raw_bundle)
                         self._slice_cache.clear()
 
-        orgs, devices, activities = raw_bundle
+        if len(raw_bundle) >= 5:
+            orgs, devices, activities, raw_os, raw_sw = raw_bundle[:5]
+        else:
+            orgs, devices, activities = raw_bundle[:3]
+            raw_os, raw_sw = getattr(self, "_raw_os_patches", None), getattr(self, "_raw_sw_patches", None)
         computed = compute_dashboard_slice(
             devices=devices,
             organizations=orgs,
@@ -760,6 +768,8 @@ class MetricsAggregator:
             excluded_products=excluded_products,
             selected_patch_titles=selected_patch_titles,
             ytd_trend=ytd_trend,
+            raw_os_patches=raw_os,
+            raw_sw_patches=raw_sw,
         )
         self._slice_cache[slice_key] = computed
         return computed
@@ -838,4 +848,8 @@ class MetricsAggregator:
             elif getattr(d, "approved_software_count", None) is None:
                 d.approved_software_count = 0
 
-        return orgs, devices, activities
+        raw_os = getattr(os_patch_counts, "raw_os_patches", []) or []
+        raw_sw = getattr(os_patch_counts, "raw_sw_patches", []) or []
+        self._raw_os_patches = raw_os
+        self._raw_sw_patches = raw_sw
+        return orgs, devices, activities, raw_os, raw_sw

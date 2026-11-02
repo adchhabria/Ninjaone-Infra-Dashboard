@@ -21,9 +21,11 @@ def build_patch_panel(
     green_target: float = 85.0,
     theme_mode: str = "light",
     ytd_trend_data: dict[str, float] | None = None,
+    sla_data: dict | None = None,
 ) -> dbc.Card:
     """
-    Renders Patch Compliance gauge with 5-point meter bar and Year-to-Date (YTD) Trend line graph.
+    Renders Patch Compliance gauge with 5-point meter bar, Year-to-Date (YTD) Trend line graph,
+    and OS vs 3rd-Party Software Breakdown donut chart.
     """
     p = T.get_theme_palette(theme_mode)
     pct = patch_data.get("patch_coverage_pct", 0.0)
@@ -33,6 +35,8 @@ def build_patch_panel(
 
     gauge_fig = charts.patch_gauge(pct, red_limit=red_limit, amber_limit=amber_limit, green_target=green_target, theme_mode=theme_mode)
     ytd_fig = charts.patch_compliance_ytd_trend_line(ytd_trend_data, green_target=green_target, theme_mode=theme_mode)
+    type_counts = (sla_data or {}).get("type_counts", {})
+    type_fig = charts.patch_type_donut(type_counts, theme_mode=theme_mode)
 
     badge_color = "success" if pct >= green_target else "warning" if pct > red_limit else "danger"
     status_text = f"🟢 Compliant (≥{int(green_target)}%)" if pct >= green_target else f"🟡 Warning ({int(red_limit)+1}-{int(amber_limit)}%)" if pct > red_limit else f"🔴 Critical (≤{int(red_limit)}%)"
@@ -100,7 +104,7 @@ def build_patch_panel(
                                         style={"height": "260px"},
                                     ),
                                 ],
-                                lg=5,
+                                lg=3,
                                 md=12,
                                 className="mb-3 mb-lg-0",
                             ),
@@ -113,7 +117,20 @@ def build_patch_panel(
                                         style={"height": "260px"},
                                     ),
                                 ],
-                                lg=7,
+                                lg=5,
+                                md=12,
+                                className="mb-3 mb-lg-0",
+                            ),
+                            dbc.Col(
+                                [
+                                    dcc.Graph(
+                                        id="patch-type-donut",
+                                        figure=type_fig,
+                                        config={"displayModeBar": False},
+                                        style={"height": "260px"},
+                                    ),
+                                ],
+                                lg=4,
                                 md=12,
                             ),
                         ],
