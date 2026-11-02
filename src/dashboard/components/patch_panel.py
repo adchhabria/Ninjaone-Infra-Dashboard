@@ -19,7 +19,7 @@ def build_patch_panel(
     red_limit: float = 60.0,
     amber_limit: float = 84.0,
     green_target: float = 85.0,
-    theme_mode: str = "dark",
+    theme_mode: str = "light",
     ytd_trend_data: dict[str, float] | None = None,
 ) -> dbc.Card:
     """

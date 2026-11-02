@@ -412,7 +412,7 @@ def create_app(get_data_fn=None) -> dash.Dash:
             active_os_family="All OS Families",
             active_patch_type="both",
         )
-        return build_layout(data)
+        return build_layout(data, theme_mode="light")
 
     app.layout = serve_layout
     register_callbacks(app, get_data_fn)

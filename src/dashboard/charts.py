@@ -12,6 +12,7 @@ Includes:
 
 from __future__ import annotations
 
+from datetime import datetime, date
 from typing import Any, Optional
 
 import plotly.graph_objects as go
@@ -424,7 +425,58 @@ DEFAULT_YTD_TREND: dict[str, float] = {
     "Jul-26": 70.0,
     "Aug-26": 85.0,
     "Sep-26": 96.0,
+    "Oct-26": 90.0,
 }
+
+
+def get_patch_cycle_current_month(ref_date: datetime | date | None = None) -> tuple[int, int]:
+    """
+    Returns (year, month) of the current completed patching cycle.
+    In enterprise IT, Microsoft Patch Tuesday occurs on the 2nd Tuesday of each month.
+    The current compliance cycle being published is N-1 (the previous calendar month).
+    If ref_date is on or after the 2nd Tuesday of month M, the published cycle is M-1.
+    If ref_date is before the 2nd Tuesday of month M, the published cycle is M-2.
+    """
+    if ref_date is None:
+        ref_date = datetime.now().date()
+    elif isinstance(ref_date, datetime):
+        ref_date = ref_date.date()
+
+    year = ref_date.year
+    month = ref_date.month
+
+    # Find the 2nd Tuesday of the current month
+    # weekday(): Monday=0, Tuesday=1, ..., Sunday=6
+    first_day_weekday = date(year, month, 1).weekday()
+    first_tuesday_day = 1 + (1 - first_day_weekday) % 7
+    second_tuesday_day = first_tuesday_day + 7
+    second_tuesday = date(year, month, second_tuesday_day)
+
+    if ref_date >= second_tuesday:
+        cycle_offset = 1  # N-1
+    else:
+        cycle_offset = 2  # N-2 (prior cycle still active)
+
+    total_months = year * 12 + (month - 1) - cycle_offset
+    cycle_year = total_months // 12
+    cycle_month = (total_months % 12) + 1
+    return cycle_year, cycle_month
+
+
+def get_patch_cycle_12_months(ref_date: datetime | date | None = None) -> list[str]:
+    """
+    Returns the 12 rolling months ending at the current completed patching cycle (N-1),
+    formatted as 'MMM-YY' (e.g., ['Nov-25', 'Dec-25', ..., 'Oct-26']).
+    """
+    cycle_year, cycle_month = get_patch_cycle_current_month(ref_date)
+    months = []
+    for i in range(11, -1, -1):
+        total = cycle_year * 12 + (cycle_month - 1) - i
+        y = total // 12
+        m = (total % 12) + 1
+        d = date(y, m, 1)
+        months.append(d.strftime("%b-%y"))
+    return months
 
 
 def patch_gauge(
@@ -432,14 +484,12 @@ def patch_gauge(
     red_limit: float = 60.0,
     amber_limit: float = 84.0,
     green_target: float = 85.0,
-    theme_mode: str = "dark",
+    theme_mode: str = "light",
 ) -> go.Figure:
     """
     Speedometer gauge — overall patch coverage % with 5-point meter bar divisions.
-    Customizable Thresholds:
-      0 to red_limit:        RED
-      red_limit to amber_limit: AMBER
-      green_target to 100:   GREEN
+    Solid RAG color steps: Red (0 to red_limit), Amber (red_limit to amber_limit), Green (amber_limit to 100).
+    Title: 'Current month patch compliance'.
     """
     p = T.get_theme_palette(theme_mode)
     color = (
@@ -447,6 +497,9 @@ def patch_gauge(
         else T.RAG_AMBER if patch_pct >= (red_limit + 1.0)
         else T.RAG_RED
     )
+
+    # Distinct needle / bar indicator
+    needle_color = "#0F172A" if theme_mode == "light" else "#FFFFFF"
 
     fig = go.Figure(
         go.Indicator(
@@ -459,21 +512,21 @@ def patch_gauge(
                     range=[0, 100],
                     tickmode="linear",
                     tick0=0,
-                    dtick=5,  # 5-point meter bar divisions instead of 20 points
+                    dtick=5,  # 5-point meter bar divisions
                     ticks="inside",
                     tickcolor=p["text_secondary"],
                     tickfont=dict(color=p["text_secondary"], size=9),
                 ),
-                bar=dict(color=color, thickness=0.25),
+                bar=dict(color=needle_color, thickness=0.26),
                 bgcolor=p["bg_card"],
                 bordercolor=p["border"],
                 steps=[
-                    dict(range=[0, red_limit], color="rgba(244,67,54,0.25)"),          # RED
-                    dict(range=[red_limit, amber_limit], color="rgba(255,193,7,0.25)"), # AMBER
-                    dict(range=[amber_limit, 100], color="rgba(0,200,83,0.25)"),      # GREEN
+                    dict(range=[0, red_limit], color="#DC2626"),          # Solid Vivid RED
+                    dict(range=[red_limit, amber_limit], color="#F59E0B"), # Solid Vivid AMBER
+                    dict(range=[amber_limit, 100], color="#16A34A"),      # Solid Vivid GREEN
                 ],
                 threshold=dict(
-                    line=dict(color=p["text_primary"], width=2),
+                    line=dict(color=p["text_primary"], width=2.5),
                     thickness=0.75,
                     value=green_target,
                 ),
@@ -481,22 +534,32 @@ def patch_gauge(
         )
     )
     fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=260)
-    return _apply_theme(fig, f"Fleet Patch Coverage (Target: ≥{int(green_target)}%)", theme_mode=theme_mode)
+    return _apply_theme(fig, "Current month patch compliance", theme_mode=theme_mode)
 
 
 def patch_compliance_ytd_trend_line(
     trend_data: dict[str, float] | None = None,
     green_target: float = 85.0,
-    theme_mode: str = "dark",
+    theme_mode: str = "light",
+    ref_date: datetime | date | None = None,
 ) -> go.Figure:
     """
-    Line chart — Year-to-Date (YTD) Patch Compliance trend over 12 rolling months.
+    Line chart — Year-to-Date (YTD) Patch Compliance trend over 12 rolling months
+    aligned to the enterprise 2nd Tuesday patching cycle (N-1).
     """
     p = T.get_theme_palette(theme_mode)
-    data = trend_data or DEFAULT_YTD_TREND
+    rolling_months = get_patch_cycle_12_months(ref_date)
+    user_data = trend_data or DEFAULT_YTD_TREND
 
-    months = list(data.keys())
-    values = [float(v) for v in data.values()]
+    months = rolling_months
+    values = []
+    for m in months:
+        if m in user_data:
+            values.append(float(user_data[m]))
+        elif m in DEFAULT_YTD_TREND:
+            values.append(float(DEFAULT_YTD_TREND[m]))
+        else:
+            values.append(85.0)
 
     fig = go.Figure()
 

@@ -42,7 +42,7 @@ def build_header(
     active_filter_label: str = "Global Overview",
     is_live: bool = False,
     base_url: str = "",
-    theme_mode: str = "dark",
+    theme_mode: str = "light",
 ) -> html.Div:
     """Top navigation bar with brand, active filter badge, auth controls, theme toggle, settings, and refresh buttons."""
     p = T.get_theme_palette(theme_mode)
@@ -910,7 +910,7 @@ def build_tab_content(
     patch_red: float = 60.0,
     patch_amber: float = 84.0,
     patch_green: float = 85.0,
-    theme_mode: str = "dark",
+    theme_mode: str = "light",
 ) -> html.Div:
     """Renders the inner content for the currently active tab."""
     if active_tab == "tab-executive":
@@ -989,7 +989,7 @@ def build_body(
     patch_red: float = 60.0,
     patch_amber: float = 84.0,
     patch_green: float = 85.0,
-    theme_mode: str = "dark",
+    theme_mode: str = "light",
 ) -> html.Div:
     """Builds the main container with dropdown filters, map, tab bar, and tab content."""
     org_list = data.org_options or [{"label": o.name, "value": str(o.id)} for o in data.organizations]
@@ -1106,7 +1106,7 @@ def build_body(
 # Master Page Layout
 # ---------------------------------------------------------------------------
 
-def build_layout(data, theme_mode: str = "dark") -> html.Div:
+def build_layout(data, theme_mode: str = "light") -> html.Div:
     """Assemble the full dashboard page from DashboardData."""
     is_live = coordinator.is_live
     base_url = coordinator.base_url

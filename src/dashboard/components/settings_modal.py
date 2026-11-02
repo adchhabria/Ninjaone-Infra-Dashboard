@@ -12,12 +12,13 @@ Allows users to configure:
 
 from __future__ import annotations
 
+from datetime import datetime, date
 import os
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
 from src.dashboard import theme as T
-from src.dashboard.charts import DEFAULT_YTD_TREND
+from src.dashboard.charts import DEFAULT_YTD_TREND, get_patch_cycle_12_months, get_patch_cycle_current_month
 from src.utils.updater import CURRENT_VERSION, GITHUB_REPO
 
 
@@ -33,7 +34,7 @@ NINJA_REGIONS = [
 DEFAULT_REDIRECT_URI = "http://localhost:8050/oauth/callback"
 
 
-def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
+def build_settings_modal(theme_mode: str = "light") -> dbc.Modal:
     """Settings modal for configuring NinjaOne API credentials, regions, governance thresholds, and updates."""
     p = T.get_theme_palette(theme_mode)
     current_url = os.getenv("NINJA_BASE_URL", "https://app.ninjarmm.com")
@@ -231,7 +232,7 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                         style={"fontSize": "0.82rem", "backgroundColor": "rgba(47, 129, 247, 0.12)", "border": f"1px solid {T.ACCENT_BLUE}"},
                                     ),
 
-                                    # 1. Server Compliance Definition & Patch Title Selection
+                                    # 1. OS Patch Compliance & Title Selection
                                     html.Div(
                                         [
                                             dbc.Label("1. OS Patch Compliance & Title Selection", style=T.FONT_KPI_LABEL),
@@ -321,123 +322,57 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
 
                                     html.Hr(style={"borderColor": T.BORDER}),
 
-                                    # 2. OS Server EOL Dates (MM/DD/YYYY format)
+                                    # 2. Patch Compliance Year-to-Date (YTD) Monthly Trend (%)
                                     html.Div(
                                         [
-                                            dbc.Label("2. OS Server EOL Dates (MM/DD/YYYY format)", style=T.FONT_KPI_LABEL),
-                                            html.P("User input fields in Settings > Compliance Thresholds for server operating systems (Windows Server 2008, 2012, 2016, 2019, 2022, 2025; Ubuntu Server LTS, RHEL, CentOS, Debian).",
-                                                   className="text-secondary",
-                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
+                                            html.Div(
+                                                [
+                                                    dbc.Label("2. Patch Compliance Year-to-Date (YTD) Monthly Trend (%)", style=T.FONT_KPI_LABEL),
+                                                    dbc.Badge(
+                                                        f"📅 Active Cycle: {date(*get_patch_cycle_current_month(), 1).strftime('%b-%y')} (N-1)",
+                                                        color="primary",
+                                                        className="ms-2",
+                                                        style={"fontSize": "0.72rem"},
+                                                    ),
+                                                ],
+                                                className="d-flex align-items-center mb-1",
+                                            ),
+                                            html.P(
+                                                "12-month rolling trend values updated as per the monthly 2nd Tuesday patching cycle (N-1). Enter custom percentages to update the main page line graph.",
+                                                className="text-secondary",
+                                                style={"fontSize": "0.78rem", "marginBottom": "10px"},
+                                            ),
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label("Windows Server 2008 / R2", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-win2008", type="text", placeholder="01/14/2020", value="01/14/2020", className="mb-2"),
+                                                            dbc.Label(month, style={"fontSize": "0.72rem", "fontWeight": "600", "color": p["text_secondary"]}),
+                                                            dbc.Input(
+                                                                id=f"settings-ytd-m{idx}",
+                                                                type="number",
+                                                                min=0,
+                                                                max=100,
+                                                                step=1,
+                                                                value=DEFAULT_YTD_TREND.get(month, 85),
+                                                                style={"fontSize": "0.78rem", "textAlign": "center", "padding": "4px 6px"},
+                                                            ),
                                                         ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Windows Server 2012 / R2", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-win2012", type="text", placeholder="10/10/2023", value="10/10/2023", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Windows Server 2016", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-win2016", type="text", placeholder="01/12/2027", value="01/12/2027", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Windows Server 2019", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-win2019", type="text", placeholder="01/09/2029", value="01/09/2029", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Windows Server 2022", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-win2022", type="text", placeholder="10/14/2031", value="10/14/2031", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Windows Server 2025", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-win2025", type="text", placeholder="10/10/2034", value="10/10/2034", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Ubuntu Server LTS", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-ubuntu", type="text", placeholder="04/30/2025", value="04/30/2025", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("RHEL Server", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-rhel", type="text", placeholder="06/30/2024", value="06/30/2024", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("CentOS Server", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-centos", type="text", placeholder="06/30/2024", value="06/30/2024", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
-                                                    dbc.Col(
-                                                        [
-                                                            dbc.Label("Debian Server", style={"fontSize": "0.75rem"}),
-                                                            dbc.Input(id="settings-eol-debian", type="text", placeholder="06/30/2026", value="06/30/2026", className="mb-2"),
-                                                        ],
-                                                        md=6,
-                                                    ),
+                                                        xs=4, sm=3, md=2, lg=2,
+                                                        className="mb-2",
+                                                    )
+                                                    for idx, month in enumerate(get_patch_cycle_12_months())
                                                 ],
-                                                className="g-2 mb-3",
+                                                className="g-2 mb-2",
                                             ),
                                         ]
                                     ),
 
                                     html.Hr(style={"borderColor": T.BORDER}),
 
-                                    # 3. Approaching EOL Alert Horizon
+                                    # 3. Patch Coverage Speedometer Gauge Thresholds (%)
                                     html.Div(
                                         [
-                                            dbc.Label("⚠️ Approaching EOL Alert Horizon (Days)", style=T.FONT_KPI_LABEL),
-                                            html.P("Configure how many days in advance devices are flagged as 'Approaching EOL'.",
-                                                   className="text-secondary",
-                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
-                                            dbc.InputGroup(
-                                                [
-                                                    dbc.Input(
-                                                        id="settings-eol-threshold",
-                                                        type="number",
-                                                        min=30,
-                                                        max=730,
-                                                        step=15,
-                                                        value=eol_threshold,
-                                                    ),
-                                                    dbc.InputGroupText("Days (e.g. 90, 180, 365)"),
-                                                ],
-                                                className="mb-3",
-                                            ),
-                                        ]
-                                    ),
-
-                                    html.Hr(style={"borderColor": T.BORDER}),
-
-                                    # 2. Patching Speedometer Thresholds
-                                    html.Div(
-                                        [
-                                            dbc.Label("🎯 Patch Coverage Speedometer Gauge Thresholds (%)", style=T.FONT_KPI_LABEL),
+                                            dbc.Label("3. Patch Coverage Speedometer Gauge Thresholds (%)", style=T.FONT_KPI_LABEL),
                                             html.P("Configure the Red Alert, Amber Warning, and Green Compliance target brackets for the fleet gauge.",
                                                    className="text-secondary",
                                                    style={"fontSize": "0.78rem", "marginBottom": "8px"}),
@@ -445,7 +380,7 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                 [
                                                     dbc.Col(
                                                         [
-                                                             dbc.Label("🔴 Red Limit (Max %)", style={"fontSize": "0.75rem", "color": T.RAG_RED}),
+                                                            dbc.Label("🔴 Red Limit (Max %)", style={"fontSize": "0.75rem", "color": T.RAG_RED}),
                                                             dbc.Input(
                                                                 id="settings-patch-red-limit",
                                                                 type="number",
@@ -493,43 +428,121 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
 
                                     html.Hr(style={"borderColor": T.BORDER}),
 
-                                    # 3. Patch Compliance Year-to-Date (YTD) Trend Data (%)
+                                    # 4. Approaching EOL Alert Horizon (Days)
                                     html.Div(
                                         [
-                                            html.Div(
+                                            dbc.Label("4. Approaching EOL Alert Horizon (Days)", style=T.FONT_KPI_LABEL),
+                                            html.P("Configure how many days in advance devices are flagged as 'Approaching EOL'.",
+                                                   className="text-secondary",
+                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
+                                            dbc.InputGroup(
                                                 [
-                                                    dbc.Label("📈 Patch Compliance Year-to-Date (YTD) Monthly Trend (%)", style=T.FONT_KPI_LABEL),
-                                                    dbc.Badge("Line Graph Data", color="info", className="ms-2", style={"fontSize": "0.72rem"}),
+                                                    dbc.Input(
+                                                        id="settings-eol-threshold",
+                                                        type="number",
+                                                        min=30,
+                                                        max=730,
+                                                        step=15,
+                                                        value=eol_threshold,
+                                                    ),
+                                                    dbc.InputGroupText("Days (e.g. 90, 180, 365)"),
                                                 ],
-                                                className="d-flex align-items-center mb-1",
+                                                className="mb-3",
                                             ),
-                                            html.P(
-                                                "Manual percentage inputs for the 12-month rolling Patch Compliance Year-to-Date trend chart displayed on the main page.",
-                                                className="text-secondary",
-                                                style={"fontSize": "0.78rem", "marginBottom": "10px"},
-                                            ),
+                                        ]
+                                    ),
+
+                                    html.Hr(style={"borderColor": T.BORDER}),
+
+                                    # 5. OS Server EOL Dates (MM/DD/YYYY format) - Compact 4 per line
+                                    html.Div(
+                                        [
+                                            dbc.Label("5. OS Server EOL Dates (MM/DD/YYYY format)", style=T.FONT_KPI_LABEL),
+                                            html.P("Operating system End-of-Life deadlines (compact grid view).",
+                                                   className="text-secondary",
+                                                   style={"fontSize": "0.78rem", "marginBottom": "8px"}),
                                             dbc.Row(
                                                 [
                                                     dbc.Col(
                                                         [
-                                                            dbc.Label(month, style={"fontSize": "0.72rem", "fontWeight": "600", "color": p["text_secondary"]}),
-                                                            dbc.Input(
-                                                                id=f"settings-ytd-{month.lower().replace('-', '')}",
-                                                                type="number",
-                                                                min=0,
-                                                                max=100,
-                                                                step=1,
-                                                                value=DEFAULT_YTD_TREND.get(month, 80),
-                                                                style={"fontSize": "0.78rem", "textAlign": "center", "padding": "4px 6px"},
-                                                            ),
+                                                            dbc.Label("Win Server 2008 / R2", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-win2008", type="text", size="sm", placeholder="01/14/2020", value="01/14/2020", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
                                                         ],
-                                                        xs=4, sm=3, md=2, lg=2,
+                                                        lg=3, md=4, sm=6, xs=12,
                                                         className="mb-2",
-                                                    )
-                                                    for month in [
-                                                        "Oct-25", "Nov-25", "Dec-25", "Jan-26", "Feb-26", "Mar-26",
-                                                        "Apr-26", "May-26", "Jun-26", "Jul-26", "Aug-26", "Sep-26"
-                                                    ]
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Win Server 2012 / R2", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-win2012", type="text", size="sm", placeholder="10/10/2023", value="10/10/2023", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Win Server 2016", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-win2016", type="text", size="sm", placeholder="01/12/2027", value="01/12/2027", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Win Server 2019", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-win2019", type="text", size="sm", placeholder="01/09/2029", value="01/09/2029", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Win Server 2022", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-win2022", type="text", size="sm", placeholder="10/14/2031", value="10/14/2031", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Win Server 2025", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-win2025", type="text", size="sm", placeholder="10/10/2034", value="10/10/2034", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Ubuntu Server LTS", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-ubuntu", type="text", size="sm", placeholder="04/30/2025", value="04/30/2025", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("RHEL Server", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-rhel", type="text", size="sm", placeholder="06/30/2024", value="06/30/2024", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("CentOS Server", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-centos", type="text", size="sm", placeholder="06/30/2024", value="06/30/2024", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label("Debian Server", style={"fontSize": "0.72rem", "fontWeight": "600", "marginBottom": "2px", "whiteSpace": "nowrap"}),
+                                                            dbc.Input(id="settings-eol-debian", type="text", size="sm", placeholder="06/30/2026", value="06/30/2026", style={"fontSize": "0.76rem", "padding": "2px 6px", "height": "28px"}),
+                                                        ],
+                                                        lg=3, md=4, sm=6, xs=12,
+                                                        className="mb-2",
+                                                    ),
                                                 ],
                                                 className="g-2 mb-2",
                                             ),

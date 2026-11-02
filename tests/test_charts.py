@@ -1,5 +1,6 @@
 """Tests for updated Plotly chart builder functions."""
 
+from datetime import date
 import pytest
 import plotly.graph_objects as go
 
@@ -12,6 +13,8 @@ from src.dashboard.charts import (
     patch_gauge,
     patch_compliance_ytd_trend_line,
     DEFAULT_YTD_TREND,
+    get_patch_cycle_current_month,
+    get_patch_cycle_12_months,
     world_map_chart,
     eol_status_donut,
     eol_by_os_bar,
@@ -45,17 +48,43 @@ class TestCharts:
         assert isinstance(fig_green, go.Figure)
         # Verify 5-point meter bar tick division instead of 20 points
         assert fig_green.data[0].gauge.axis.dtick == 5
+        # Verify title is strictly "Current month patch compliance"
+        assert fig_green.layout.title.text == "Current month patch compliance"
+        # Verify solid, vibrant RAG colors
+        steps = fig_green.data[0].gauge.steps
+        assert steps[0].color == "#DC2626"
+        assert steps[1].color == "#F59E0B"
+        assert steps[2].color == "#16A34A"
         fig_amber = patch_gauge(75.0)
         assert isinstance(fig_amber, go.Figure)
         fig_red = patch_gauge(55.0)
         assert isinstance(fig_red, go.Figure)
 
+    def test_patching_cycle_rules(self):
+        # On 2nd Tuesday of Nov 2026 (Nov 10, 2026), current cycle is Oct-26 (N-1)
+        cycle_year, cycle_month = get_patch_cycle_current_month(date(2026, 11, 10))
+        assert (cycle_year, cycle_month) == (2026, 10)
+        months_nov10 = get_patch_cycle_12_months(date(2026, 11, 10))
+        assert len(months_nov10) == 12
+        assert months_nov10[-1] == "Oct-26"
+        assert months_nov10[0] == "Nov-25"
+
+        # On Nov 5, 2026 (before 2nd Tuesday), current cycle is Sep-26 (N-2)
+        cycle_year_pre, cycle_month_pre = get_patch_cycle_current_month(date(2026, 11, 5))
+        assert (cycle_year_pre, cycle_month_pre) == (2026, 9)
+        months_nov5 = get_patch_cycle_12_months(date(2026, 11, 5))
+        assert len(months_nov5) == 12
+        assert months_nov5[-1] == "Sep-26"
+        assert months_nov5[0] == "Oct-25"
+
     def test_patch_compliance_ytd_trend_line(self):
-        # Default 12-month data
-        fig_default = patch_compliance_ytd_trend_line()
+        # Default 12-month data aligned to active cycle
+        fig_default = patch_compliance_ytd_trend_line(ref_date=date(2026, 11, 5))
         assert isinstance(fig_default, go.Figure)
         assert len(fig_default.data) == 2  # Target line + Compliance trend
-        assert fig_default.data[1].x == tuple(DEFAULT_YTD_TREND.keys())
+        assert len(fig_default.data[1].x) == 12
+        assert fig_default.data[1].x[-1] == "Sep-26"
+        assert fig_default.data[1].x[0] == "Oct-25"
 
         # Custom user data
         custom_data = {
@@ -63,7 +92,7 @@ class TestCharts:
             "Feb-26": 88, "Mar-26": 74, "Apr-26": 95, "May-26": 90,
             "Jun-26": 50, "Jul-26": 70, "Aug-26": 85, "Sep-26": 96,
         }
-        fig_custom = patch_compliance_ytd_trend_line(custom_data, theme_mode="light")
+        fig_custom = patch_compliance_ytd_trend_line(custom_data, theme_mode="light", ref_date=date(2026, 11, 5))
         assert isinstance(fig_custom, go.Figure)
         assert list(fig_custom.data[1].y) == [80, 82, 90, 85, 88, 74, 95, 90, 50, 70, 85, 96]
 
