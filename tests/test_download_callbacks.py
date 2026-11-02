@@ -70,6 +70,21 @@ class TestFilteredDownloads:
         assert resp_dark.status_code == 200
         assert b"--bg-primary: #0D1117;" in resp_dark.data
 
+    def test_flask_endpoint_view_and_share_html(self, app):
+        client = app.server.test_client()
+        # Direct unauthenticated browser link
+        resp = client.get("/view")
+        assert resp.status_code == 200
+        assert "text/html" in resp.content_type
+        assert "Content-Disposition" not in resp.headers  # Inline view, not attachment
+        assert b"tab-btn-exec" in resp.data
+        assert b"tab-btn-ops" in resp.data
+
+        resp_share = client.get("/share?theme=dark")
+        assert resp_share.status_code == 200
+        assert "text/html" in resp_share.content_type
+        assert b'data-theme="dark"' in resp_share.data
+
     def test_no_duplicate_callback_outputs(self, app):
         from collections import Counter
         client = app.server.test_client()

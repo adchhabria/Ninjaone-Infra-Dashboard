@@ -534,12 +534,13 @@ def register_callbacks(app, get_data_fn=None):
             patch_green=p_green,
         )
 
-        theme_mode = current_theme or "dark"
+        theme_mode = current_theme or "light"
         html_text = generate_html_report(
             data,
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
+            custom_ytd_trend=ts_settings.get("custom_ytd_trend"),
             theme_mode=theme_mode,
         )
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")

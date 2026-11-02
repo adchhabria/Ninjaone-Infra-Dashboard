@@ -404,6 +404,24 @@ def create_app(get_data_fn=None) -> dash.Dash:
             console.log(f"[red]Error in /download/html: {e}[/red]")
             return Response(f"Error generating HTML: {e}", status=500, mimetype="text/plain")
 
+    @app.server.route("/view")
+    @app.server.route("/share")
+    def view_html_endpoint():
+        try:
+            data = _get_filtered_data_from_request()
+            theme_mode = request.args.get("theme", "light")
+            html_text = generate_html_report(
+                data,
+                patch_red=data.patch_red,
+                patch_amber=data.patch_amber,
+                patch_green=data.patch_green,
+                theme_mode=theme_mode,
+            )
+            return Response(html_text, mimetype="text/html")
+        except Exception as e:
+            console.log(f"[red]Error in /view: {e}[/red]")
+            return Response(f"Error viewing dashboard: {e}", status=500, mimetype="text/plain")
+
     def serve_layout():
         data = get_data_fn(
             active_org_id=None,
