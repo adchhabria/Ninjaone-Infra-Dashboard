@@ -122,6 +122,7 @@ def generate_excel_workbook(data: DashboardData) -> bytes:
         df_failed = df_failed.rename(columns={
             "device_name": "Device Name",
             "org_name": "Organization",
+            "location": "Location",
             "region": "Region",
             "patch_name": "Failed Patch / Update",
             "error_code": "Error Code",
@@ -130,19 +131,59 @@ def generate_excel_workbook(data: DashboardData) -> bytes:
         })
         df_failed = df_failed[[c for c in df_failed.columns if c != "device_id"]]
 
+    # Sheet 7: Top Pending Servers (Patch Operations Details)
+    top_servers_list = data.sla.get("top_servers_pending_patches", [])
+    df_top_servers = pd.DataFrame(top_servers_list)
+    if not df_top_servers.empty:
+        df_top_servers = df_top_servers.rename(columns={
+            "name": "Server Name",
+            "org_name": "Org",
+            "location": "Loc",
+            "os_name": "OS name",
+            "device_role": "Device Role",
+            "approved_patch_count": "Approve patch Count",
+        })
+        # Keep exact columns requested
+        expected_cols = ["Server Name", "Org", "Loc", "OS name", "Device Role", "Approve patch Count"]
+        df_top_servers = df_top_servers[[c for c in expected_cols if c in df_top_servers.columns]]
+
+    # Sheet 8: Top Pending Patches (Patch Operations Details)
+    top_patches_list = data.sla.get("top_patches_pending_servers", [])
+    df_top_patches = pd.DataFrame(top_patches_list)
+    if not df_top_patches.empty:
+        df_top_patches = df_top_patches.rename(columns={
+            "patch_name": "Patch Name",
+            "severity": "Patch Type (Critical / Important)",
+            "patch_category": "OS/Software type patch",
+            "pending_device_count": "Pending device count",
+            "release_date": "Patch release date",
+        })
+        expected_cols = [
+            "Patch Name",
+            "Patch Type (Critical / Important)",
+            "OS/Software type patch",
+            "Pending device count",
+            "Patch release date",
+        ]
+        df_top_patches = df_top_patches[[c for c in expected_cols if c in df_top_patches.columns]]
+
     # 2. Write to Excel via openpyxl
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df_summary.to_excel(writer, sheet_name="Executive Summary", index=False)
+        if not df_top_servers.empty:
+            df_top_servers.to_excel(writer, sheet_name="Top Pending Servers", index=False)
+        if not df_top_patches.empty:
+            df_top_patches.to_excel(writer, sheet_name="Top Pending Patches", index=False)
         if not df_orgs.empty:
             df_orgs.to_excel(writer, sheet_name="Organization Compliance", index=False)
         if not df_eol.empty:
             df_eol.to_excel(writer, sheet_name="EOL Device Ledger", index=False)
         if not df_patches.empty:
             df_patches.to_excel(writer, sheet_name="Patch SLA Aging", index=False)
-        if not df_reboot.empty:
-            df_reboot.to_excel(writer, sheet_name="Needs Reboot", index=False)
         if not df_failed.empty:
             df_failed.to_excel(writer, sheet_name="Patch Failures", index=False)
+        if not df_reboot.empty:
+            df_reboot.to_excel(writer, sheet_name="Needs Reboot", index=False)
 
         # 3. Format and Style All Sheets
         wb = writer.book

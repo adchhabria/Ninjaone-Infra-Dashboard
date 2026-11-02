@@ -26,6 +26,8 @@ class TestExcelExport:
         assert "Patch SLA Aging" in sheet_names
         assert "Needs Reboot" in sheet_names
         assert "Patch Failures" in sheet_names
+        assert "Top Pending Servers" in sheet_names
+        assert "Top Pending Patches" in sheet_names
 
         # Verify Executive Summary has rows
         ws = wb["Executive Summary"]

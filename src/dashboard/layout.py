@@ -31,7 +31,6 @@ from src.dashboard.components.patch_panel import build_patch_panel
 from src.dashboard.components.eol_panel import build_eol_panel
 from src.dashboard.components.compliance_table import build_compliance_table
 from src.dashboard.components.sla_panel import build_sla_panel
-from src.dashboard.components.reboot_failures_panel import build_reboot_failures_panel
 from src.dashboard.components.reports_panel import build_reports_panel
 from src.dashboard.components.settings_modal import build_settings_modal
 from src.metrics.data_provider import coordinator
@@ -921,9 +920,16 @@ def build_tab_content(
                     dbc.Col(build_kpi_strip(data, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
-                # Row 2: OS Landscape (Windows and Linux side by side or single expanded)
+                # Row 2: OS Landscape & Patch Category Breakdown
                 dbc.Row(
-                    dbc.Col(build_os_panel(data.os, theme_mode=theme_mode), width=12),
+                    dbc.Col(
+                        build_os_panel(
+                            data.os,
+                            type_counts=getattr(data, "sla", {}).get("type_counts", {}),
+                            theme_mode=theme_mode,
+                        ),
+                        width=12,
+                    ),
                     className="mb-4",
                 ),
                 # Row 3: Multi-Cloud Server Hosting
@@ -931,9 +937,19 @@ def build_tab_content(
                     dbc.Col(build_server_hosting_panel(data.servers, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
-                # Row 4: Speedometer Patch Gauge, YTD Trend Line Chart & OS vs 3rd-Party Breakdown
+                # Row 4: Speedometer Patch Gauge & Year-to-Date (YTD) Trend Line Chart
                 dbc.Row(
-                    dbc.Col(build_patch_panel(data.patches, red_limit=patch_red, amber_limit=patch_amber, green_target=patch_green, theme_mode=theme_mode, ytd_trend_data=getattr(data, "ytd_trend", None), sla_data=getattr(data, "sla", None)), width=12),
+                    dbc.Col(
+                        build_patch_panel(
+                            data.patches,
+                            red_limit=patch_red,
+                            amber_limit=patch_amber,
+                            green_target=patch_green,
+                            theme_mode=theme_mode,
+                            ytd_trend_data=getattr(data, "ytd_trend", None),
+                        ),
+                        width=12,
+                    ),
                     className="mb-4",
                 ),
                 # Row 5: EOL Compliance & Risk Analysis
@@ -954,16 +970,6 @@ def build_tab_content(
             [
                 dbc.Row(
                     dbc.Col(build_sla_panel(data.sla, data.patches, theme_mode=theme_mode), width=12),
-                    className="mb-4",
-                ),
-            ]
-        )
-
-    elif active_tab == "tab-reboots":
-        return html.Div(
-            [
-                dbc.Row(
-                    dbc.Col(build_reboot_failures_panel(data.sla, theme_mode=theme_mode), width=12),
                     className="mb-4",
                 ),
             ]
@@ -1053,14 +1059,6 @@ def build_body(
                                     [html.Span("⏱️", style={"marginRight": "6px"}), "Patch Operations Details"],
                                     id="nav-tab-patch-ops",
                                     active=(active_tab == "tab-patch-ops"),
-                                    href="#",
-                                    className="me-2",
-                                    style={"fontWeight": "600", "cursor": "pointer"},
-                                ),
-                                dbc.NavLink(
-                                    [html.Span("🔄", style={"marginRight": "6px"}), "Reboots & Failure Watchlist"],
-                                    id="nav-tab-reboots",
-                                    active=(active_tab == "tab-reboots"),
                                     href="#",
                                     className="me-2",
                                     style={"fontWeight": "600", "cursor": "pointer"},

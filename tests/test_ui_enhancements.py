@@ -91,45 +91,49 @@ def test_multi_select_dropdowns_and_roles_filter():
 
 
 def test_os_donut_expansion_only_windows():
-    """Requirement 4: When filtered for Windows only, Linux box is omitted and Windows expands with animation."""
+    """When filtered for Windows only, Linux box is omitted; Windows adapts (lg=8) alongside Category Breakdown (lg=4)."""
     os_data_win_only = {
         "windows_version_counts": {"Windows Server 2022": 10, "Windows Server 2019": 5},
         "linux_version_counts": {},
     }
 
     panel = build_os_panel(os_data_win_only)
-    # Should only have 1 column and it must have lg=12 and os-donut-col-expanded class
-    assert len(panel.children) == 1
-    col = panel.children[0]
-    assert col.lg == 12
-    assert "os-donut-col-expanded" in col.className
+    assert len(panel.children) == 2
+    col_win = panel.children[0]
+    assert col_win.lg == 8
+    assert "os-donut-col-expanded" in col_win.className
+    col_cat = panel.children[1]
+    assert col_cat.lg == 4
 
 
 def test_os_donut_expansion_only_linux():
-    """Requirement 4: When filtered for Linux only, Windows box is omitted and Linux expands with animation."""
+    """When filtered for Linux only, Windows box is omitted; Linux adapts (lg=8) alongside Category Breakdown (lg=4)."""
     os_data_linux_only = {
         "windows_version_counts": {},
         "linux_version_counts": {"Ubuntu 22.04": 8, "RHEL 9": 4},
     }
 
     panel = build_os_panel(os_data_linux_only)
-    assert len(panel.children) == 1
-    col = panel.children[0]
-    assert col.lg == 12
-    assert "os-donut-col-expanded" in col.className
+    assert len(panel.children) == 2
+    col_lin = panel.children[0]
+    assert col_lin.lg == 8
+    assert "os-donut-col-expanded" in col_lin.className
+    col_cat = panel.children[1]
+    assert col_cat.lg == 4
 
 
 def test_os_donut_both_windows_and_linux():
-    """Requirement 4: When both OS families exist, both boxes are rendered side-by-side (lg=6)."""
+    """When both OS families exist, 3 boxes are rendered side-by-side (lg=4 each)."""
     os_data_both = {
         "windows_version_counts": {"Windows Server 2022": 10},
         "linux_version_counts": {"Ubuntu 22.04": 8},
     }
 
     panel = build_os_panel(os_data_both)
-    assert len(panel.children) == 2
-    assert panel.children[0].lg == 6
-    assert panel.children[1].lg == 6
+    assert len(panel.children) == 3
+    assert panel.children[0].lg == 4
+    assert panel.children[1].lg == 4
+    assert panel.children[2].lg == 4
 
 
 def test_device_roles_filtering():
@@ -421,23 +425,34 @@ def test_patch_operations_details_tab_and_tables():
         "Patch release date",
     ]
 
+    # Check Table 3 is now also present in Patch Operations Details
+    assert "patch-failures-table" in panel_str
+    assert "trigger-bulk-scan-btn" in panel_str
+
 
 def test_patch_panel_donut_chart_inclusion():
-    """Verify that OS vs 3rd-Party Software Breakdown donut chart is in build_patch_panel."""
+    """Verify that OS vs 3rd-Party Software Breakdown donut chart is moved to OS panel."""
     from src.dashboard.components.patch_panel import build_patch_panel
+    from src.dashboard.components.os_panel import build_os_panel
     from scripts.generate_sample_data import get_mock_dashboard_data
 
     mock_data = get_mock_dashboard_data()
-    panel = build_patch_panel(mock_data.patches, theme_mode="light", sla_data=mock_data.sla)
-    panel_str = str(panel)
 
-    assert "patch-type-donut" in panel_str
+    # In build_os_panel: patch-type-donut MUST be present beside Windows and Linux
+    os_p = build_os_panel(mock_data.os, type_counts=mock_data.sla.get("type_counts", {}), theme_mode="light")
+    os_p_str = str(os_p)
+    assert "patch-type-donut" in os_p_str
+
+    # In build_patch_panel: patch-type-donut is removed (clean 2-column Gauge + YTD trend)
+    panel = build_patch_panel(mock_data.patches, theme_mode="light")
+    panel_str = str(panel)
+    assert "patch-type-donut" not in panel_str
     assert "fleet-patch-coverage-gauge" in panel_str
     assert "patch-compliance-ytd-line" in panel_str
 
 
 def test_navigation_renamed_patch_operations_details():
-    """Verify navigation tab is renamed to 'Patch Operations Details'."""
+    """Verify navigation tab is renamed and Reboots tab is completely removed."""
     from src.dashboard.layout import build_body
     from scripts.generate_sample_data import get_mock_dashboard_data
 
@@ -447,6 +462,8 @@ def test_navigation_renamed_patch_operations_details():
 
     assert "Patch Operations Details" in body_str
     assert "Patch Operations & SLA Aging" not in body_str
+    assert "Reboots & Failure Watchlist" not in body_str
+    assert "nav-tab-reboots" not in body_str
 
 
 def test_settings_modal_5_columns_eol_layout():

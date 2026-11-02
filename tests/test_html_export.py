@@ -55,3 +55,13 @@ class TestHTMLExport:
         assert "--bg-primary: #0D1117;" in html_dark
         assert "--text-primary: #E6EDF3;" in html_dark
         assert "font-size: 2.6rem;" in html_dark
+
+    def test_html_report_patch_operations_details(self):
+        """Verify that HTML export renders all 3 patch operations details tables."""
+        data = get_mock_dashboard_data()
+        html_out = generate_html_report(data)
+
+        assert "Top 10 Servers with Max Pending Patches" in html_out
+        assert "Top 10 Patches Pending on Max Servers" in html_out
+        assert "Patch Deployment Failure Triage" in html_out
+        assert "Patch Category Breakdown" in html_out

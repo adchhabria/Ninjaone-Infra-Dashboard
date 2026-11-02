@@ -89,7 +89,6 @@ def register_callbacks(app, get_data_fn=None):
         Output("active-tab-store", "data"),
         Output("nav-tab-executive", "active"),
         Output("nav-tab-patch-ops", "active"),
-        Output("nav-tab-reboots", "active"),
         Output("nav-tab-reports", "active"),
         Output("filter-org-dropdown", "value"),
         Output("filter-location-dropdown", "value"),
@@ -109,7 +108,6 @@ def register_callbacks(app, get_data_fn=None):
         Input("world-map-graph", "clickData"),
         Input("nav-tab-executive", "n_clicks"),
         Input("nav-tab-patch-ops", "n_clicks"),
-        Input("nav-tab-reboots", "n_clicks"),
         Input("nav-tab-reports", "n_clicks"),
         Input("refresh-btn", "n_clicks"),
         Input("auto-refresh", "n_intervals"),
@@ -130,7 +128,6 @@ def register_callbacks(app, get_data_fn=None):
         map_click_data,
         tab_exec_clicks,
         tab_patch_clicks,
-        tab_reboot_clicks,
         tab_report_clicks,
         refresh_clicks,
         auto_refresh_intervals,
@@ -161,7 +158,6 @@ def register_callbacks(app, get_data_fn=None):
         is_tab_switch_only = triggered_id in [
             "nav-tab-executive",
             "nav-tab-patch-ops",
-            "nav-tab-reboots",
             "nav-tab-reports",
         ]
         is_reset = (triggered_id == "reset-filters-btn")
@@ -171,8 +167,6 @@ def register_callbacks(app, get_data_fn=None):
             tab_to_show = "tab-executive"
         elif triggered_id == "nav-tab-patch-ops":
             tab_to_show = "tab-patch-ops"
-        elif triggered_id == "nav-tab-reboots":
-            tab_to_show = "tab-reboots"
         elif triggered_id == "nav-tab-reports":
             tab_to_show = "tab-reports"
 
@@ -256,7 +250,6 @@ def register_callbacks(app, get_data_fn=None):
         # Nav pill active states
         is_exec = (tab_to_show == "tab-executive")
         is_patch = (tab_to_show == "tab-patch-ops")
-        is_reboot = (tab_to_show == "tab-reboots")
         is_reports = (tab_to_show == "tab-reports")
 
         # Fast path for tab switching: do NOT re-render map, filter badge, or dropdowns
@@ -270,17 +263,16 @@ def register_callbacks(app, get_data_fn=None):
                 tab_to_show,  # 6: active-tab-store
                 is_exec,      # 7: nav-tab-executive
                 is_patch,     # 8: nav-tab-patch-ops
-                is_reboot,    # 9: nav-tab-reboots
-                is_reports,   # 10: nav-tab-reports
-                no_update,    # 11: filter-org-dropdown value
-                no_update,    # 12: filter-location-dropdown value
-                no_update,    # 13: filter-os-dropdown value
-                no_update,    # 14: filter-roles-dropdown value
-                no_update,    # 15: filter-patch-type-dropdown value
-                no_update,    # 16: filter-org-dropdown options
-                no_update,    # 17: filter-location-dropdown options
-                no_update,    # 18: filter-os-dropdown options
-                no_update,    # 19: filter-roles-dropdown options
+                is_reports,   # 9: nav-tab-reports
+                no_update,    # 10: filter-org-dropdown value
+                no_update,    # 11: filter-location-dropdown value
+                no_update,    # 12: filter-os-dropdown value
+                no_update,    # 13: filter-roles-dropdown value
+                no_update,    # 14: filter-patch-type-dropdown value
+                no_update,    # 15: filter-org-dropdown options
+                no_update,    # 16: filter-location-dropdown options
+                no_update,    # 17: filter-os-dropdown options
+                no_update,    # 18: filter-roles-dropdown options
             )
 
         badge_label = data.active_filter_label
@@ -373,17 +365,16 @@ def register_callbacks(app, get_data_fn=None):
             tab_to_show,         # 6: active-tab-store
             is_exec,             # 7: nav-tab-executive
             is_patch,            # 8: nav-tab-patch-ops
-            is_reboot,           # 9: nav-tab-reboots
-            is_reports,          # 10: nav-tab-reports
-            org_out,             # 11: filter-org-dropdown value
-            loc_out,             # 12: filter-location-dropdown value
-            os_out,              # 13: filter-os-dropdown value
-            roles_out,           # 14: filter-roles-dropdown value
-            patch_type_out,      # 15: filter-patch-type-dropdown value
-            org_opts_out,        # 16: filter-org-dropdown options
-            loc_opts_out,        # 17: filter-location-dropdown options
-            os_opts_out,         # 18: filter-os-dropdown options
-            roles_opts_out,      # 19: filter-roles-dropdown options
+            is_reports,          # 9: nav-tab-reports
+            org_out,             # 10: filter-org-dropdown value
+            loc_out,             # 11: filter-location-dropdown value
+            os_out,              # 12: filter-os-dropdown value
+            roles_out,           # 13: filter-roles-dropdown value
+            patch_type_out,      # 14: filter-patch-type-dropdown value
+            org_opts_out,        # 15: filter-org-dropdown options
+            loc_opts_out,        # 16: filter-location-dropdown options
+            os_opts_out,         # 17: filter-os-dropdown options
+            roles_opts_out,      # 18: filter-roles-dropdown options
         )
 
     # -----------------------------------------------------------------------
@@ -585,16 +576,15 @@ def register_callbacks(app, get_data_fn=None):
         return donut_fig, bar_fig
 
     # -----------------------------------------------------------------------
-    # 4. Action Triggers: Bulk Scan & Reboot Feedback
+    # 4. Action Triggers: Bulk Scan Feedback
     # -----------------------------------------------------------------------
     @app.callback(
         Output("action-feedback-container", "children"),
-        Input("trigger-bulk-reboot-btn", "n_clicks"),
         Input("trigger-bulk-scan-btn", "n_clicks"),
         State("filter-state-store", "data"),
         prevent_initial_call=True,
     )
-    def handle_remediation_actions(reboot_clicks, scan_clicks, filter_state):
+    def handle_remediation_actions(scan_clicks, filter_state):
         triggered = ctx.triggered_id
         if not triggered:
             return no_update
@@ -602,17 +592,7 @@ def register_callbacks(app, get_data_fn=None):
         filter_state = filter_state or {}
         scope = filter_state.get("region", "Global")
 
-        if triggered == "trigger-bulk-reboot-btn":
-            return dbc.Alert(
-                [
-                    html.B("🚀 Reboot Dispatch Sent! "),
-                    f"Initiated graceful reboot sequence for pending devices under scope: {scope}.",
-                ],
-                color="info",
-                dismissable=True,
-                className="mt-3",
-            )
-        elif triggered == "trigger-bulk-scan-btn":
+        if triggered == "trigger-bulk-scan-btn":
             return dbc.Alert(
                 [
                     html.B("🔍 Patch Scan Dispatched! "),

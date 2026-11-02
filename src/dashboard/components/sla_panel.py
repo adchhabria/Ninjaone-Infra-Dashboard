@@ -4,6 +4,7 @@ Patch Operations Details Hub Component.
 Features:
 - Table 1: Top 10 Servers with Max Pending Patches (Server Name, Org, Loc, OS name, Device Role, Approve patch Count)
 - Table 2: Top 10 Patches Pending on Max Servers (Patch Name, Patch Type (Critical / Important), OS/Software type patch, Pending device count, Patch release date)
+- Table 3: Patch Deployment Failure Triage (Device Name, Organization, Location, Region, Failed Update / KB, Error Code, Last Attempt Date, Retry Attempts)
 """
 
 from __future__ import annotations
@@ -30,17 +31,30 @@ _TOP_PATCHES_COLUMNS = [
     {"name": "Patch release date", "id": "release_date", "type": "text"},
 ]
 
+_FAILURE_COLUMNS = [
+    {"name": "Device Name", "id": "device_name", "type": "text"},
+    {"name": "Organization", "id": "org_name", "type": "text"},
+    {"name": "Location", "id": "location", "type": "text"},
+    {"name": "Region", "id": "region", "type": "text"},
+    {"name": "Failed Update / KB", "id": "patch_name", "type": "text"},
+    {"name": "Error Code", "id": "error_code", "type": "text"},
+    {"name": "Last Attempt Date", "id": "failed_date", "type": "text"},
+    {"name": "Retry Attempts", "id": "attempts", "type": "numeric"},
+]
+
 
 def build_sla_panel(sla_data: dict, patch_data: dict | None = None, theme_mode: str = "light") -> html.Div:
     """
     Renders Patch Operations Details:
     1. Top 10 Servers with Max Pending Patches
     2. Top 10 Patches Pending on Max Servers
+    3. Patch Deployment Failure Triage
     """
     p = T.get_theme_palette(theme_mode)
     sla_data = sla_data or {}
     top_servers = sla_data.get("top_servers_pending_patches", [])
     top_patches = sla_data.get("top_patches_pending_servers", [])
+    failed_rows = sla_data.get("failed_patches", [])
 
     server_style_conditional = [
         {
@@ -142,6 +156,45 @@ def build_sla_panel(sla_data: dict, patch_data: dict | None = None, theme_mode: 
         },
     )
 
+    failures_table = dash_table.DataTable(
+        id="patch-failures-table",
+        columns=_FAILURE_COLUMNS,
+        data=failed_rows,
+        sort_action="native",
+        sort_mode="multi",
+        filter_action="native",
+        filter_options={"case": "insensitive", "placeholder_text": "🔍 Filter..."},
+        page_size=10,
+        style_table={"overflowX": "auto"},
+        style_header={
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
+            "fontWeight": "600",
+            "fontSize": "0.75rem",
+            "textTransform": "uppercase",
+            "letterSpacing": "0.06em",
+            "border": f"1px solid {p['border']}",
+        },
+        style_cell={
+            "backgroundColor": p["bg_card"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
+            "fontSize": "0.85rem",
+            "padding": "8px 12px",
+            "fontFamily": "Inter, -apple-system, sans-serif",
+        },
+        style_data_conditional=[
+            {"if": {"column_id": "error_code"}, "color": T.RAG_RED, "fontWeight": "600", "fontFamily": "monospace"},
+            {"if": {"state": "active"}, "backgroundColor": p["bg_card_hover"], "border": f"1px solid {p['border']}"},
+        ],
+        style_filter={
+            "backgroundColor": p["bg_card_hover"],
+            "color": p["text_primary"],
+            "border": f"1px solid {p['border']}",
+            "fontSize": "0.80rem",
+        },
+    )
+
     return html.Div(
         [
             # Table 1: Top 10 Servers with Max Pending Patches
@@ -221,7 +274,43 @@ def build_sla_panel(sla_data: dict, patch_data: dict | None = None, theme_mode: 
                     ),
                     dbc.CardBody(top_patches_table, style={"backgroundColor": p["bg_card"]}),
                 ],
+                style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "marginBottom": "24px"},
+            ),
+
+            # Table 3: Patch Deployment Failure Triage
+            dbc.Card(
+                [
+                    dbc.CardHeader(
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    html.Span([
+                                        html.Span("❌", style={"marginRight": "8px"}),
+                                        html.Span("Patch Deployment Failure Triage", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
+                                        dbc.Badge(f"{len(failed_rows)} Failed Updates", color="danger" if failed_rows else "success", className="ms-2"),
+                                    ]),
+                                    md=6,
+                                ),
+                                dbc.Col(
+                                    html.Div(
+                                        [
+                                            dbc.Button("🔍 Trigger Fleet Patch Rescan", id="trigger-bulk-scan-btn", color="info", outline=True, size="sm", style={"fontSize": "0.78rem"}),
+                                        ],
+                                        style={"textAlign": "right"},
+                                    ),
+                                    md=6,
+                                ),
+                            ],
+                            align="center",
+                        ),
+                        style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
+                    ),
+                    dbc.CardBody(failures_table, style={"backgroundColor": p["bg_card"]}),
+                ],
                 style={"backgroundColor": p["bg_card"], "border": f"1px solid {p['border']}", "borderRadius": "8px", "marginBottom": "20px"},
             ),
+
+            # Feedback Modal / Alert
+            html.Div(id="action-feedback-container"),
         ]
     )

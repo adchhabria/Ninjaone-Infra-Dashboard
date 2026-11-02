@@ -1,10 +1,11 @@
 """
-Separate Windows & Linux Operating System Distribution Panels.
+Operating System Landscape & Patch Category Breakdown Panels.
 
-Renders separate donut cards:
-- If both Windows and Linux exist: side by side (lg=6)
-- If only Windows machines selected: Linux card is removed and Windows card expands (lg=12) with animation
-- If only Linux machines selected: Windows card is removed and Linux card expands (lg=12) with animation
+Renders responsive donut cards:
+- If both Windows and Linux exist: 3 columns (lg=4 Windows OS, lg=4 Linux OS, lg=4 Patch Category Breakdown)
+- If only Windows machines: Linux card omitted, Windows card adapts (lg=8) alongside Patch Category Breakdown (lg=4)
+- If only Linux machines: Windows card omitted, Linux card adapts (lg=8) alongside Patch Category Breakdown (lg=4)
+- If zero state: Windows card (lg=6) alongside Patch Category Breakdown (lg=6)
 """
 
 from __future__ import annotations
@@ -87,12 +88,54 @@ def build_linux_os_panel(os_data: dict, theme_mode: str = "dark") -> dbc.Card:
     )
 
 
-def build_os_panel(os_data: dict, theme_mode: str = "dark") -> dbc.Row:
+def build_patch_category_panel(type_counts: dict | None = None, theme_mode: str = "dark") -> dbc.Card:
     """
-    Renders operating system distribution donut panels.
-    - If only Windows machines: Linux box is omitted, Windows box expands to full width (lg=12).
-    - If only Linux machines: Windows box is omitted, Linux box expands to full width (lg=12).
-    - If both exist: Rendered side by side (lg=6 each).
+    Dedicated card for Patch Category Breakdown (OS Security Updates vs 3rd-Party Applications).
+    """
+    p = T.get_theme_palette(theme_mode)
+    counts = type_counts or {}
+    type_fig = charts.patch_type_donut(counts, theme_mode=theme_mode)
+    total_items = sum(counts.values())
+
+    return dbc.Card(
+        [
+            dbc.CardHeader(
+                html.Span([
+                    html.Span("📦", style={"marginRight": "8px"}),
+                    html.Span("Patch Category Breakdown", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
+                    dbc.Badge(f"{total_items:,} Patches", color="info", className="ms-2"),
+                ]),
+                style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
+            ),
+            dbc.CardBody(
+                [
+                    dcc.Graph(
+                        id="patch-type-donut",
+                        figure=type_fig,
+                        config={"displayModeBar": False},
+                        style={"height": "270px"},
+                    ),
+                ],
+                style={"padding": "12px", "backgroundColor": p["bg_card"]},
+            ),
+        ],
+        style={
+            "backgroundColor": p["bg_card"],
+            "border": f"1px solid {p['border']}",
+            "borderRadius": "8px",
+            "height": "100%",
+            "transition": "all 0.35s ease-in-out",
+        },
+    )
+
+
+def build_os_panel(os_data: dict, type_counts: dict | None = None, theme_mode: str = "dark") -> dbc.Row:
+    """
+    Renders operating system distribution and patch category breakdown panels.
+    - If both Windows and Linux exist: 3 columns (lg=4 each).
+    - If only Windows machines: Linux box omitted, Windows box adapts (lg=8) alongside Category Breakdown (lg=4).
+    - If only Linux machines: Windows box omitted, Linux box adapts (lg=8) alongside Category Breakdown (lg=4).
+    - Zero state: Windows box (lg=6) alongside Category Breakdown (lg=6).
     """
     win_counts = os_data.get("windows_version_counts", {})
     linux_counts = os_data.get("linux_version_counts", {})
@@ -100,38 +143,62 @@ def build_os_panel(os_data: dict, theme_mode: str = "dark") -> dbc.Row:
     linux_total = sum(linux_counts.values())
 
     cols = []
+    category_card = build_patch_category_panel(type_counts=type_counts, theme_mode=theme_mode)
+
     if win_total > 0 and linux_total == 0:
-        # Only Windows: expand to full width with smooth animation
+        # Only Windows + Patch Category Breakdown
         cols.append(
             dbc.Col(
                 build_windows_os_panel(os_data, theme_mode=theme_mode),
-                lg=12,
+                lg=8,
                 md=12,
                 className="mb-3 os-donut-col-expanded",
+            )
+        )
+        cols.append(
+            dbc.Col(
+                category_card,
+                lg=4,
+                md=12,
+                className="mb-3",
             )
         )
     elif linux_total > 0 and win_total == 0:
-        # Only Linux: expand to full width with smooth animation
+        # Only Linux + Patch Category Breakdown
         cols.append(
             dbc.Col(
                 build_linux_os_panel(os_data, theme_mode=theme_mode),
-                lg=12,
+                lg=8,
                 md=12,
                 className="mb-3 os-donut-col-expanded",
             )
         )
-    elif win_total > 0 or linux_total > 0:
-        # Both present: side-by-side
         cols.append(
-            dbc.Col(build_windows_os_panel(os_data, theme_mode=theme_mode), lg=6, md=12, className="mb-3 os-donut-col")
+            dbc.Col(
+                category_card,
+                lg=4,
+                md=12,
+                className="mb-3",
+            )
+        )
+    elif win_total > 0 or linux_total > 0:
+        # Both present: 3 columns side-by-side
+        cols.append(
+            dbc.Col(build_windows_os_panel(os_data, theme_mode=theme_mode), lg=4, md=12, className="mb-3 os-donut-col")
         )
         cols.append(
-            dbc.Col(build_linux_os_panel(os_data, theme_mode=theme_mode), lg=6, md=12, className="mb-3 os-donut-col")
+            dbc.Col(build_linux_os_panel(os_data, theme_mode=theme_mode), lg=4, md=12, className="mb-3 os-donut-col")
+        )
+        cols.append(
+            dbc.Col(category_card, lg=4, md=12, className="mb-3")
         )
     else:
-        # Zero state: render single expanded card
+        # Zero state: Windows + Patch Category Breakdown
         cols.append(
-            dbc.Col(build_windows_os_panel(os_data, theme_mode=theme_mode), lg=12, md=12, className="mb-3")
+            dbc.Col(build_windows_os_panel(os_data, theme_mode=theme_mode), lg=6, md=12, className="mb-3")
+        )
+        cols.append(
+            dbc.Col(category_card, lg=6, md=12, className="mb-3")
         )
 
     return dbc.Row(cols, className="g-3")

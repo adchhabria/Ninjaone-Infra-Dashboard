@@ -301,15 +301,21 @@ def generate_pdf_report(
     # =======================================================================
     # PAGE 2: OS Landscape & Server Fleet Compliance
     # =======================================================================
-    story.append(Paragraph("3. Operating System Landscape Breakdown (Windows & Linux)", h2_style))
+    story.append(Paragraph("3. Operating System Landscape & Patch Category Breakdown", h2_style))
 
     win_donut_fig = charts.windows_os_donut(data.os.get("windows_version_counts", {}), theme_mode=theme_mode)
     linux_donut_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}), theme_mode=theme_mode)
+    type_donut_fig = charts.patch_type_donut(data.sla.get("type_counts", {}), theme_mode=theme_mode)
 
-    win_img = _fig_to_image_flowable(win_donut_fig, width=350, height=200, scale=1)
-    linux_img = _fig_to_image_flowable(linux_donut_fig, width=350, height=200, scale=1)
+    win_img = _fig_to_image_flowable(win_donut_fig, width=232, height=185, scale=1)
+    linux_img = _fig_to_image_flowable(linux_donut_fig, width=232, height=185, scale=1)
+    type_img = _fig_to_image_flowable(type_donut_fig, width=232, height=185, scale=1)
 
-    if win_img and linux_img:
+    if win_img and linux_img and type_img:
+        os_charts_table = Table([[win_img, linux_img, type_img]], colWidths=[236, 236, 236])
+        os_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
+        story.append(os_charts_table)
+    elif win_img and linux_img:
         os_charts_table = Table([[win_img, linux_img]], colWidths=[355, 355])
         os_charts_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER")]))
         story.append(os_charts_table)
@@ -468,9 +474,134 @@ def generate_pdf_report(
     story.append(PageBreak())
 
     # =======================================================================
-    # PAGE 5: Organization Compliance Ledger
+    # PAGE 5: Patch Operations Details & Failure Triage
     # =======================================================================
-    story.append(Paragraph("8. Organization Compliance & Fleet Health Ledger", h2_style))
+    story.append(Paragraph("8. Patch Operations Details: Prioritized Remediation & Failure Triage", h2_style))
+
+    # Table 1: Top 10 Servers with Max Pending Patches
+    story.append(Paragraph("<b>Top 10 Servers with Max Pending Patches (Remediation Priority)</b>", body_bold))
+    top_servers = data.sla.get("top_servers_pending_patches", [])[:10]
+    if top_servers:
+        srv_headers = [
+            Paragraph("Server Name", header_cell_style),
+            Paragraph("Organization", header_cell_style),
+            Paragraph("Location", header_cell_style),
+            Paragraph("OS Name", header_cell_style),
+            Paragraph("Device Role", header_cell_style),
+            Paragraph("Approved Patches", header_cell_style),
+        ]
+        srv_content = [srv_headers]
+        for s in top_servers:
+            srv_content.append([
+                Paragraph(s.get("name", "N/A"), body_bold),
+                Paragraph(s.get("org_name", "N/A"), body_style),
+                Paragraph(s.get("location", "N/A"), body_style),
+                Paragraph(s.get("os_name", "N/A"), body_style),
+                Paragraph(s.get("device_role", "Server"), body_style),
+                Paragraph(f"<font color='#CF222E'><b>{s.get('approved_patch_count', 0)}</b></font>", body_bold),
+            ])
+        srv_table = Table(srv_content, colWidths=[130, 130, 110, 140, 110, 85])
+        srv_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+                ("BOX", (0, 0), (-1, -1), 1, border_color),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [card_bg, light_bg]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+            ])
+        )
+        story.append(srv_table)
+    else:
+        story.append(Paragraph("✅ No servers with pending approved patches.", body_style))
+
+    story.append(Spacer(1, 8))
+
+    # Table 2: Top 10 Patches Pending on Max Servers
+    story.append(Paragraph("<b>Top 10 Patches Pending on Max Servers (Fleet Blast Radius)</b>", body_bold))
+    top_patches = data.sla.get("top_patches_pending_servers", [])[:10]
+    if top_patches:
+        patch_headers = [
+            Paragraph("Patch Name", header_cell_style),
+            Paragraph("Severity", header_cell_style),
+            Paragraph("Category", header_cell_style),
+            Paragraph("Pending Devices", header_cell_style),
+            Paragraph("Release Date", header_cell_style),
+        ]
+        patch_content = [patch_headers]
+        for p_item in top_patches:
+            sev = p_item.get("severity", "IMPORTANT")
+            s_col = "#CF222E" if "CRIT" in sev.upper() else "#D29922"
+            patch_content.append([
+                Paragraph(p_item.get("patch_name", "N/A"), body_bold),
+                Paragraph(f"<font color='{s_col}'><b>{sev}</b></font>", body_style),
+                Paragraph(p_item.get("patch_category", "OS Security Updates"), body_style),
+                Paragraph(f"<b>{p_item.get('pending_device_count', 0)}</b>", body_style),
+                Paragraph(p_item.get("release_date", "N/A"), body_style),
+            ])
+        pt_table = Table(patch_content, colWidths=[240, 100, 145, 110, 110])
+        pt_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+                ("BOX", (0, 0), (-1, -1), 1, border_color),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [card_bg, light_bg]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+            ])
+        )
+        story.append(pt_table)
+    else:
+        story.append(Paragraph("✅ No fleet-wide pending patches.", body_style))
+
+    story.append(Spacer(1, 8))
+
+    # Table 3: Patch Failures Triage
+    story.append(Paragraph("<b>Patch Deployment Failure Triage</b>", body_bold))
+    failed_rows = data.sla.get("failed_patches", [])[:15]
+    if failed_rows:
+        fail_headers = [
+            Paragraph("Device Name", header_cell_style),
+            Paragraph("Organization", header_cell_style),
+            Paragraph("Failed Patch / KB", header_cell_style),
+            Paragraph("Error Code", header_cell_style),
+            Paragraph("Failed Date", header_cell_style),
+            Paragraph("Attempts", header_cell_style),
+        ]
+        fail_content = [fail_headers]
+        for f in failed_rows:
+            fail_content.append([
+                Paragraph(f.get("device_name", "N/A"), body_bold),
+                Paragraph(f.get("org_name", "N/A"), body_style),
+                Paragraph(f.get("patch_name", "N/A"), body_style),
+                Paragraph(f"<font color='#CF222E'><b>{f.get('error_code', '0x80240020')}</b></font>", body_style),
+                Paragraph(f.get("failed_date", "N/A"), body_style),
+                Paragraph(str(f.get("attempts", 1)), body_style),
+            ])
+        fail_table = Table(fail_content, colWidths=[130, 130, 200, 95, 90, 60])
+        fail_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+                ("BOX", (0, 0), (-1, -1), 1, border_color),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [card_bg, light_bg]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+            ])
+        )
+        story.append(fail_table)
+    else:
+        story.append(Paragraph("✅ Zero patch deployment failures recorded.", body_style))
+
+    story.append(PageBreak())
+
+    # =======================================================================
+    # PAGE 6: Organization Compliance Ledger
+    # =======================================================================
+    story.append(Paragraph("9. Organization Compliance & Fleet Health Ledger", h2_style))
     org_rows = data.org_table
 
     if org_rows:
@@ -518,5 +649,4 @@ def generate_pdf_report(
 
     # Build PDF with themed canvas
     doc.build(story, canvasmaker=get_numbered_canvas_class(theme_mode))
-    return buffer.getvalue()
     return buffer.getvalue()

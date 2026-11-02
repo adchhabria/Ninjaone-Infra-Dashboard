@@ -39,17 +39,17 @@ def build_reports_panel(data: DashboardData, theme_mode: str = "dark") -> html.D
                                 dbc.CardBody(
                                     [
                                         html.P(
-                                            "Exports a complete enterprise workbook with formatted headers, auto-filters, and 6 specialized worksheets matching the current filter scope:",
+                                            "Exports a complete enterprise workbook with formatted headers, auto-filters, and specialized worksheets matching the current filter scope:",
                                             style={**T.FONT_BODY, "color": p["text_primary"]},
                                         ),
                                         html.Ul(
                                             [
                                                 html.Li([html.Strong("Executive Summary: "), "High-level metrics, compliance score, RAG status."]),
+                                                html.Li([html.Strong("Top Pending Servers: "), "Top 10 servers with max pending patches for priority remediation."]),
+                                                html.Li([html.Strong("Top Pending Patches: "), "Top 10 updates ranked by fleet deployment blast radius."]),
+                                                html.Li([html.Strong("Patch Failures: "), "Failed updates with diagnostic error codes and retry counts."]),
                                                 html.Li([html.Strong("Organization Compliance: "), "Org-by-org device counts, patch %, OS %, and scores."]),
                                                 html.Li([html.Strong("EOL Device Ledger: "), "Expired & approaching EOL hardware with days overdue."]),
-                                                html.Li([html.Strong("Patch SLA Aging: "), "Granular patch inventory categorized by SLA aging bracket."]),
-                                                html.Li([html.Strong("Needs Reboot: "), "Watchlist of endpoints requiring restart."]),
-                                                html.Li([html.Strong("Patch Failures: "), "Failed updates with diagnostic error codes."]),
                                             ],
                                             style={"color": p["text_secondary"], "fontSize": "0.85rem", "marginBottom": "20px"},
                                         ),
@@ -92,7 +92,8 @@ def build_reports_panel(data: DashboardData, theme_mode: str = "dark") -> html.D
                                         html.Ul(
                                             [
                                                 html.Li([html.Strong("Executive KPI Matrix: "), "Overall RAG score, device health, fleet patch coverage."]),
-                                                html.Li([html.Strong("Patch SLA Aging: "), "Granular breakdown of within-SLA, warning, and breached patches."]),
+                                                html.Li([html.Strong("Patch Operations Details: "), "Top pending servers, top fleet updates, and patch failure triage."]),
+                                                html.Li([html.Strong("OS Landscape & Categories: "), "Windows, Linux, and patch category breakdown side-by-side."]),
                                                 html.Li([html.Strong("Multi-Cloud Hosting: "), "AWS, Azure, GCP, VMs, and physical server inventory."]),
                                                 html.Li([html.Strong("EOL Audit Ledger: "), "Complete list of past-support operating systems with days overdue."]),
                                                 html.Li([html.Strong("Client Scorecards: "), "Organization-by-organization compliance status."]),
@@ -139,7 +140,8 @@ def build_reports_panel(data: DashboardData, theme_mode: str = "dark") -> html.D
                                             [
                                                 html.Li([html.Strong("Zero Installation: "), "Opens instantly in Chrome, Edge, Safari, Firefox."]),
                                                 html.Li([html.Strong("Live Interactive Charts: "), "Embedded Plotly charts with zoom and hover tooltips."]),
-                                                html.Li([html.Strong("Full Audit Tables: "), "Complete client scorecards, EOL hardware & reboot lists."]),
+                                                html.Li([html.Strong("Patch Operations Triage: "), "Top pending servers, top fleet updates, and failure triage tables."]),
+                                                html.Li([html.Strong("Full Audit Tables: "), "Complete client scorecards & EOL hardware ledgers."]),
                                                 html.Li([html.Strong("Offline Ready: "), "Does not require a running server or login credentials."]),
                                                 html.Li([html.Strong("Filtered Scope: "), f"Exported for {data.active_filter_label}."]),
                                             ],

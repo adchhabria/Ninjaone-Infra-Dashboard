@@ -2,7 +2,8 @@
 Standalone Executive HTML Report Generator for NinjaOne Infrastructure & Compliance Dashboard.
 
 Generates a fully self-contained, publication-grade interactive HTML report containing
-all KPI cards, interactive Plotly charts, SLA breakdown, multi-cloud hosting, and audit data tables.
+all KPI cards, interactive Plotly charts, OS Landscape & Patch Category Breakdown,
+Patch Operations Details ledgers, and audit data tables.
 Can be shared directly with stakeholders and opened in any web browser without needing a server.
 """
 
@@ -44,6 +45,10 @@ def generate_html_report(
     lin_fig = charts.linux_os_donut(data.os.get("linux_version_counts", {}), theme_mode=theme_mode)
     lin_chart_html = pio.to_html(lin_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
+    type_counts = data.sla.get("type_counts", {})
+    type_fig = charts.patch_type_donut(type_counts, theme_mode=theme_mode)
+    type_chart_html = pio.to_html(type_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
+
     host_fig = charts.hosting_donut(data.servers.get("hosting_counts", {}), theme_mode=theme_mode)
     host_chart_html = pio.to_html(host_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
@@ -64,10 +69,6 @@ def generate_html_report(
     sla_fig = charts.patch_sla_aging_bar(sla_counts, theme_mode=theme_mode)
     sla_chart_html = pio.to_html(sla_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
 
-    type_counts = data.sla.get("type_counts", {})
-    type_fig = charts.patch_type_donut(type_counts, theme_mode=theme_mode)
-    type_chart_html = pio.to_html(type_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False})
-
     # Build Org Rows HTML
     org_rows_html = ""
     for r in data.org_table:
@@ -85,17 +86,50 @@ def generate_html_report(
         </tr>
         """
 
-
-    # Build Reboot Rows HTML
-    reboot_rows_html = ""
-    for rb in data.sla.get("reboot_devices", [])[:50]:
-        reboot_rows_html += f"""
+    # Build Patch Operations Rows: Top 10 Servers
+    top_servers = data.sla.get("top_servers_pending_patches", [])[:10]
+    top_servers_rows_html = ""
+    for s in top_servers:
+        top_servers_rows_html += f"""
         <tr>
-            <td><strong>{rb.get('name', 'N/A')}</strong></td>
-            <td>{rb.get('org_name', 'N/A')}</td>
-            <td>{rb.get('os', 'N/A')}</td>
-            <td>{rb.get('uptime_days', 0)} days</td>
-            <td><span class="badge rag-amber">Pending Reboot</span></td>
+            <td><strong>{s.get('name', 'N/A')}</strong></td>
+            <td>{s.get('org_name', 'N/A')}</td>
+            <td>{s.get('location', 'N/A')}</td>
+            <td>{s.get('os_name', 'N/A')}</td>
+            <td><span class="badge badge-scope">{s.get('device_role', 'Server')}</span></td>
+            <td><strong style="color: var(--rag-red);">{s.get('approved_patch_count', 0)}</strong></td>
+        </tr>
+        """
+
+    # Build Patch Operations Rows: Top 10 Patches
+    top_patches = data.sla.get("top_patches_pending_servers", [])[:10]
+    top_patches_rows_html = ""
+    for p_item in top_patches:
+        sev = p_item.get("severity", "IMPORTANT")
+        sev_class = "rag-red" if "CRIT" in sev.upper() else "rag-amber"
+        top_patches_rows_html += f"""
+        <tr>
+            <td><strong>{p_item.get('patch_name', 'N/A')}</strong></td>
+            <td><span class="badge {sev_class}">{sev}</span></td>
+            <td>{p_item.get('patch_category', 'OS Security Updates')}</td>
+            <td><strong>{p_item.get('pending_device_count', 0)} devices</strong></td>
+            <td>{p_item.get('release_date', 'N/A')}</td>
+        </tr>
+        """
+
+    # Build Patch Operations Rows: Failures Triage
+    failed_rows = data.sla.get("failed_patches", [])[:20]
+    failed_rows_html = ""
+    for f in failed_rows:
+        failed_rows_html += f"""
+        <tr>
+            <td><strong>{f.get('device_name', 'N/A')}</strong></td>
+            <td>{f.get('org_name', 'N/A')}</td>
+            <td>{f.get('location', 'N/A')}</td>
+            <td>{f.get('patch_name', 'N/A')}</td>
+            <td><code style="color: var(--rag-red); font-weight: 700;">{f.get('error_code', '0x80240020')}</code></td>
+            <td>{f.get('failed_date', 'N/A')}</td>
+            <td><span class="badge rag-amber">{f.get('attempts', 1)} attempts</span></td>
         </tr>
         """
 
@@ -160,40 +194,37 @@ def generate_html_report(
             padding: 24px 0 60px 0;
         }}
         .report-header {{
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 18px;
             margin-bottom: 24px;
         }}
         .kpi-card {{
             background-color: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 10px;
-            padding: 20px;
+            padding: 16px 20px;
             text-align: center;
             height: 100%;
         }}
+        .kpi-title {{
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }}
         .kpi-val {{
             font-size: 2.6rem;
-            font-weight: 800;
-            line-height: 1.15;
-            color: var(--accent-blue);
-            margin: 6px 0;
-        }}
-        .kpi-title {{
-            font-size: 0.8rem;
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-secondary);
+            line-height: 1.1;
+            margin-bottom: 4px;
         }}
         .chart-card {{
             background-color: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 16px;
-            margin-bottom: 20px;
             height: 100%;
         }}
         .chart-title {{
@@ -305,7 +336,7 @@ def generate_html_report(
             </div>
         </div>
 
-        <!-- Section 1: Executive Charts -->
+        <!-- Section 1: Operating System Landscape & Patch Category Breakdown -->
         <div class="row g-3 mb-4">
             <div class="col-md-4">
                 <div class="chart-card">
@@ -321,13 +352,20 @@ def generate_html_report(
             </div>
             <div class="col-md-4">
                 <div class="chart-card">
-                    <div class="chart-title">Patch Compliance Speedometer</div>
-                    {gauge_chart_html}
+                    <div class="chart-title">Patch Category Breakdown</div>
+                    {type_chart_html}
                 </div>
             </div>
         </div>
 
+        <!-- Section 2: Hosting & Compliance Speedometer -->
         <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="chart-card">
+                    <div class="chart-title">Current Month Patch Compliance</div>
+                    {gauge_chart_html}
+                </div>
+            </div>
             <div class="col-md-4">
                 <div class="chart-card">
                     <div class="chart-title">Multi-Cloud Server Hosting Breakdown</div>
@@ -340,15 +378,73 @@ def generate_html_report(
                     {stacked_chart_html}
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="chart-card">
-                    <div class="chart-title">Patch SLA Aging Backlog</div>
-                    {sla_chart_html}
-                </div>
+        </div>
+
+        <!-- Section 3: Patch Operations Details & Failure Triage -->
+        <div class="table-card">
+            <h5 class="mb-3" style="color: var(--text-primary); font-weight: 600;">🚨 Top 10 Servers with Max Pending Patches</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                    <thead>
+                        <tr>
+                            <th>Server Name</th>
+                            <th>Org</th>
+                            <th>Loc</th>
+                            <th>OS name</th>
+                            <th>Device Role</th>
+                            <th>Approve patch Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {top_servers_rows_html if top_servers_rows_html else '<tr><td colspan="6" class="text-center text-secondary py-3">✅ No servers with pending approved patches.</td></tr>'}
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Section 2: Organization Compliance Matrix -->
+        <div class="table-card">
+            <h5 class="mb-3" style="color: var(--text-primary); font-weight: 600;">🩹 Top 10 Patches Pending on Max Servers</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                    <thead>
+                        <tr>
+                            <th>Patch Name</th>
+                            <th>Patch Type (Critical / Important)</th>
+                            <th>OS/Software type patch</th>
+                            <th>Pending device count</th>
+                            <th>Patch release date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {top_patches_rows_html if top_patches_rows_html else '<tr><td colspan="5" class="text-center text-secondary py-3">✅ No fleet-wide pending patches.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <h5 class="mb-3" style="color: var(--text-primary); font-weight: 600;">❌ Patch Deployment Failure Triage</h5>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                    <thead>
+                        <tr>
+                            <th>Device Name</th>
+                            <th>Organization</th>
+                            <th>Location</th>
+                            <th>Failed Update / KB</th>
+                            <th>Error Code</th>
+                            <th>Last Attempt Date</th>
+                            <th>Retry Attempts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {failed_rows_html if failed_rows_html else '<tr><td colspan="7" class="text-center text-secondary py-3">✅ Zero patch installation failures recorded.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 4: Organization Compliance Matrix -->
         <div class="table-card">
             <h5 class="mb-3" style="color: var(--text-primary); font-weight: 600;">🏢 Organization Compliance Scorecard</h5>
             <div class="table-responsive">
@@ -371,7 +467,6 @@ def generate_html_report(
                 </table>
             </div>
         </div>
-
 
         <!-- Footer -->
         <div class="text-center text-secondary mt-5" style="font-size: 0.8rem;">
