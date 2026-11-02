@@ -216,6 +216,7 @@ def register_callbacks(app, get_data_fn=None):
         inc_kw = ts_settings.get("included_keywords", None)
         exc_prod = ts_settings.get("excluded_products", None)
         sel_titles = ts_settings.get("selected_patch_titles", None)
+        ytd_trend_val = ts_settings.get("ytd_trend", None)
 
         active_org = filter_state.get("org_ids") or filter_state.get("org_id")
         active_loc = filter_state.get("locations") or filter_state.get("location")
@@ -239,6 +240,7 @@ def register_callbacks(app, get_data_fn=None):
             included_keywords=inc_kw,
             excluded_products=exc_prod,
             selected_patch_titles=sel_titles,
+            ytd_trend=ytd_trend_val,
         )
 
         tab_content = build_tab_content(
@@ -795,6 +797,18 @@ def register_callbacks(app, get_data_fn=None):
         State("settings-eol-rhel", "value"),
         State("settings-eol-centos", "value"),
         State("settings-eol-debian", "value"),
+        State("settings-ytd-oct25", "value"),
+        State("settings-ytd-nov25", "value"),
+        State("settings-ytd-dec25", "value"),
+        State("settings-ytd-jan26", "value"),
+        State("settings-ytd-feb26", "value"),
+        State("settings-ytd-mar26", "value"),
+        State("settings-ytd-apr26", "value"),
+        State("settings-ytd-may26", "value"),
+        State("settings-ytd-jun26", "value"),
+        State("settings-ytd-jul26", "value"),
+        State("settings-ytd-aug26", "value"),
+        State("settings-ytd-sep26", "value"),
         State("settings-modal", "is_open"),
         State("threshold-settings-store", "data"),
         State("auth-state-store", "data"),
@@ -828,6 +842,18 @@ def register_callbacks(app, get_data_fn=None):
         eol_rhel,
         eol_centos,
         eol_debian,
+        ytd_oct25,
+        ytd_nov25,
+        ytd_dec25,
+        ytd_jan26,
+        ytd_feb26,
+        ytd_mar26,
+        ytd_apr26,
+        ytd_may26,
+        ytd_jun26,
+        ytd_jul26,
+        ytd_aug26,
+        ytd_sep26,
         is_open,
         current_thresholds,
         current_auth_state,
@@ -884,6 +910,21 @@ def register_callbacks(app, get_data_fn=None):
                 "Debian": eol_debian or "06/30/2026",
             }
 
+            ytd_trend_dict = {
+                "Oct-25": float(ytd_oct25 if ytd_oct25 is not None else 80.0),
+                "Nov-25": float(ytd_nov25 if ytd_nov25 is not None else 82.0),
+                "Dec-25": float(ytd_dec25 if ytd_dec25 is not None else 90.0),
+                "Jan-26": float(ytd_jan26 if ytd_jan26 is not None else 85.0),
+                "Feb-26": float(ytd_feb26 if ytd_feb26 is not None else 88.0),
+                "Mar-26": float(ytd_mar26 if ytd_mar26 is not None else 74.0),
+                "Apr-26": float(ytd_apr26 if ytd_apr26 is not None else 95.0),
+                "May-26": float(ytd_may26 if ytd_may26 is not None else 90.0),
+                "Jun-26": float(ytd_jun26 if ytd_jun26 is not None else 50.0),
+                "Jul-26": float(ytd_jul26 if ytd_jul26 is not None else 70.0),
+                "Aug-26": float(ytd_aug26 if ytd_aug26 is not None else 85.0),
+                "Sep-26": float(ytd_sep26 if ytd_sep26 is not None else 96.0),
+            }
+
             thresholds_data = {
                 "eol_days": eol_val,
                 "patch_red": p_red,
@@ -893,6 +934,7 @@ def register_callbacks(app, get_data_fn=None):
                 "included_keywords": patch_included_keywords if patch_included_keywords is not None else ["Cumulative Update", "Security Update"],
                 "excluded_products": patch_excluded_keywords if patch_excluded_keywords is not None else [".NET", "Office", "SQL", "Visual Studio", "Exchange", "SharePoint"],
                 "selected_patch_titles": patch_selected_titles or [],
+                "ytd_trend": ytd_trend_dict,
             }
 
             # If user provided API keys with Client Secret, attempt M2M sign in

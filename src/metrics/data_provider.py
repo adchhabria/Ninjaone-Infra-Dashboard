@@ -328,6 +328,7 @@ class DataCoordinator:
         included_keywords: list[str] | None = None,
         excluded_products: list[str] | None = None,
         selected_patch_titles: list[str] | None = None,
+        ytd_trend: dict[str, float] | None = None,
     ) -> DashboardData:
         """
         Retrieves DashboardData from Live NinjaOne API if authenticated,
@@ -354,6 +355,7 @@ class DataCoordinator:
                     included_keywords=included_keywords,
                     excluded_products=excluded_products,
                     selected_patch_titles=selected_patch_titles,
+                    ytd_trend=ytd_trend,
                 )
             except Exception as e:
                 print(f"[!] Live data query notice (returning fallback for this request): {e}")
@@ -375,6 +377,7 @@ class DataCoordinator:
             included_keywords=included_keywords,
             excluded_products=excluded_products,
             selected_patch_titles=selected_patch_titles,
+            ytd_trend=ytd_trend,
         )
 
 

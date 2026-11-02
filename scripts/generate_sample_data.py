@@ -216,6 +216,7 @@ def get_mock_dashboard_data(
     included_keywords: list[str] | None = None,
     excluded_products: list[str] | None = None,
     selected_patch_titles: list[str] | None = None,
+    ytd_trend: dict[str, float] | None = None,
     force_refresh: bool = False,
 ) -> DashboardData:
     """Returns complete DashboardData computed from realistic mock pool with sub-millisecond slice caching."""
@@ -245,6 +246,7 @@ def get_mock_dashboard_data(
         _hashable(included_keywords),
         _hashable(excluded_products),
         _hashable(selected_patch_titles),
+        _hashable(tuple(sorted(ytd_trend.items())) if ytd_trend else ()),
     )
 
     if not force_refresh and slice_key in _MOCK_SLICE_CACHE:
@@ -270,6 +272,7 @@ def get_mock_dashboard_data(
         included_keywords=included_keywords,
         excluded_products=excluded_products,
         selected_patch_titles=selected_patch_titles,
+        ytd_trend=ytd_trend,
     )
     _MOCK_SLICE_CACHE[slice_key] = computed
     return computed

@@ -26,6 +26,21 @@ compliance:
   amber_threshold: 60                # 60–79% → Amber
                                      # < 60% → Red
 
+  # Year-to-Date (YTD) 12-Month Patch Compliance Trend (%)
+  ytd_trend:
+    "Oct-25": 80
+    "Nov-25": 82
+    "Dec-25": 90
+    "Jan-26": 85
+    "Feb-26": 88
+    "Mar-26": 74
+    "Apr-26": 95
+    "May-26": 90
+    "Jun-26": 50
+    "Jul-26": 70
+    "Aug-26": 85
+    "Sep-26": 96
+
 patch:
   # Severity levels from NinjaOne
   critical_max_days: 7              # Critical patches must be applied within 7 days

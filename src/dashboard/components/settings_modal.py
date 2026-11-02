@@ -17,6 +17,7 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 
 from src.dashboard import theme as T
+from src.dashboard.charts import DEFAULT_YTD_TREND
 from src.utils.updater import CURRENT_VERSION, GITHUB_REPO
 
 
@@ -486,6 +487,51 @@ def build_settings_modal(theme_mode: str = "dark") -> dbc.Modal:
                                                     ),
                                                 ],
                                                 className="g-2 mb-3",
+                                            ),
+                                        ]
+                                    ),
+
+                                    html.Hr(style={"borderColor": T.BORDER}),
+
+                                    # 3. Patch Compliance Year-to-Date (YTD) Trend Data (%)
+                                    html.Div(
+                                        [
+                                            html.Div(
+                                                [
+                                                    dbc.Label("📈 Patch Compliance Year-to-Date (YTD) Monthly Trend (%)", style=T.FONT_KPI_LABEL),
+                                                    dbc.Badge("Line Graph Data", color="info", className="ms-2", style={"fontSize": "0.72rem"}),
+                                                ],
+                                                className="d-flex align-items-center mb-1",
+                                            ),
+                                            html.P(
+                                                "Manual percentage inputs for the 12-month rolling Patch Compliance Year-to-Date trend chart displayed on the main page.",
+                                                className="text-secondary",
+                                                style={"fontSize": "0.78rem", "marginBottom": "10px"},
+                                            ),
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        [
+                                                            dbc.Label(month, style={"fontSize": "0.72rem", "fontWeight": "600", "color": p["text_secondary"]}),
+                                                            dbc.Input(
+                                                                id=f"settings-ytd-{month.lower().replace('-', '')}",
+                                                                type="number",
+                                                                min=0,
+                                                                max=100,
+                                                                step=1,
+                                                                value=DEFAULT_YTD_TREND.get(month, 80),
+                                                                style={"fontSize": "0.78rem", "textAlign": "center", "padding": "4px 6px"},
+                                                            ),
+                                                        ],
+                                                        xs=4, sm=3, md=2, lg=2,
+                                                        className="mb-2",
+                                                    )
+                                                    for month in [
+                                                        "Oct-25", "Nov-25", "Dec-25", "Jan-26", "Feb-26", "Mar-26",
+                                                        "Apr-26", "May-26", "Jun-26", "Jul-26", "Aug-26", "Sep-26"
+                                                    ]
+                                                ],
+                                                className="g-2 mb-2",
                                             ),
                                         ]
                                     ),

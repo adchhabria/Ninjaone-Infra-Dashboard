@@ -30,6 +30,21 @@ from src.metrics.patch_sla import compute_patch_sla_metrics
 
 console = Console()
 
+DEFAULT_YTD_TREND: dict[str, float] = {
+    "Oct-25": 80.0,
+    "Nov-25": 82.0,
+    "Dec-25": 90.0,
+    "Jan-26": 85.0,
+    "Feb-26": 88.0,
+    "Mar-26": 74.0,
+    "Apr-26": 95.0,
+    "May-26": 90.0,
+    "Jun-26": 50.0,
+    "Jul-26": 70.0,
+    "Aug-26": 85.0,
+    "Sep-26": 96.0,
+}
+
 
 # ---------------------------------------------------------------------------
 # Region & Country Mapping Rules
@@ -146,6 +161,9 @@ class DashboardData:
     # World Map Data
     map_data: list[dict] = field(default_factory=list)
 
+    # Patch Compliance Year-to-Date (YTD) Trend
+    ytd_trend: dict[str, float] = field(default_factory=dict)
+
     # Organization Compliance Table
     org_table: list[dict] = field(default_factory=list)
 
@@ -215,6 +233,7 @@ def compute_dashboard_slice(
     included_keywords: list[str] | None = None,
     excluded_products: list[str] | None = None,
     selected_patch_titles: list[str] | None = None,
+    ytd_trend: dict[str, float] | None = None,
 ) -> DashboardData:
     """Computes all metrics, SLA rollups, charts data, and tables for an active multi-slicer slice."""
 
@@ -610,6 +629,7 @@ def compute_dashboard_slice(
         patches=patch_metrics,
         sla=sla_metrics,
         map_data=map_data,
+        ytd_trend=ytd_trend or DEFAULT_YTD_TREND,
         org_table=org_table_rows,
         org_options=all_org_options,
         location_options=all_locations,
@@ -660,6 +680,7 @@ class MetricsAggregator:
         included_keywords: list[str] | None = None,
         excluded_products: list[str] | None = None,
         selected_patch_titles: list[str] | None = None,
+        ytd_trend: dict[str, float] | None = None,
     ) -> DashboardData:
         def _hashable(v):
             if isinstance(v, (list, tuple, set)):
@@ -738,6 +759,7 @@ class MetricsAggregator:
             included_keywords=included_keywords,
             excluded_products=excluded_products,
             selected_patch_titles=selected_patch_titles,
+            ytd_trend=ytd_trend,
         )
         self._slice_cache[slice_key] = computed
         return computed

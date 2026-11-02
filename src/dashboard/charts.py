@@ -411,6 +411,22 @@ def hosting_role_heatmap(matrix: list[dict], theme_mode: str = "dark") -> go.Fig
 # Patch Compliance Gauge (0-60 Red, 61-84 Amber, 85+ Green)
 # ---------------------------------------------------------------------------
 
+DEFAULT_YTD_TREND: dict[str, float] = {
+    "Oct-25": 80.0,
+    "Nov-25": 82.0,
+    "Dec-25": 90.0,
+    "Jan-26": 85.0,
+    "Feb-26": 88.0,
+    "Mar-26": 74.0,
+    "Apr-26": 95.0,
+    "May-26": 90.0,
+    "Jun-26": 50.0,
+    "Jul-26": 70.0,
+    "Aug-26": 85.0,
+    "Sep-26": 96.0,
+}
+
+
 def patch_gauge(
     patch_pct: float,
     red_limit: float = 60.0,
@@ -419,7 +435,7 @@ def patch_gauge(
     theme_mode: str = "dark",
 ) -> go.Figure:
     """
-    Speedometer gauge — overall patch coverage %.
+    Speedometer gauge — overall patch coverage % with 5-point meter bar divisions.
     Customizable Thresholds:
       0 to red_limit:        RED
       red_limit to amber_limit: AMBER
@@ -439,7 +455,15 @@ def patch_gauge(
             number=dict(suffix="%", font=dict(size=40, color=color)),
             delta=dict(reference=green_target, valueformat=".1f", font=dict(color=p["text_secondary"])),
             gauge=dict(
-                axis=dict(range=[0, 100], tickcolor=p["text_secondary"], tickfont=dict(color=p["text_secondary"])),
+                axis=dict(
+                    range=[0, 100],
+                    tickmode="linear",
+                    tick0=0,
+                    dtick=5,  # 5-point meter bar divisions instead of 20 points
+                    ticks="inside",
+                    tickcolor=p["text_secondary"],
+                    tickfont=dict(color=p["text_secondary"], size=9),
+                ),
                 bar=dict(color=color, thickness=0.25),
                 bgcolor=p["bg_card"],
                 bordercolor=p["border"],
@@ -458,6 +482,93 @@ def patch_gauge(
     )
     fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=260)
     return _apply_theme(fig, f"Fleet Patch Coverage (Target: ≥{int(green_target)}%)", theme_mode=theme_mode)
+
+
+def patch_compliance_ytd_trend_line(
+    trend_data: dict[str, float] | None = None,
+    green_target: float = 85.0,
+    theme_mode: str = "dark",
+) -> go.Figure:
+    """
+    Line chart — Year-to-Date (YTD) Patch Compliance trend over 12 rolling months.
+    """
+    p = T.get_theme_palette(theme_mode)
+    data = trend_data or DEFAULT_YTD_TREND
+
+    months = list(data.keys())
+    values = [float(v) for v in data.values()]
+
+    fig = go.Figure()
+
+    # Target Benchmark Line (e.g. 85%)
+    fig.add_trace(
+        go.Scatter(
+            x=months,
+            y=[green_target] * len(months),
+            mode="lines",
+            name=f"Target ({int(green_target)}%)",
+            line=dict(color="#10B981" if theme_mode == "dark" else "#059669", width=2, dash="dash"),
+            hoverinfo="none",
+        )
+    )
+
+    # Actual Compliance Trend Line with shaded fill
+    line_color = "#38BDF8" if theme_mode == "dark" else "#2563EB"
+    fill_color = "rgba(56, 189, 248, 0.12)" if theme_mode == "dark" else "rgba(37, 99, 235, 0.08)"
+
+    # Point marker colors: Green if >= target, Amber if >= 70, Red if < 70
+    marker_colors = [
+        T.RAG_GREEN if v >= green_target else (T.RAG_AMBER if v >= 70.0 else T.RAG_RED)
+        for v in values
+    ]
+
+    fig.add_trace(
+        go.Scatter(
+            x=months,
+            y=values,
+            mode="lines+markers+text",
+            name="Compliance %",
+            line=dict(color=line_color, width=3, shape="spline"),
+            marker=dict(
+                size=8,
+                color=marker_colors,
+                line=dict(color="#FFFFFF" if theme_mode == "dark" else "#1E293B", width=1.5),
+            ),
+            text=[f"{v:.0f}%" for v in values],
+            textposition="top center",
+            textfont=dict(size=10, color=p["text_primary"]),
+            fill="tozeroy",
+            fillcolor=fill_color,
+            hovertemplate="<b>%{x}</b><br>Compliance: <b>%{y:.1f}%</b><extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        yaxis=dict(
+            range=[30, 110],
+            ticksuffix="%",
+            gridcolor=p["border"],
+            zerolinecolor=p["border"],
+            tickfont=dict(color=p["text_secondary"], size=10),
+        ),
+        xaxis=dict(
+            gridcolor="rgba(0,0,0,0)",
+            tickfont=dict(color=p["text_secondary"], size=10),
+        ),
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=10, color=p["text_secondary"]),
+        ),
+        margin=dict(l=35, r=20, t=35, b=25),
+        height=260,
+    )
+
+    return _apply_theme(fig, "Patch Compliance Year-to-Date (YTD) Trend", theme_mode=theme_mode)
 
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,8 @@ from src.dashboard.charts import (
     hosting_donut,
     hosting_role_heatmap,
     patch_gauge,
+    patch_compliance_ytd_trend_line,
+    DEFAULT_YTD_TREND,
     world_map_chart,
     eol_status_donut,
     eol_by_os_bar,
@@ -41,10 +43,29 @@ class TestCharts:
     def test_patch_gauge(self):
         fig_green = patch_gauge(88.0)
         assert isinstance(fig_green, go.Figure)
+        # Verify 5-point meter bar tick division instead of 20 points
+        assert fig_green.data[0].gauge.axis.dtick == 5
         fig_amber = patch_gauge(75.0)
         assert isinstance(fig_amber, go.Figure)
         fig_red = patch_gauge(55.0)
         assert isinstance(fig_red, go.Figure)
+
+    def test_patch_compliance_ytd_trend_line(self):
+        # Default 12-month data
+        fig_default = patch_compliance_ytd_trend_line()
+        assert isinstance(fig_default, go.Figure)
+        assert len(fig_default.data) == 2  # Target line + Compliance trend
+        assert fig_default.data[1].x == tuple(DEFAULT_YTD_TREND.keys())
+
+        # Custom user data
+        custom_data = {
+            "Oct-25": 80, "Nov-25": 82, "Dec-25": 90, "Jan-26": 85,
+            "Feb-26": 88, "Mar-26": 74, "Apr-26": 95, "May-26": 90,
+            "Jun-26": 50, "Jul-26": 70, "Aug-26": 85, "Sep-26": 96,
+        }
+        fig_custom = patch_compliance_ytd_trend_line(custom_data, theme_mode="light")
+        assert isinstance(fig_custom, go.Figure)
+        assert list(fig_custom.data[1].y) == [80, 82, 90, 85, 88, 74, 95, 90, 50, 70, 85, 96]
 
     def test_world_map_chart_hover_only(self):
         map_data = [
