@@ -185,6 +185,8 @@ class Device(BaseModel):
             if not role_val:
                 name = str(data.get("displayName") or data.get("systemName") or "")
                 nu = name.upper()
+                nc = str(data.get("nodeClass") or "").upper()
+                os_name = str(data.get("os", {}).get("name", "") if isinstance(data.get("os"), dict) else "").upper()
                 if "DC-" in nu or "-DC" in nu or "DOMAIN" in nu:
                     role_val = "Domain Controller"
                 elif "DB-" in nu or "-DB" in nu or "SQL" in nu or "DATABASE" in nu:
@@ -197,9 +199,19 @@ class Device(BaseModel):
                     role_val = "File Server"
                 elif "BACKUP-" in nu or "-BACKUP" in nu or "BKP" in nu:
                     role_val = "Backup Server"
-                elif "SERVER" in str(data.get("nodeClass", "")).upper() or "SERVER" in str(data.get("os", {}).get("name", "") if isinstance(data.get("os"), dict) else "").upper():
-                    role_val = "General Server"
-                elif "WORKSTATION" in str(data.get("nodeClass", "")).upper():
+                elif "WINDOWS_SERVER" in nc:
+                    role_val = "Windows Server"
+                elif "LINUX_SERVER" in nc:
+                    role_val = "Linux Server"
+                elif "WINDOWS_WORKSTATION" in nc:
+                    role_val = "Windows Workstation"
+                elif "LINUX_WORKSTATION" in nc:
+                    role_val = "Linux Workstation"
+                elif "MAC" in nc:
+                    role_val = "Mac"
+                elif "SERVER" in nc or "SERVER" in os_name:
+                    role_val = "Windows Server" if "WIN" in os_name or "WIN" in nc else "Linux Server" if "LINUX" in os_name or "LINUX" in nc else "General Server"
+                elif "WORKSTATION" in nc:
                     role_val = "Workstation"
                 else:
                     role_val = "General Server"

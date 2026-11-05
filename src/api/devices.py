@@ -27,3 +27,21 @@ def get_device(client: NinjaOneClient, device_id: int) -> Optional[Device]:
     """Fetch a single device by ID."""
     raw = client.get(f"/v2/device/{device_id}")
     return Device.model_validate(raw) if raw else None
+
+
+def get_device_roles(client: NinjaOneClient) -> dict[int, str]:
+    """
+    Fetch all device roles from NinjaOne GET /v2/roles.
+    Returns mapping of {role_id: role_name}, e.g. {1: "Windows Server", 2: "Domain Controller"}.
+    """
+    try:
+        raw = client.get("/v2/roles")
+        if isinstance(raw, list):
+            return {
+                int(r["id"]): str(r["name"]).strip()
+                for r in raw
+                if isinstance(r, dict) and "id" in r and "name" in r
+            }
+    except Exception as e:
+        print(f"[!] Notice: Could not fetch /v2/roles from NinjaOne: {e}")
+    return {}

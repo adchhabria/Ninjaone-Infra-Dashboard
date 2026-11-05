@@ -200,7 +200,7 @@ def register_callbacks(app, get_data_fn=None):
                         else:
                             filter_state["region"] = clicked_region
 
-        force_refresh = (triggered_id in ["refresh-btn", "auto-refresh"])
+        force_refresh = (triggered_id == "refresh-btn")
 
         # Query metrics using coordinator
         eol_days_val = int(ts_settings.get("eol_days", 180))
@@ -336,12 +336,15 @@ def register_callbacks(app, get_data_fn=None):
             for fam in (data.os_family_options or ["Windows", "Linux", "macOS"])
             if fam not in ["all", "All OS Families", None, ""]
         ]
-        clean_role_opts = [
-            {"label": f"🛡️ {r}", "value": r}
-            for r in (getattr(data, "role_options", []) or [
+        raw_role_opts = getattr(data, "role_options", None)
+        if raw_role_opts is None:
+            raw_role_opts = [
                 "Domain Controller", "Database Server", "Web Server", "File Server",
                 "Application Server", "Backup Server", "General Server", "Workstation",
-            ])
+            ]
+        clean_role_opts = [
+            {"label": f"🛡️ {r}", "value": r}
+            for r in raw_role_opts
             if r not in ["all", "All Roles", None, ""]
         ]
 
@@ -1129,14 +1132,16 @@ def register_callbacks(app, get_data_fn=None):
         Output("auto-update-info-store", "data"),
         Output("header-update-badge-btn", "style"),
         Output("header-update-badge-btn", "children"),
+        Output("dismissed-update-version-store", "data"),
         Input("auto-update-check-interval", "n_intervals"),
         Input("header-update-badge-btn", "n_clicks"),
         Input("update-prompt-dismiss-btn", "n_clicks"),
         State("update-prompt-modal", "is_open"),
         State("auto-update-info-store", "data"),
+        State("dismissed-update-version-store", "data"),
         prevent_initial_call=False,
     )
-    def manage_update_prompt(n_intervals, header_clicks, dismiss_clicks, is_open, cached_update_info):
+    def manage_update_prompt(n_intervals, header_clicks, dismiss_clicks, is_open, cached_update_info, dismissed_version):
         trigger = ctx.triggered_id if hasattr(ctx, "triggered_id") else None
         if not trigger and ctx.triggered:
             trigger = ctx.triggered[0]["prop_id"].split(".")[0]
@@ -1145,14 +1150,15 @@ def register_callbacks(app, get_data_fn=None):
         if trigger == "update-prompt-dismiss-btn":
             badge_style = {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"} if (cached_update_info and cached_update_info.get("update_available")) else {"display": "none"}
             badge_text = f"🚀 Update {cached_update_info.get('latest_version')}" if cached_update_info else "🚀 Update Available"
-            return False, no_update, no_update, badge_style, badge_text
+            dismissed = cached_update_info.get("latest_version") if cached_update_info else None
+            return False, no_update, no_update, badge_style, badge_text, dismissed
 
         # User clicked header badge to reopen
         if trigger == "header-update-badge-btn":
             if cached_update_info:
                 content = _build_update_prompt_content(cached_update_info)
-                return True, content, no_update, no_update, no_update
-            return True, no_update, no_update, no_update, no_update
+                return True, content, no_update, no_update, no_update, no_update
+            return True, no_update, no_update, no_update, no_update, no_update
 
         # Periodic check or initial load
         try:
@@ -1162,11 +1168,13 @@ def register_callbacks(app, get_data_fn=None):
                 content = _build_update_prompt_content(res)
                 badge_style = {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"}
                 badge_text = f"🚀 Update {latest_v}"
-                return True, content, res, badge_style, badge_text
+                # If the user previously dismissed this version, keep modal closed but keep badge visible
+                should_open = (latest_v != dismissed_version)
+                return should_open, content, res, badge_style, badge_text, no_update
             else:
-                return False, no_update, res, {"display": "none"}, "🚀 Update Available"
+                return False, no_update, res, {"display": "none"}, "🚀 Update Available", no_update
         except Exception:
-            return False, no_update, no_update, {"display": "none"}, "🚀 Update Available"
+            return False, no_update, no_update, {"display": "none"}, "🚀 Update Available", no_update
 
     @app.callback(
         Output("update-prompt-status", "children"),
@@ -1307,8 +1315,20 @@ def register_callbacks(app, get_data_fn=None):
         if not n_clicks:
             return no_update
         try:
-            execute_restart_and_exit()
+            import threading
+            import time
+
+            def _deferred_restart():
+                time.sleep(1.2)
+                execute_restart_and_exit()
+
+            threading.Thread(target=_deferred_restart, daemon=True).start()
+            return dbc.Alert(
+                "🔄 Dashboard is restarting... The updated version will launch momentarily. Please wait a few moments and refresh this window.",
+                color="info",
+                className="mt-2",
+            )
         except Exception as e:
             console.log(f"[bold red]Restart error:[/bold red] {e}")
-        return dbc.Alert("Restarting dashboard...", color="info")
+            return dbc.Alert(f"Restart notice: {e}. Please close this window and start Ninjaone-Infra-Dashboard.exe manually.", color="warning", className="mt-2")
 

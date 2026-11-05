@@ -24,35 +24,76 @@ def kpi_card(
     subtitle: str = "",
     theme_mode: str = "dark",
 ) -> dbc.Card:
-    """Single KPI card with icon, value, label, and optional subtitle."""
+    """Compact dynamic Liquid Glass KPI card with large numbers display and concise metrics."""
     p = T.get_theme_palette(theme_mode)
+    is_dark = p.get("is_dark", True)
+    badge_bg = "rgba(255, 255, 255, 0.06)" if is_dark else "rgba(15, 23, 42, 0.04)"
+    badge_border = "rgba(255, 255, 255, 0.1)" if is_dark else "rgba(203, 213, 225, 0.8)"
+
     return dbc.Card(
         dbc.CardBody(
             [
                 html.Div(
                     [
-                        html.Span(icon, style={"fontSize": "1.3rem", "marginRight": "8px"}),
-                        html.Span(label, style={**T.FONT_KPI_LABEL, "color": p["text_secondary"]}),
+                        html.Div(
+                            [
+                                html.Span(icon, style={"fontSize": "1.05rem", "marginRight": "6px"}),
+                                html.Span(
+                                    label,
+                                    style={
+                                        **T.FONT_KPI_LABEL,
+                                        "color": p["text_secondary"],
+                                        "fontSize": "0.72rem",
+                                        "letterSpacing": "0.06em",
+                                    },
+                                ),
+                            ],
+                            className="glass-pill-badge",
+                            style={
+                                "display": "inline-flex",
+                                "alignItems": "center",
+                                "padding": "2px 8px",
+                                "borderRadius": "20px",
+                                "backgroundColor": badge_bg,
+                                "border": f"1px solid {badge_border}",
+                            },
+                        ),
                     ],
-                    style={"display": "flex", "alignItems": "center", "marginBottom": "6px"},
+                    style={"display": "flex", "alignItems": "center", "marginBottom": "4px"},
                 ),
                 html.Div(
                     value,
-                    style={**T.FONT_KPI_VALUE, "color": color},
+                    className="kpi-large-number",
+                    style={
+                        **T.FONT_KPI_VALUE,
+                        "color": color,
+                    },
                 ),
                 html.Div(
                     subtitle,
-                    style={**T.FONT_BODY, "marginTop": "4px", "fontSize": "0.78rem", "color": p["text_secondary"]},
+                    style={
+                        "marginTop": "4px",
+                        "fontSize": "0.76rem",
+                        "fontWeight": "500",
+                        "color": p["text_secondary"],
+                        "whiteSpace": "nowrap",
+                        "overflow": "hidden",
+                        "textOverflow": "ellipsis",
+                    },
                 ) if subtitle else html.Div(),
             ],
-            style={"padding": "14px 16px"},
+            style={"padding": "12px 14px"},
         ),
+        className="liquid-glass-kpi",
         style={
-            "backgroundColor": p["bg_card"],
+            "position": "relative",
+            "borderRadius": "14px",
             "border": f"1px solid {p['border']}",
             "borderLeft": f"4px solid {color}",
-            "borderRadius": "8px",
             "height": "100%",
+            "overflow": "hidden",
+            "backdropFilter": "blur(16px) saturate(180%)",
+            "WebkitBackdropFilter": "blur(16px) saturate(180%)",
         },
     )
 

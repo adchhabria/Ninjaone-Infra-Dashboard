@@ -136,7 +136,7 @@ DBC_THEME_OVERRIDE = {
 # Typography Scale
 # ---------------------------------------------------------------------------
 
-FONT_KPI_VALUE = {"fontSize": "2.4rem", "fontWeight": "700", "lineHeight": "1"}
+FONT_KPI_VALUE = {"fontSize": "2.6rem", "fontWeight": "800", "lineHeight": "1.05", "letterSpacing": "-0.02em"}
 FONT_KPI_LABEL = {"fontSize": "0.75rem", "fontWeight": "600", "letterSpacing": "0.08em",
                   "textTransform": "uppercase"}
 FONT_SECTION_TITLE = {"fontSize": "0.9rem", "fontWeight": "600",

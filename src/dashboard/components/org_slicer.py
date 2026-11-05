@@ -108,18 +108,19 @@ def build_org_slicer(
         cur_os_val = []
 
     # 4. Device Role Dropdown Options & Value
+    raw_role_opts = role_options if role_options is not None else [
+        "Domain Controller",
+        "Database Server",
+        "Web Server",
+        "File Server",
+        "Application Server",
+        "Backup Server",
+        "General Server",
+        "Workstation",
+    ]
     clean_role_opts = [
         {"label": f"🛡️ {r}", "value": r}
-        for r in (role_options or [
-            "Domain Controller",
-            "Database Server",
-            "Web Server",
-            "File Server",
-            "Application Server",
-            "Backup Server",
-            "General Server",
-            "Workstation",
-        ])
+        for r in raw_role_opts
         if r not in ["all", "All Roles", None, ""]
     ]
 

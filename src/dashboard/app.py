@@ -56,7 +56,7 @@ class BrowserWatchdog:
     If enabled (ENABLE_BROWSER_WATCHDOG=1), automatically terminates
     the background desktop process when all dashboard browser tabs are closed.
     """
-    def __init__(self, timeout_sec: float = 12.0, startup_grace_sec: float = 45.0):
+    def __init__(self, timeout_sec: float = 1800.0, startup_grace_sec: float = 300.0):
         self.timeout_sec = timeout_sec
         self.startup_grace_sec = startup_grace_sec
         self.start_time = time.time()
@@ -164,6 +164,14 @@ def create_app(get_data_fn=None) -> dash.Dash:
                 // Ping immediately on load, then every 3 seconds
                 pingHeartbeat();
                 setInterval(pingHeartbeat, 3000);
+
+                // Ping immediately when user switches back to tab or focuses window
+                document.addEventListener('visibilitychange', function() {{
+                    if (document.visibilityState === 'visible') {{
+                        pingHeartbeat();
+                    }}
+                }});
+                window.addEventListener('focus', pingHeartbeat);
 
                 // Notify server immediately on close or navigate away
                 function notifyClose() {{

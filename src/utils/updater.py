@@ -20,7 +20,7 @@ import urllib.request
 from typing import Callable, Optional
 from packaging import version
 
-CURRENT_VERSION = "1.0.21"
+CURRENT_VERSION = "1.0.22"
 GITHUB_REPO = "adchhabria/Ninjaone-Infra-Dashboard"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RAW_VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/version.json"
@@ -246,7 +246,7 @@ def apply_update_and_restart(download_url: str) -> tuple[bool, str]:
 
 
 def _run_update_download(download_url: str) -> None:
-    """Background worker that downloads the asset, writes batch launcher, and restarts."""
+    """Background worker that downloads the asset, updates via git or binary payload, and stages restart."""
     try:
         temp_dir = tempfile.gettempdir()
         downloaded_file = os.path.join(temp_dir, "Ninjaone_Update_Payload.exe")
@@ -261,6 +261,50 @@ def _run_update_download(download_url: str) -> None:
             )
 
         target_dir = os.path.dirname(current_target)
+        git_dir = os.path.join(target_dir, ".git")
+
+        # Check if we are running in a git-managed repository
+        if os.path.exists(git_dir):
+            _set_update_state(
+                status="downloading",
+                progress=25,
+                downloaded_mb=0.0,
+                total_mb=0.0,
+                message="Checking Git repository and pulling latest changes...",
+            )
+            try:
+                git_res = subprocess.run(
+                    ["git", "pull", "origin", "main"],
+                    cwd=target_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                if git_res.returncode == 0:
+                    _set_update_state(
+                        status="completed",
+                        progress=100,
+                        downloaded_mb=0.0,
+                        total_mb=0.0,
+                        message=f"Git pull succeeded! {git_res.stdout.strip() or 'Latest updates applied.'}",
+                    )
+                    # Also write restart batch for git if user chooses to restart
+                    batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
+                    batch_content = f"""@echo off
+timeout /t 3 /nobreak > nul
+cd /d "{target_dir}"
+if exist "{current_target}" (
+    start "" "{current_target}"
+) else (
+    start "" python launcher.py
+)
+"""
+                    with open(batch_path, "w", encoding="utf-8") as f:
+                        f.write(batch_content)
+                    return
+            except Exception as ge:
+                # If git pull failed (e.g. git not installed or uncommitted diff), fall back to asset download
+                pass
 
         # 1. Download payload with progress tracking
         headers = {"User-Agent": "NinjaOne-Dashboard-Updater"}
@@ -285,17 +329,14 @@ def _run_update_download(download_url: str) -> None:
                     progress=min(pct, 99),
                     downloaded_mb=dl_mb,
                     total_mb=tot_mb,
-                    message=f"Downloading: {dl_mb:.1f} MB / {tot_mb:.1f} MB ({pct}%)",
+                    message=f"Downloading update: {dl_mb:.1f} MB / {tot_mb:.1f} MB ({pct}%)",
                 )
 
         # 2. Write self-updating Windows batch script
         batch_path = os.path.join(temp_dir, "ninjaone_updater.bat")
-        current_pid = os.getpid()
 
-        # Batch script: Wait for application to exit, move old binary to .old (Windows lock workaround),
-        # copy new payload, sync git repository, relaunch, and clean up.
         batch_content = f"""@echo off
-timeout /t 2 /nobreak > nul
+timeout /t 3 /nobreak > nul
 if exist "{current_target}.old" del /F /Q "{current_target}.old" > nul 2>&1
 if exist "{current_target}" move /Y "{current_target}" "{current_target}.old" > nul 2>&1
 copy /Y "{downloaded_file}" "{current_target}" > nul 2>&1
@@ -316,7 +357,7 @@ del /F /Q "{current_target}.old" > nul 2>&1
             progress=100,
             downloaded_mb=tot_mb,
             total_mb=tot_mb,
-            message="Download complete! The update has been staged.",
+            message="Download complete! The update has been safely staged and is ready to apply.",
         )
 
     except Exception as e:
@@ -347,5 +388,13 @@ def execute_restart_and_exit() -> None:
             )
         else:
             subprocess.Popen(["bash", batch_path], close_fds=True)
-    time.sleep(1.0)
+    else:
+        # Fallback if batch was not generated
+        if getattr(sys, "frozen", False):
+            subprocess.Popen([sys.executable])
+        else:
+            target_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+            subprocess.Popen([sys.executable, "launcher.py"], cwd=target_dir)
+
+    time.sleep(1.5)
     os._exit(0)

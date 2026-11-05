@@ -17,7 +17,7 @@ import pandas as pd
 from rich.console import Console
 
 from src.api.client import NinjaOneClient
-from src.api.devices import get_devices_detailed
+from src.api.devices import get_devices_detailed, get_device_roles
 from src.api.organizations import get_organizations_detailed
 from src.api.activities import get_recent_activities
 from src.api.patches import get_fleet_patch_counts
@@ -322,8 +322,12 @@ def compute_dashboard_slice(
     # Combine detected countries and locations cleanly for the dropdown
     all_locations = detected_countries + [loc for loc in detected_locations if loc not in detected_countries]
     all_os_families = ["Windows", "Linux", "macOS"]
-    all_role_options = sorted(list({d.device_role for d in devices if d.device_role}))
-    if not all_role_options:
+    all_role_options = sorted(list({
+        str(d.device_role).strip()
+        for d in devices
+        if d.device_role and str(d.device_role).strip() not in ["all", "None", "", "Unknown"]
+    }))
+    if not all_role_options and not devices:
         all_role_options = [
             "Domain Controller",
             "Database Server",
@@ -868,6 +872,7 @@ class MetricsAggregator:
 
     def _fetch_raw(self) -> tuple[list[Organization], list[Device], list[Activity]]:
         is_mock = getattr(self._client, "_is_mock", False) or type(self._client).__name__ == "MagicMock"
+        roles_map = {}
         if is_mock:
             orgs = get_organizations_detailed(self._client)
             devices = get_devices_detailed(self._client, page_size=1000)
@@ -877,16 +882,18 @@ class MetricsAggregator:
             sw_patch_counts = patch_result[1]
         else:
             import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 fut_orgs = executor.submit(get_organizations_detailed, self._client)
                 fut_devices = executor.submit(get_devices_detailed, self._client, 1000)
                 fut_activities = executor.submit(get_recent_activities, self._client, 30)
                 fut_patches = executor.submit(get_fleet_patch_counts, self._client)
+                fut_roles = executor.submit(get_device_roles, self._client)
 
                 orgs = fut_orgs.result()
                 devices = fut_devices.result()
                 activities = fut_activities.result()
                 patch_result = fut_patches.result()
+                roles_map = fut_roles.result()
                 os_patch_counts = patch_result[0]
                 sw_patch_counts = patch_result[1]
 
@@ -909,7 +916,7 @@ class MetricsAggregator:
                     if loc_id and loc_name:
                         location_id_map[loc_id] = loc_name
 
-        # Propagate geo and location metadata to devices and assign live patch counts
+        # Propagate geo, location, and device role metadata to devices and assign live patch counts
         for d in devices:
             reg, cc, default_org_name = org_geo_map.get(d.organization_id, ("USA / North America", "USA", "Corporate HQ"))
             d.region = reg
@@ -923,6 +930,15 @@ class MetricsAggregator:
                     d.location_name = str(d.custom_fields.get("location"))
                 else:
                     d.location_name = default_org_name
+
+            # Map live device role from NinjaOne /v2/roles if node_role_id matches
+            if d.node_role_id and roles_map and d.node_role_id in roles_map:
+                d.device_role = roles_map[d.node_role_id]
+            elif d.custom_fields and any(k.lower() in ["devicerole", "role", "server role", "device role"] for k in d.custom_fields):
+                for k, v in d.custom_fields.items():
+                    if k.lower() in ["devicerole", "role", "server role", "device role"] and v:
+                        d.device_role = str(v).strip()
+                        break
 
             # Assign real live patch counts from NinjaOne Patch Management API
             if d.id in os_patch_counts:

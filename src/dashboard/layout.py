@@ -1162,6 +1162,7 @@ def build_layout(data, theme_mode: str = "light") -> html.Div:
             dcc.Interval(id="auto-update-check-interval", interval=60 * 60 * 1000, n_intervals=0),
             dcc.Interval(id="update-progress-interval", interval=500, n_intervals=0, disabled=True),
             dcc.Store(id="auto-update-info-store"),
+            dcc.Store(id="dismissed-update-version-store", storage_type="local"),
             dbc.Modal(
                 [
                     dbc.ModalHeader(
@@ -1201,6 +1202,7 @@ def build_layout(data, theme_mode: str = "light") -> html.Div:
                 is_open=False,
                 centered=True,
                 size="lg",
+                style={"borderRadius": "16px"},
             ),
 
             # Persistent Browser Download Components

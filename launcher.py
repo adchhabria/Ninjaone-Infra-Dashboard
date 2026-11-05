@@ -103,8 +103,8 @@ def main():
     # Launch browser in separate background thread
     threading.Thread(target=launch_browser, daemon=True).start()
 
-    # Run the server silently
-    app.run(debug=False, port=8050, host="127.0.0.1")
+    # Run the server silently with multi-threading enabled
+    app.run(debug=False, port=8050, host="127.0.0.1", threaded=True)
 
 
 if __name__ == "__main__":
