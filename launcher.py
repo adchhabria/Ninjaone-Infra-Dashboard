@@ -73,8 +73,15 @@ def sync_local_git_repo():
 
 
 def launch_browser(url: str = "http://localhost:8050"):
-    """Wait briefly for server spin-up and open the default browser."""
-    time.sleep(1.5)
+    """Polls until the local Dash server binds and opens the default browser immediately."""
+    import socket
+    start_time = time.time()
+    while time.time() - start_time < 10.0:
+        try:
+            with socket.create_connection(("127.0.0.1", 8050), timeout=0.2):
+                break
+        except (OSError, ConnectionRefusedError):
+            time.sleep(0.1)
     try:
         webbrowser.open(url)
     except Exception:

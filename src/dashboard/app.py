@@ -39,8 +39,6 @@ from src.dashboard import theme as T
 from src.dashboard.callbacks import register_callbacks
 from src.dashboard.layout import build_layout, CUSTOM_CSS
 from src.metrics.data_provider import coordinator
-from src.metrics.pdf_export import generate_pdf_report
-from src.metrics.excel_export import generate_excel_workbook
 from src.reporting.html_export import generate_html_report
 
 console = Console()
@@ -359,6 +357,7 @@ def create_app(get_data_fn=None) -> dash.Dash:
     @app.server.route("/download/pdf")
     def download_pdf_endpoint():
         try:
+            from src.metrics.pdf_export import generate_pdf_report
             data = _get_filtered_data_from_request()
             theme_mode = request.args.get("theme", "dark")
             pdf_bytes = generate_pdf_report(data, theme_mode=theme_mode)
@@ -376,6 +375,7 @@ def create_app(get_data_fn=None) -> dash.Dash:
     @app.server.route("/download/excel")
     def download_excel_endpoint():
         try:
+            from src.metrics.excel_export import generate_excel_workbook
             data = _get_filtered_data_from_request()
             excel_bytes = generate_excel_workbook(data)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")

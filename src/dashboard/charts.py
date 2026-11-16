@@ -156,7 +156,11 @@ def windows_os_donut(windows_version_counts: dict[str, int], theme_mode: str = "
             values=values,
             hole=0.60,
             marker=dict(line=dict(color=p["bg_card"], width=2)),
-            textinfo="none",
+            textinfo="percent",
+            texttemplate="%{percent:.1%}",
+            textposition="inside",
+            insidetextorientation="horizontal",
+            textfont=dict(color="#FFFFFF", size=11, family="Inter, -apple-system, sans-serif"),
             hovertemplate="<b>%{label}</b><br>%{value} Windows devices (%{percent})<extra></extra>",
         )
     )
@@ -179,7 +183,11 @@ def linux_os_donut(linux_version_counts: dict[str, int], theme_mode: str = "dark
             values=values,
             hole=0.60,
             marker=dict(line=dict(color=p["bg_card"], width=2)),
-            textinfo="none",
+            textinfo="percent",
+            texttemplate="%{percent:.1%}",
+            textposition="inside",
+            insidetextorientation="horizontal",
+            textfont=dict(color="#FFFFFF", size=11, family="Inter, -apple-system, sans-serif"),
             hovertemplate="<b>%{label}</b><br>%{value} Linux systems (%{percent})<extra></extra>",
         )
     )
@@ -204,7 +212,11 @@ def eol_status_donut(eol_status_counts: dict[str, int], theme_mode: str = "dark"
             values=values,
             hole=0.62,
             marker=dict(colors=colors, line=dict(color=p["bg_card"], width=2)),
-            textinfo="none",
+            textinfo="value+percent",
+            texttemplate="%{value} (%{percent:.0%})",
+            textposition="inside",
+            insidetextorientation="horizontal",
+            textfont=dict(color="#FFFFFF", size=11, family="Inter, -apple-system, sans-serif"),
             hovertemplate="<b>%{label}</b><br>%{value} devices (%{percent})<extra></extra>",
         )
     )
@@ -226,6 +238,9 @@ def eol_by_os_bar(eol_by_os_counts: dict[str, int], theme_mode: str = "dark") ->
         go.Bar(
             y=labels,
             x=values,
+            text=values,
+            textposition="auto",
+            textfont=dict(color=p["text_primary"], size=11, family="Inter, -apple-system, sans-serif"),
             orientation="h",
             marker=dict(color=T.RAG_RED, line=dict(color=p["bg_card"], width=1)),
             hovertemplate="<b>%{y}</b><br>%{x} at-risk devices<extra></extra>",
@@ -256,6 +271,9 @@ def server_role_bar(role_counts: dict[str, int], theme_mode: str = "dark") -> go
         go.Bar(
             y=labels,
             x=values,
+            text=values,
+            textposition="auto",
+            textfont=dict(color=p["text_primary"], size=11, family="Inter, -apple-system, sans-serif"),
             orientation="h",
             marker=dict(
                 color=T.ACCENT_PURPLE,
@@ -303,7 +321,11 @@ def hosting_donut(hosting_counts: dict[str, int], filter_mode: str = "all", them
             values=values,
             hole=0.60,
             marker=dict(colors=colors, line=dict(color=p["bg_card"], width=2)),
-            textinfo="none",
+            textinfo="percent",
+            texttemplate="%{percent:.1%}",
+            textposition="inside",
+            insidetextorientation="horizontal",
+            textfont=dict(color="#FFFFFF", size=11, family="Inter, -apple-system, sans-serif"),
             hovertemplate="<b>%{label}</b><br>%{value} devices (%{percent})<extra></extra>",
         )
     )
@@ -326,40 +348,56 @@ def hosting_org_stacked_bar(org_distribution: list[dict], filter_mode: str = "al
     fig = go.Figure()
 
     if filter_mode in ["all", "cloud"]:
+        azure_vals = [o.get("azure", 0) for o in top_orgs]
         fig.add_trace(
             go.Bar(
                 name="Azure Server",
                 x=org_names,
-                y=[o.get("azure", 0) for o in top_orgs],
+                y=azure_vals,
+                text=[str(v) if v > 0 else "" for v in azure_vals],
+                textposition="inside",
+                textfont=dict(color="#FFFFFF", size=10, family="Inter, -apple-system, sans-serif"),
                 marker_color=T.HOSTING_COLORS.get("Azure Server", "#0089D6"),
                 hovertemplate="<b>%{x}</b><br>Azure: %{y}<extra></extra>",
             )
         )
+        aws_vals = [o.get("aws", 0) for o in top_orgs]
         fig.add_trace(
             go.Bar(
                 name="AWS Server",
                 x=org_names,
-                y=[o.get("aws", 0) for o in top_orgs],
+                y=aws_vals,
+                text=[str(v) if v > 0 else "" for v in aws_vals],
+                textposition="inside",
+                textfont=dict(color="#FFFFFF", size=10, family="Inter, -apple-system, sans-serif"),
                 marker_color=T.HOSTING_COLORS.get("AWS Server", "#FF9900"),
                 hovertemplate="<b>%{x}</b><br>AWS: %{y}<extra></extra>",
             )
         )
 
     if filter_mode in ["all", "onprem"]:
+        vm_vals = [o.get("vm", 0) for o in top_orgs]
         fig.add_trace(
             go.Bar(
                 name="VM Server",
                 x=org_names,
-                y=[o.get("vm", 0) for o in top_orgs],
+                y=vm_vals,
+                text=[str(v) if v > 0 else "" for v in vm_vals],
+                textposition="inside",
+                textfont=dict(color="#FFFFFF", size=10, family="Inter, -apple-system, sans-serif"),
                 marker_color=T.HOSTING_COLORS.get("VM Server", "#39C5BB"),
                 hovertemplate="<b>%{x}</b><br>VM: %{y}<extra></extra>",
             )
         )
+        phys_vals = [o.get("physical", 0) for o in top_orgs]
         fig.add_trace(
             go.Bar(
                 name="Physical Server",
                 x=org_names,
-                y=[o.get("physical", 0) for o in top_orgs],
+                y=phys_vals,
+                text=[str(v) if v > 0 else "" for v in phys_vals],
+                textposition="inside",
+                textfont=dict(color="#FFFFFF", size=10, family="Inter, -apple-system, sans-serif"),
                 marker_color=T.HOSTING_COLORS.get("Physical Server", "#8B949E"),
                 hovertemplate="<b>%{x}</b><br>Physical: %{y}<extra></extra>",
             )
@@ -570,8 +608,11 @@ def patch_compliance_ytd_trend_line(
         go.Scatter(
             x=months,
             y=values,
-            mode="lines+markers",
+            mode="lines+markers+text",
             name="Compliance %",
+            text=[f"{v:.0f}%" for v in values],
+            textposition="top center",
+            textfont=dict(size=10, color=p["text_primary"], family="Inter, -apple-system, sans-serif"),
             line=dict(color=line_color, width=3, shape="spline"),
             marker=dict(
                 size=8,
@@ -632,6 +673,9 @@ def patch_sla_aging_bar(sla_counts: dict[str, int], theme_mode: str = "dark") ->
         go.Bar(
             x=labels,
             y=values,
+            text=values,
+            textposition="auto",
+            textfont=dict(color=p["text_primary"], size=11, family="Inter, -apple-system, sans-serif"),
             marker=dict(color=colors, line=dict(color=p["bg_card"], width=1)),
             hovertemplate="<b>%{x}</b><br>%{y} pending patches<extra></extra>",
         )
@@ -659,7 +703,11 @@ def patch_type_donut(type_counts: dict[str, int], theme_mode: str = "dark") -> g
             values=values,
             hole=0.60,
             marker=dict(colors=colors, line=dict(color=p["bg_card"], width=2)),
-            textinfo="none",
+            textinfo="percent",
+            texttemplate="%{percent:.1%}",
+            textposition="inside",
+            insidetextorientation="horizontal",
+            textfont=dict(color="#FFFFFF", size=11, family="Inter, -apple-system, sans-serif"),
             hovertemplate="<b>%{label}</b><br>%{value} patches (%{percent})<extra></extra>",
         )
     )

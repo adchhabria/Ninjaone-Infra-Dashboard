@@ -26,8 +26,6 @@ from rich.console import Console
 from src.dashboard import charts, theme as T
 from src.dashboard.layout import build_body, build_tab_content
 from src.metrics.data_provider import coordinator
-from src.metrics.excel_export import generate_excel_workbook
-from src.metrics.pdf_export import generate_pdf_report
 from src.reporting.html_export import generate_html_report
 from src.utils.updater import (
     CURRENT_VERSION,
@@ -431,6 +429,7 @@ def register_callbacks(app, get_data_fn=None):
             patch_green=p_green,
         )
 
+        from src.metrics.excel_export import generate_excel_workbook
         excel_bytes = generate_excel_workbook(data)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         scope = _get_scope_filename_tag(data)
@@ -482,6 +481,7 @@ def register_callbacks(app, get_data_fn=None):
 
         theme_mode = current_theme or "dark"
         try:
+            from src.metrics.pdf_export import generate_pdf_report
             pdf_bytes = generate_pdf_report(data, theme_mode=theme_mode)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             scope = _get_scope_filename_tag(data)
