@@ -57,9 +57,6 @@ def build_patch_panel(
                             html.Span([
                                 html.Span("🔧", style={"marginRight": "8px"}),
                                 html.Span("Patch Management & Compliance Status", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
-                                dbc.Badge(f"{pct:.1f}% Coverage", color=badge_color, className="ms-2"),
-                                dbc.Badge(status_text, color="secondary", className="ms-1"),
-                                dbc.Badge(scope_badge_text, color="info", className="ms-1"),
                             ]),
                             md=6,
                         ),

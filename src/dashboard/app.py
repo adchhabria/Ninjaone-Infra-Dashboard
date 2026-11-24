@@ -52,9 +52,10 @@ class BrowserWatchdog:
     """
     Monitors active dashboard browser sessions via heartbeat pings.
     If enabled (ENABLE_BROWSER_WATCHDOG=1), automatically terminates
-    the background desktop process when all dashboard browser tabs are closed.
+    the background desktop process after extended inactivity (30 minutes without heartbeats).
+    Does NOT terminate on temporary pagehide or browser tab-snooze events.
     """
-    def __init__(self, timeout_sec: float = 1800.0, startup_grace_sec: float = 300.0):
+    def __init__(self, timeout_sec: float = 1800.0, startup_grace_sec: float = 600.0):
         self.timeout_sec = timeout_sec
         self.startup_grace_sec = startup_grace_sec
         self.start_time = time.time()
@@ -85,22 +86,23 @@ class BrowserWatchdog:
 
     def _monitor_loop(self):
         while True:
-            time.sleep(2.0)
+            time.sleep(5.0)
             now = time.time()
             with self._lock:
-                # 1. Unload event signaled (tab closed) and no fresh heartbeat in 2.5 seconds
-                if self.unload_requested_at > 0 and (now - self.unload_requested_at > 2.5):
+                # 1. Tab explicit close signal: only exit if no fresh heartbeat arrives for 60 seconds
+                # (Prevents instant death when Chrome/Edge snoozes background tabs or reloads)
+                if self.unload_requested_at > 0 and (now - self.unload_requested_at > 60.0):
                     if self.last_heartbeat < self.unload_requested_at:
-                        console.log("[yellow]Dashboard browser closed. Automatically ending Ninja-infra-dashboard process...[/yellow]")
+                        console.log("[yellow]Dashboard browser closed (no activity for 60s). Ending process...[/yellow]")
                         os._exit(0)
 
-                # 2. Heartbeat timeout (no pings received for timeout_sec)
+                # 2. Heartbeat timeout (no pings received for 30 minutes)
                 if self.has_connected:
                     if (now - self.last_heartbeat) > self.timeout_sec:
-                        console.log("[yellow]Dashboard browser disconnected (heartbeat timed out). Ending process...[/yellow]")
+                        console.log("[yellow]Dashboard browser disconnected (heartbeat timed out after 30 min). Ending process...[/yellow]")
                         os._exit(0)
                 else:
-                    # Initial grace period waiting for user's browser to launch
+                    # Initial grace period waiting for user's browser to launch (10 min)
                     if (now - self.start_time) > self.startup_grace_sec:
                         console.log("[yellow]No browser connected within startup window. Ending background process...[/yellow]")
                         os._exit(0)
@@ -182,7 +184,6 @@ def create_app(get_data_fn=None) -> dash.Dash:
                     }} catch(e) {{}}
                 }}
                 window.addEventListener('beforeunload', notifyClose);
-                window.addEventListener('pagehide', notifyClose);
             }})();
         </script>
     </body>

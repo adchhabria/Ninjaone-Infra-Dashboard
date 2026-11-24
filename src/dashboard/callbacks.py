@@ -98,6 +98,8 @@ def register_callbacks(app, get_data_fn=None):
         Output("filter-location-dropdown", "options"),
         Output("filter-os-dropdown", "options"),
         Output("filter-roles-dropdown", "options"),
+        Output("map-countries-badge", "children"),
+        Output("map-devices-badge", "children"),
         Input("filter-org-dropdown", "value"),
         Input("filter-location-dropdown", "value"),
         Input("filter-os-dropdown", "value"),
@@ -272,6 +274,8 @@ def register_callbacks(app, get_data_fn=None):
                 no_update,    # 16: filter-location-dropdown options
                 no_update,    # 17: filter-os-dropdown options
                 no_update,    # 18: filter-roles-dropdown options
+                no_update,    # 19: map-countries-badge
+                no_update,    # 20: map-devices-badge
             )
 
         badge_label = data.active_filter_label
@@ -377,6 +381,8 @@ def register_callbacks(app, get_data_fn=None):
             loc_opts_out,        # 16: filter-location-dropdown options
             os_opts_out,         # 17: filter-os-dropdown options
             roles_opts_out,      # 18: filter-roles-dropdown options
+            f"{len(data.map_data)} Countries",                      # 19: map-countries-badge
+            f"{sum(r.get('device_count', 0) for r in data.map_data)} Devices",  # 20: map-devices-badge
         )
 
     # -----------------------------------------------------------------------

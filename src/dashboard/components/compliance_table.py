@@ -18,7 +18,6 @@ _COLUMNS = [
     {"name": "Patch %", "id": "patch_pct", "type": "numeric", "format": {"specifier": ".1f"}},
     {"name": "OS %", "id": "os_pct", "type": "numeric", "format": {"specifier": ".1f"}},
     {"name": "EOL Devices", "id": "eol_count", "type": "numeric"},
-    {"name": "Compliance Score", "id": "compliance_score", "type": "numeric", "format": {"specifier": ".1f"}},
     {"name": "Status", "id": "rag_icon", "type": "text"},
 ]
 
@@ -33,21 +32,6 @@ def build_compliance_table(org_table: list[dict], theme_mode: str = "dark") -> d
         rows.append(r)
 
     style_data_conditional = [
-        # Red rows
-        {
-            "if": {"filter_query": "{rag_icon} = '🔴'", "column_id": "compliance_score"},
-            "color": T.RAG_RED, "fontWeight": "700",
-        },
-        # Amber rows
-        {
-            "if": {"filter_query": "{rag_icon} = '🟡'", "column_id": "compliance_score"},
-            "color": T.RAG_AMBER, "fontWeight": "700",
-        },
-        # Green rows
-        {
-            "if": {"filter_query": "{rag_icon} = '🟢'", "column_id": "compliance_score"},
-            "color": T.RAG_GREEN, "fontWeight": "700",
-        },
         # Patch % column — color-code low values
         {
             "if": {"filter_query": "{patch_pct} < 60", "column_id": "patch_pct"},

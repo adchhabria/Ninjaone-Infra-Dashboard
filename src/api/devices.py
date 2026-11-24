@@ -31,17 +31,26 @@ def get_device(client: NinjaOneClient, device_id: int) -> Optional[Device]:
 
 def get_device_roles(client: NinjaOneClient) -> dict[int, str]:
     """
-    Fetch all device roles from NinjaOne GET /v2/roles.
+    Fetch all device roles from NinjaOne GET /v2/roles or /v2/device-roles.
     Returns mapping of {role_id: role_name}, e.g. {1: "Windows Server", 2: "Domain Controller"}.
     """
-    try:
-        raw = client.get("/v2/roles")
-        if isinstance(raw, list):
-            return {
-                int(r["id"]): str(r["name"]).strip()
-                for r in raw
-                if isinstance(r, dict) and "id" in r and "name" in r
-            }
-    except Exception as e:
-        print(f"[!] Notice: Could not fetch /v2/roles from NinjaOne: {e}")
+    for endpoint in ("/v2/roles", "/v2/device-roles", "/v2/roles/device"):
+        try:
+            raw = client.get(endpoint)
+            role_items = []
+            if isinstance(raw, list):
+                role_items = raw
+            elif isinstance(raw, dict):
+                role_items = raw.get("roles") or raw.get("results") or raw.get("data") or []
+
+            if isinstance(role_items, list) and role_items:
+                roles = {
+                    int(r["id"]): str(r.get("name") or r.get("description") or f"Role {r['id']}").strip()
+                    for r in role_items
+                    if isinstance(r, dict) and "id" in r and (r.get("name") or r.get("description"))
+                }
+                if roles:
+                    return roles
+        except Exception as e:
+            pass
     return {}

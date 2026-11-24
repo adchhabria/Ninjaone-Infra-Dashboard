@@ -39,7 +39,7 @@ def generate_excel_workbook(data: DashboardData) -> bytes:
         {"Metric": "Active Scope / Scope Filter", "Value": data.active_filter_label},
         {"Metric": "Total Managed Fleet", "Value": data.total_devices},
         {"Metric": "Reachable Devices (Online)", "Value": f"{data.online_devices} ({data.online_pct:.1f}%)"},
-        {"Metric": "Overall Compliance Score", "Value": f"{data.overall_compliance_score:.1f}% ({data.compliance_rag})"},
+        {"Metric": "Devices Offline", "Value": f"{max(0, data.total_devices - data.online_devices)} ({((data.total_devices - data.online_devices) / max(data.total_devices, 1) * 100):.1f}%)"},
         {"Metric": "Total Server Infrastructure", "Value": data.total_servers},
         {"Metric": "EOL Devices at Risk", "Value": data.eol_risk_count},
         {"Metric": "Patch Fleet Coverage", "Value": f"{data.patches.get('patch_coverage_pct', 0):.1f}%"},
@@ -61,11 +61,12 @@ def generate_excel_workbook(data: DashboardData) -> bytes:
             "patch_pct": "Patch %",
             "os_pct": "OS Compliance %",
             "eol_count": "EOL Devices",
-            "compliance_score": "Score",
             "rag": "Status",
         })
-        # Drop internal id column if present
-        df_orgs = df_orgs[[c for c in df_orgs.columns if c != "org_id"]]
+        # Drop internal id column and compliance_score if present
+        drop_cols = [c for c in ["org_id", "compliance_score"] if c in df_orgs.columns]
+        if drop_cols:
+            df_orgs = df_orgs.drop(columns=drop_cols)
 
     # Sheet 3: EOL Ledger
     eol_list = data.os.get("eol_table_data", [])

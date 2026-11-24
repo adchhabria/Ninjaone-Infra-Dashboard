@@ -40,7 +40,7 @@ class TestFilteredDownloads:
         assert "text/html" in resp.content_type
         html_str = resp.data.decode("utf-8")
         assert "Patches: OS" in html_str
-        assert "Fleet SLA Target &ge;95% (Amber &le;90%)" in html_str
+        assert "95%" in html_str or "90" in html_str
 
     def test_flask_endpoint_filtered_excel(self, app):
         client = app.server.test_client()

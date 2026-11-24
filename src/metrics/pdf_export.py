@@ -263,29 +263,28 @@ def generate_pdf_report(
     # Executive KPI Table Strip
     story.append(Paragraph("1. Executive Overview & Fleet Key Performance Indicators", h2_style))
 
-    rag_color = RAG_GREEN if data.compliance_rag == "GREEN" else RAG_AMBER if data.compliance_rag == "AMBER" else RAG_RED
+    offline_count = max(0, data.total_devices - data.online_devices)
+    offline_pct = (offline_count / data.total_devices * 100) if data.total_devices > 0 else 0.0
     patch_pct = data.patches.get("patch_coverage_pct", 0.0)
 
     kpi_data = [
         [
-            Paragraph("Total Managed Devices", body_bold),
-            Paragraph("Online Fleet %", body_bold),
-            Paragraph("Overall Compliance Score", body_bold),
-            Paragraph("Patch Coverage %", body_bold),
-            Paragraph("Servers Managed", body_bold),
-            Paragraph("EOL / At-Risk Devices", body_bold),
+            Paragraph("Total Servers", body_bold),
+            Paragraph("Devices Online", body_bold),
+            Paragraph("Devices Offline", body_bold),
+            Paragraph("Patch Coverage", body_bold),
+            Paragraph("EOL Devices", body_bold),
         ],
         [
-            Paragraph(f"<font size=17><b>{data.total_devices:,}</b></font>", body_center),
-            Paragraph(f"<font size=17><b>{data.online_pct:.1f}%</b></font>", body_center),
-            Paragraph(f"<font size=17 color='{rag_color.hexval()}'><b>{data.overall_compliance_score:.1f}% ({data.compliance_rag})</b></font>", body_center),
-            Paragraph(f"<font size=17><b>{patch_pct:.1f}%</b></font>", body_center),
             Paragraph(f"<font size=17><b>{data.total_servers:,}</b></font>", body_center),
+            Paragraph(f"<font size=17 color='#1A7F37'><b>{data.online_devices:,}</b></font><br/><font size=8 color='#57606A'>({data.online_pct:.1f}%)</font>", body_center),
+            Paragraph(f"<font size=17 color='#CF222E'><b>{offline_count:,}</b></font><br/><font size=8 color='#57606A'>({offline_pct:.1f}%)</font>", body_center),
+            Paragraph(f"<font size=17><b>{patch_pct:.1f}%</b></font>", body_center),
             Paragraph(f"<font size=17 color='#CF222E'><b>{data.eol_risk_count:,}</b></font>", body_center),
         ],
     ]
 
-    kpi_table = Table(kpi_data, colWidths=[120, 115, 135, 115, 110, 115])
+    kpi_table = Table(kpi_data, colWidths=[140, 145, 145, 140, 140])
     kpi_table.setStyle(
         TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), kpi_bg),
@@ -625,7 +624,6 @@ def generate_pdf_report(
             Paragraph("Patch %", header_cell_style),
             Paragraph("OS %", header_cell_style),
             Paragraph("EOL Devs", header_cell_style),
-            Paragraph("Score", header_cell_style),
             Paragraph("Status", header_cell_style),
         ]
         org_content = [org_headers]
@@ -641,11 +639,10 @@ def generate_pdf_report(
                 Paragraph(f"{org.get('patch_pct', 0.0):.1f}%", body_style),
                 Paragraph(f"{org.get('os_pct', 0.0):.1f}%", body_style),
                 Paragraph(str(org.get("eol_count", 0)), body_style),
-                Paragraph(f"<b>{org.get('compliance_score', 0.0):.1f}%</b>", body_style),
                 Paragraph(f"<font color='{r_col}'><b>{rag}</b></font>", body_style),
             ])
 
-        org_doc_table = Table(org_content, colWidths=[140, 100, 55, 60, 60, 60, 65, 55, 75])
+        org_doc_table = Table(org_content, colWidths=[160, 110, 60, 65, 65, 65, 75, 70])
         org_doc_table.setStyle(
             TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), header_bg),

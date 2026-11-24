@@ -413,4 +413,37 @@ class TestServerComplianceAndCustomEOL:
         assert slice_res.total_servers == 1
         assert slice_res.devices_raw[0].id == 501
 
+    def test_device_role_live_mapping_and_slicing(self):
+        from src.metrics.aggregator import compute_dashboard_slice
+        from src.api.models import Organization, Device
+
+        orgs = [Organization(id=1, name="Global Corp")]
+        devs = [
+            Device(id=601, organizationId=1, nodeClass="WINDOWS_SERVER", displayName="DC-PROD-01"),
+            Device(id=602, organizationId=1, nodeClass="LINUX_SERVER", displayName="APP-LINUX-02"),
+            Device(id=603, organizationId=1, nodeClass="WINDOWS_WORKSTATION", displayName="WS-FINANCE-03"),
+            Device(id=604, organizationId=1, nodeClass="WINDOWS_SERVER", displayName="SRV-04", custom_fields={"role": "SQL Database Server"}),
+        ]
+
+        # Verify default role resolution
+        assert devs[0].device_role == "Windows Server"
+        assert devs[1].device_role == "Linux Server"
+        assert devs[2].device_role == "Windows Workstation"
+        assert devs[3].device_role == "SQL Database Server"
+
+        # Compute slice with role filter
+        slice_res = compute_dashboard_slice(
+            devices=devs,
+            organizations=orgs,
+            activities=[],
+            active_roles=["Windows Server"],
+        )
+        assert slice_res.total_devices == 1
+        assert slice_res.devices_filtered[0].id == 601
+        assert "Windows Server" in slice_res.role_options
+        assert "Linux Server" in slice_res.role_options
+        assert "Windows Workstation" in slice_res.role_options
+        assert "SQL Database Server" in slice_res.role_options
+
+
 

@@ -207,11 +207,9 @@ def build_sla_panel(sla_data: dict, patch_data: dict | None = None, theme_mode: 
                                     html.Span([
                                         html.Span("🚨", style={"marginRight": "8px"}),
                                         html.Span(
-                                            "Top 10 Servers with Max Pending Patches",
+                                            "Top 10 Servers with Pending Updates",
                                             style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]},
                                         ),
-                                        dbc.Badge(f"{len(top_servers)} Identified", color="danger", className="ms-2"),
-                                        dbc.Badge("Action Required", color="warning", className="ms-1"),
                                     ]),
                                     md=8,
                                 ),
@@ -247,11 +245,9 @@ def build_sla_panel(sla_data: dict, patch_data: dict | None = None, theme_mode: 
                                     html.Span([
                                         html.Span("🩹", style={"marginRight": "8px"}),
                                         html.Span(
-                                            "Top 10 Patches Pending on Max Servers",
+                                            "Top 10 Pending Updates",
                                             style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]},
                                         ),
-                                        dbc.Badge(f"{len(top_patches)} Critical Items", color="primary", className="ms-2"),
-                                        dbc.Badge("Fleet Blast Radius", color="danger", className="ms-1"),
                                     ]),
                                     md=8,
                                 ),

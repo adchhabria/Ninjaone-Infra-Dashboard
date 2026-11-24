@@ -59,7 +59,7 @@ def kpi_card(
                             },
                         ),
                     ],
-                    style={"display": "flex", "alignItems": "center", "marginBottom": "4px"},
+                    style={"display": "flex", "alignItems": "center", "justifyContent": "center", "marginBottom": "4px"},
                 ),
                 html.Div(
                     value,
@@ -67,6 +67,7 @@ def kpi_card(
                     style={
                         **T.FONT_KPI_VALUE,
                         "color": color,
+                        "textAlign": "center",
                     },
                 ),
                 html.Div(
@@ -76,6 +77,7 @@ def kpi_card(
                         "fontSize": "0.76rem",
                         "fontWeight": "500",
                         "color": p["text_secondary"],
+                        "textAlign": "center",
                         "whiteSpace": "nowrap",
                         "overflow": "hidden",
                         "textOverflow": "ellipsis",
@@ -102,66 +104,79 @@ def build_kpi_strip(data, theme_mode: str = "dark") -> dbc.Row:
     """
     Build the top-row KPI strip from DashboardData.
 
-    Cards:
-      1. Total Managed Devices
-      2. Online Devices
-      3. Overall Compliance Score (RAG color)
-      4. Server Count
-      5. EOL Devices at Risk
+    Cards in order:
+      1. Total Servers
+      2. Devices Online
+      3. Devices Offline
+      4. Patch Coverage
+      5. EOL Devices
     """
-    rag_color = _rag_color(data.compliance_rag)
     eol_count = data.eol_risk_count
+    total_devs = data.total_devices
+    online_devs = data.online_devices
+    offline_devs = max(0, total_devs - online_devs)
+    offline_pct = (offline_devs / total_devs * 100) if total_devs > 0 else 0.0
+
+    patch_cov = float(data.patches.get("patch_coverage_pct", 0.0))
+    patch_cov_color = T.RAG_GREEN if patch_cov >= 80 else T.RAG_AMBER if patch_cov >= 60 else T.RAG_RED
+
+    server_count = data.servers.get("server_count", 0)
+    server_online_pct = data.servers.get("server_online_pct", 0)
 
     cards = [
+        # 1. Total Servers
         dbc.Col(
             kpi_card(
-                value=str(data.total_devices),
-                label="Total Managed Devices",
-                icon="🖥️",
-                color=T.ACCENT_BLUE,
-                subtitle=f"{data.servers.get('server_count', 0)} servers · "
-                         f"{data.servers.get('workstation_count', 0)} workstations",
+                value=str(server_count),
+                label="Total Servers",
+                icon="🖧",
+                color=T.ACCENT_PURPLE,
+                subtitle=f"{server_online_pct:.1f}% servers online",
                 theme_mode=theme_mode,
             ),
             xs=12, sm=6, md=4, lg=True,
         ),
+        # 2. Devices Online
         dbc.Col(
             kpi_card(
-                value=f"{data.online_pct:.1f}%",
+                value=str(online_devs),
                 label="Devices Online",
                 icon="🟢",
                 color=T.ACCENT_TEAL,
-                subtitle=f"{data.online_devices} of {data.total_devices} reachable",
+                subtitle=f"{data.online_pct:.1f}% online ({online_devs}/{total_devs})",
                 theme_mode=theme_mode,
             ),
             xs=12, sm=6, md=4, lg=True,
         ),
+        # 3. Devices Offline
         dbc.Col(
             kpi_card(
-                value=f"{data.overall_compliance_score:.1f}%",
-                label="Compliance Score",
+                value=str(offline_devs),
+                label="Devices Offline",
+                icon="🔴",
+                color=T.ACCENT_RED if offline_devs > 0 else T.RAG_GREEN,
+                subtitle=f"{offline_pct:.1f}% offline",
+                theme_mode=theme_mode,
+            ),
+            xs=12, sm=6, md=4, lg=True,
+        ),
+        # 4. Patch Coverage
+        dbc.Col(
+            kpi_card(
+                value=f"{patch_cov:.1f}%",
+                label="Patch Coverage",
                 icon="🛡️",
-                color=rag_color,
-                subtitle=f"Status: {data.compliance_rag} (Target: ≥80%)",
+                color=patch_cov_color,
+                subtitle=f"{data.patches.get('installed_patches', 0):,} installed",
                 theme_mode=theme_mode,
             ),
             xs=12, sm=6, md=4, lg=True,
         ),
-        dbc.Col(
-            kpi_card(
-                value=str(data.servers.get("server_count", 0)),
-                label="Servers Managed",
-                icon="🖧",
-                color=T.ACCENT_PURPLE,
-                subtitle=f"{data.servers.get('server_online_pct', 0):.1f}% servers online",
-                theme_mode=theme_mode,
-            ),
-            xs=12, sm=6, md=4, lg=True,
-        ),
+        # 5. EOL Devices
         dbc.Col(
             kpi_card(
                 value=str(eol_count),
-                label="EOL Devices at Risk",
+                label="EOL Devices",
                 icon="⚠️",
                 color=T.ACCENT_RED if eol_count > 0 else T.RAG_GREEN,
                 subtitle=f"OS Compliance: {data.os.get('os_compliance_pct', 0):.1f}%",

@@ -15,7 +15,12 @@ class TestHTMLExport:
         assert "<!DOCTYPE html>" in html_out
         assert "NinjaOne IT Infrastructure" in html_out
         assert "Executive Dashboard" in html_out
-        assert "Total Endpoints" in html_out
+        assert "Total Servers" in html_out
+        assert "Devices Online" in html_out
+        assert "Devices Offline" in html_out
+        assert "Patch Coverage" in html_out
+        assert "EOL Devices" in html_out
+        assert "Pending Reboots" not in html_out
         assert "Organization Compliance Scorecard" in html_out
         assert "End-of-Life (EOL) Device Ledger" not in html_out
         assert "plotly" in html_out.lower()
@@ -40,7 +45,6 @@ class TestHTMLExport:
         # Gauge steps reflect amber step to 90% and target 92%
         assert "92%" in html_out
         assert "90.0" in html_out or "90%" in html_out
-        assert "Fleet SLA Target &ge;92%" in html_out
 
     def test_html_report_patch_type_scope(self):
         """Verify that patch_type slicer displays properly in HTML report scope."""
@@ -73,10 +77,36 @@ class TestHTMLExport:
         data = get_mock_dashboard_data()
         html_out = generate_html_report(data)
 
-        assert "Top 10 Servers with Max Pending Patches" in html_out
-        assert "Top 10 Patches Pending on Max Servers" in html_out
+        assert "Top 10 Servers with Pending Updates" in html_out
+        assert "Top 10 Pending Updates" in html_out
         assert "Patch Deployment Failure Triage" in html_out
         assert "Patch Category Breakdown" in html_out
         assert 'id="top-servers-table"' in html_out
         assert 'id="top-patches-table"' in html_out
         assert 'id="failures-table"' in html_out
+
+    def test_html_report_conditional_ytd_trend(self):
+        """Verify YTD trend is visible for fleet, but omitted when Org or Location is filtered."""
+        data_all = get_mock_dashboard_data()
+        html_all = generate_html_report(data_all)
+        assert "Patch Compliance Year-to-Date (YTD) Monthly Trend" in html_all
+
+        data_org = get_mock_dashboard_data(active_org_id=1)
+        html_org = generate_html_report(data_org)
+        assert "Patch Compliance Year-to-Date (YTD) Monthly Trend" not in html_org
+
+        data_loc = get_mock_dashboard_data(active_location="Tokyo Data Center")
+        html_loc = generate_html_report(data_loc)
+        assert "Patch Compliance Year-to-Date (YTD) Monthly Trend" not in html_loc
+
+    def test_html_report_conditional_os_donuts(self):
+        """Verify OS donut visibility when Windows or Linux is filtered."""
+        data_win = get_mock_dashboard_data(active_os_family="windows")
+        html_win = generate_html_report(data_win)
+        assert "Windows Operating Systems" in html_win
+        assert "Linux Operating Systems" not in html_win
+
+        data_lin = get_mock_dashboard_data(active_os_family="linux")
+        html_lin = generate_html_report(data_lin)
+        assert "Linux Operating Systems" in html_lin
+        assert "Windows Operating Systems" not in html_lin

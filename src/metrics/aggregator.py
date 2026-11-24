@@ -931,14 +931,51 @@ class MetricsAggregator:
                 else:
                     d.location_name = default_org_name
 
-            # Map live device role from NinjaOne /v2/roles if node_role_id matches
-            if d.node_role_id and roles_map and d.node_role_id in roles_map:
-                d.device_role = roles_map[d.node_role_id]
-            elif d.custom_fields and any(k.lower() in ["devicerole", "role", "server role", "device role"] for k in d.custom_fields):
+            # Map live device role from NinjaOne /v2/roles or /v2/device-roles
+            role_assigned = False
+            if d.node_role_id is not None and roles_map:
+                try:
+                    rid = int(d.node_role_id)
+                    if rid in roles_map:
+                        d.device_role = roles_map[rid]
+                        role_assigned = True
+                    elif str(d.node_role_id) in roles_map:
+                        d.device_role = roles_map[str(d.node_role_id)]
+                        role_assigned = True
+                except (ValueError, TypeError):
+                    pass
+
+            if not role_assigned and d.custom_fields:
                 for k, v in d.custom_fields.items():
-                    if k.lower() in ["devicerole", "role", "server role", "device role"] and v:
+                    if k.lower() in ["devicerole", "role", "server role", "device role", "function"] and v:
                         d.device_role = str(v).strip()
+                        role_assigned = True
                         break
+
+            if not role_assigned and (not d.device_role or d.device_role == "General Server"):
+                nc = (d.node_class or "").upper()
+                if "WINDOWS_SERVER" in nc:
+                    d.device_role = "Windows Server"
+                elif "LINUX_SERVER" in nc:
+                    d.device_role = "Linux Server"
+                elif "WINDOWS_WORKSTATION" in nc:
+                    d.device_role = "Windows Workstation"
+                elif "LINUX_WORKSTATION" in nc:
+                    d.device_role = "Linux Workstation"
+                elif "MAC" in nc:
+                    d.device_role = "Mac Workstation"
+                elif "VMWARE_VM_HOST" in nc:
+                    d.device_role = "VMware Host"
+                elif "VMWARE_VM_GUEST" in nc:
+                    d.device_role = "VMware Guest"
+                elif "HYPER_V_VMM_HOST" in nc:
+                    d.device_role = "Hyper-V Host"
+                elif "HYPER_V_VMM_GUEST" in nc:
+                    d.device_role = "Hyper-V Guest"
+                elif "SERVER" in nc:
+                    d.device_role = "Server"
+                elif "WORKSTATION" in nc:
+                    d.device_role = "Workstation"
 
             # Assign real live patch counts from NinjaOne Patch Management API
             if d.id in os_patch_counts:

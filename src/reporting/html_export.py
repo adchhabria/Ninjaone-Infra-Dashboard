@@ -81,14 +81,30 @@ def generate_html_report(
     )
     gauge_chart_html = pio.to_html(gauge_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False, "responsive": True})
 
-    ytd_trend_fig = charts.patch_compliance_ytd_trend_line(
-        trend_data=custom_ytd_trend,
-        green_target=green_target,
-        theme_mode=theme_mode,
-    )
-    ytd_chart_html = pio.to_html(ytd_trend_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False, "responsive": True})
+    # Check if Org or Location filter is applied (Item 4 & 9d)
+    active_org_raw = getattr(data, "active_org_id", None)
+    active_loc_raw = getattr(data, "active_location", None)
+    is_org_filtered = active_org_raw not in (None, "", "all", "All", "All Organizations", [], ())
+    is_loc_filtered = active_loc_raw not in (None, "", "all", "All", "All Locations", "All Countries", [], ())
+    has_org_or_loc_filter = is_org_filtered or is_loc_filtered
 
-    # Build Org Rows HTML
+    if not has_org_or_loc_filter:
+        ytd_trend_fig = charts.patch_compliance_ytd_trend_line(
+            trend_data=custom_ytd_trend,
+            green_target=green_target,
+            theme_mode=theme_mode,
+        )
+        ytd_chart_html = pio.to_html(ytd_trend_fig, full_html=False, include_plotlyjs=False, config={"displayModeBar": False, "responsive": True})
+    else:
+        ytd_chart_html = ""
+
+    # Check active OS family (Item 9b)
+    active_os_raw = getattr(data, "active_os_family", None)
+    os_list = [str(x).lower() for x in (active_os_raw if isinstance(active_os_raw, (list, tuple, set)) else [active_os_raw])] if active_os_raw else []
+    is_windows_only = any("win" in o for o in os_list) and not any("lin" in o for o in os_list)
+    is_linux_only = any("lin" in o for o in os_list) and not any("win" in o for o in os_list)
+
+    # Build Org Rows HTML (Item 5: Compliance Score removed)
     org_rows_html = ""
     for r in data.org_table:
         rag_class = "rag-green" if r["rag"] == "GREEN" else "rag-amber" if r["rag"] == "AMBER" else "rag-red"
@@ -101,7 +117,7 @@ def generate_html_report(
             <td>{r['patch_pct']}%</td>
             <td>{r['os_pct']}%</td>
             <td>{r['eol_count']}</td>
-            <td><span class="badge {rag_class}">{r['compliance_score']}% ({r['rag']})</span></td>
+            <td><span class="badge {rag_class}">{r['rag']}</span></td>
         </tr>
         """
 
@@ -153,6 +169,136 @@ def generate_html_report(
         """
 
     overall_rag_class = "rag-green" if data.compliance_rag == "GREEN" else "rag-amber" if data.compliance_rag == "AMBER" else "rag-red"
+
+    offline_count = max(0, data.total_devices - data.online_devices)
+    patch_color = 'var(--rag-green)' if patch_pct >= green_target else 'var(--rag-amber)' if patch_pct >= (red_limit + 1.0) else 'var(--rag-red)'
+    eol_color = 'var(--rag-red)' if data.eol_risk_count > 0 else 'var(--rag-green)'
+    offline_color = 'var(--rag-red)' if offline_count > 0 else 'var(--rag-green)'
+
+    # Row 1: 5 Clean Center-Aligned KPI Cards (Item 9a)
+    row1_kpi_html = f"""
+            <div class="row g-3 mb-4">
+                <div class="col">
+                    <div class="kpi-card text-center">
+                        <div class="kpi-title">Total Servers</div>
+                        <div class="kpi-val" style="color: var(--accent-blue);">{data.total_servers:,}</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-card text-center">
+                        <div class="kpi-title">Devices Online</div>
+                        <div class="kpi-val" style="color: var(--accent-cyan);">{data.online_devices:,}</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-card text-center">
+                        <div class="kpi-title">Devices Offline</div>
+                        <div class="kpi-val" style="color: {offline_color};">{offline_count:,}</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-card text-center">
+                        <div class="kpi-title">Patch Coverage</div>
+                        <div class="kpi-val" style="color: {patch_color};">{patch_pct:.1f}%</div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="kpi-card text-center">
+                        <div class="kpi-title">EOL Devices</div>
+                        <div class="kpi-val" style="color: {eol_color};">{data.eol_risk_count:,}</div>
+                    </div>
+                </div>
+            </div>
+    """
+
+    # Row 2: Dynamic OS Card Visibility (Item 9b)
+    if is_windows_only:
+        row2_os_html = f"""
+            <div class="row g-3 mb-4">
+                <div class="col-lg-6 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Windows Operating Systems</div>
+                        {win_chart_html}
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Patch Category Breakdown</div>
+                        {type_chart_html}
+                    </div>
+                </div>
+            </div>
+        """
+    elif is_linux_only:
+        row2_os_html = f"""
+            <div class="row g-3 mb-4">
+                <div class="col-lg-6 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Linux Operating Systems</div>
+                        {lin_chart_html}
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Patch Category Breakdown</div>
+                        {type_chart_html}
+                    </div>
+                </div>
+            </div>
+        """
+    else:
+        row2_os_html = f"""
+            <div class="row g-3 mb-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Windows Operating Systems</div>
+                        {win_chart_html}
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Linux Operating Systems</div>
+                        {lin_chart_html}
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-12">
+                    <div class="chart-card">
+                        <div class="chart-title">Patch Category Breakdown</div>
+                        {type_chart_html}
+                    </div>
+                </div>
+            </div>
+        """
+
+    # Row 4: Speedometer Gauge and Conditional YTD Trend (Item 4 & 9d)
+    if has_org_or_loc_filter:
+        row4_gauge_ytd_html = f"""
+            <div class="row g-3 mb-4 justify-content-center">
+                <div class="col-lg-6 col-md-8">
+                    <div class="chart-card">
+                        <div class="chart-title">Current Month Patch Compliance</div>
+                        {gauge_chart_html}
+                    </div>
+                </div>
+            </div>
+        """
+    else:
+        row4_gauge_ytd_html = f"""
+            <div class="row g-3 mb-4">
+                <div class="col-lg-5 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Current Month Patch Compliance</div>
+                        {gauge_chart_html}
+                    </div>
+                </div>
+                <div class="col-lg-7 col-md-6">
+                    <div class="chart-card">
+                        <div class="chart-title">Patch Compliance Year-to-Date (YTD) Monthly Trend</div>
+                        {ytd_chart_html}
+                    </div>
+                </div>
+            </div>
+        """
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en" data-theme="{ 'light' if is_light else 'dark' }">
@@ -392,72 +538,10 @@ def generate_html_report(
         <!-- ============================================================== -->
         <div id="tab-view-exec" class="dashboard-tab-view">
             <!-- Row 1: KPI Cards Strip -->
-            <div class="row g-3 mb-4">
-                <div class="col-xl-2 col-md-4 col-sm-6">
-                    <div class="kpi-card">
-                        <div class="kpi-title">Total Endpoints</div>
-                        <div class="kpi-val">{data.total_devices:,}</div>
-                        <small class="text-secondary">{data.online_devices:,} Online ({data.online_pct}%)</small>
-                    </div>
-                </div>
-                <div class="col-xl-2 col-md-4 col-sm-6">
-                    <div class="kpi-card">
-                        <div class="kpi-title">Managed Servers</div>
-                        <div class="kpi-val">{data.total_servers:,}</div>
-                        <small class="text-secondary">{data.servers.get('windows_servers', 0)} Win &bull; {data.servers.get('linux_servers', 0)} Linux</small>
-                    </div>
-                </div>
-                <div class="col-xl-2 col-md-4 col-sm-6">
-                    <div class="kpi-card">
-                        <div class="kpi-title">Patch Coverage</div>
-                        <div class="kpi-val" style="color: {'var(--rag-green)' if patch_pct >= green_target else 'var(--rag-amber)' if patch_pct >= (red_limit + 1.0) else 'var(--rag-red)'};">{patch_pct:.1f}%</div>
-                        <small class="text-secondary">Fleet SLA Target &ge;{int(green_target)}% (Amber &le;{int(amber_limit)}%)</small>
-                    </div>
-                </div>
-                <div class="col-xl-2 col-md-4 col-sm-6">
-                    <div class="kpi-card">
-                        <div class="kpi-title">OS Supported %</div>
-                        <div class="kpi-val">{data.os.get('os_compliance_pct', 0.0):.1f}%</div>
-                        <small class="text-secondary">Vendor Supported OS</small>
-                    </div>
-                </div>
-                <div class="col-xl-2 col-md-4 col-sm-6">
-                    <div class="kpi-card">
-                        <div class="kpi-title">EOL Hardware Risk</div>
-                        <div class="kpi-val" style="color: {'var(--rag-red)' if data.eol_risk_count > 0 else 'var(--rag-green)'};">{data.eol_risk_count:,}</div>
-                        <small class="text-secondary">Past / Approaching EOL</small>
-                    </div>
-                </div>
-                <div class="col-xl-2 col-md-4 col-sm-6">
-                    <div class="kpi-card">
-                        <div class="kpi-title">Pending Reboots</div>
-                        <div class="kpi-val" style="color: var(--rag-amber);">{len(data.sla.get('reboot_devices', [])):,}</div>
-                        <small class="text-secondary">Awaiting System Restart</small>
-                    </div>
-                </div>
-            </div>
+            {row1_kpi_html}
 
             <!-- Row 2: OS Landscape & Patch Category Breakdown -->
-            <div class="row g-3 mb-4">
-                <div class="col-lg-4 col-md-6">
-                    <div class="chart-card">
-                        <div class="chart-title">Windows Operating Systems</div>
-                        {win_chart_html}
-                    </div>
-                </div>
-                <div class="col-lg-4 col-md-6">
-                    <div class="chart-card">
-                        <div class="chart-title">Linux Operating Systems</div>
-                        {lin_chart_html}
-                    </div>
-                </div>
-                <div class="col-lg-4 col-md-12">
-                    <div class="chart-card">
-                        <div class="chart-title">Patch Category Breakdown</div>
-                        {type_chart_html}
-                    </div>
-                </div>
-            </div>
+            {row2_os_html}
 
             <!-- Row 3: Infrastructure Hosting Breakdown & World Map -->
             <div class="row g-3 mb-4">
@@ -485,20 +569,7 @@ def generate_html_report(
             </div>
 
             <!-- Row 4: Patch Compliance Speedometer Gauge & YTD Trend -->
-            <div class="row g-3 mb-4">
-                <div class="col-lg-5 col-md-6">
-                    <div class="chart-card">
-                        <div class="chart-title">Current Month Patch Compliance</div>
-                        {gauge_chart_html}
-                    </div>
-                </div>
-                <div class="col-lg-7 col-md-6">
-                    <div class="chart-card">
-                        <div class="chart-title">Patch Compliance Year-to-Date (YTD) Monthly Trend</div>
-                        {ytd_chart_html}
-                    </div>
-                </div>
-            </div>
+            {row4_gauge_ytd_html}
 
             <!-- Row 5: Organization Compliance Scorecard Table -->
             <div class="table-card">
@@ -534,11 +605,11 @@ def generate_html_report(
         <!-- TAB 2: PATCH OPERATIONS DETAILS                                -->
         <!-- ============================================================== -->
         <div id="tab-view-ops" class="dashboard-tab-view" style="display: none;">
-            <!-- Table 1: Top 10 Servers with Max Pending Patches -->
+            <!-- Table 1: Top 10 Servers with Pending Updates -->
             <div class="table-card">
                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                     <h5 class="mb-0" style="color: var(--text-primary); font-weight: 700;">
-                        🚨 Top 10 Servers with Max Pending Patches
+                        🚨 Top 10 Servers with Pending Updates
                     </h5>
                     <input type="text" id="search-servers-table" class="form-control table-search-input" placeholder="🔍 Search servers..." onkeyup="filterTable('search-servers-table', 'top-servers-table')">
                 </div>
@@ -561,11 +632,11 @@ def generate_html_report(
                 </div>
             </div>
 
-            <!-- Table 2: Top 10 Patches Pending on Max Servers -->
+            <!-- Table 2: Top 10 Pending Updates -->
             <div class="table-card">
                 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
                     <h5 class="mb-0" style="color: var(--text-primary); font-weight: 700;">
-                        🩹 Top 10 Patches Pending on Max Servers
+                        🩹 Top 10 Pending Updates
                     </h5>
                     <input type="text" id="search-patches-table" class="form-control table-search-input" placeholder="🔍 Search patches..." onkeyup="filterTable('search-patches-table', 'top-patches-table')">
                 </div>

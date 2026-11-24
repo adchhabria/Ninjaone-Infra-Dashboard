@@ -40,8 +40,8 @@ def build_map_panel(
                                 [
                                     html.Span("🗺️", style={"marginRight": "8px"}),
                                     html.Span("Geographic Infrastructure & Compliance Map", style={**T.FONT_SECTION_TITLE, "color": p["text_primary"]}),
-                                    dbc.Badge(f"{total_locations} Countries", color="secondary", className="ms-2"),
-                                    dbc.Badge(f"{total_devs_mapped} Devices", color="primary", className="ms-1"),
+                                    dbc.Badge(f"{total_locations} Countries", id="map-countries-badge", color="secondary", className="ms-2"),
+                                    dbc.Badge(f"{total_devs_mapped} Devices", id="map-devices-badge", color="primary", className="ms-1"),
                                 ]
                             ),
                             md=8,

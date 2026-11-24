@@ -183,23 +183,9 @@ class Device(BaseModel):
                 or cf.get("Server Role")
             )
             if not role_val:
-                name = str(data.get("displayName") or data.get("systemName") or "")
-                nu = name.upper()
-                nc = str(data.get("nodeClass") or "").upper()
+                nc = str(data.get("nodeClass") or data.get("node_class") or "").upper()
                 os_name = str(data.get("os", {}).get("name", "") if isinstance(data.get("os"), dict) else "").upper()
-                if "DC-" in nu or "-DC" in nu or "DOMAIN" in nu:
-                    role_val = "Domain Controller"
-                elif "DB-" in nu or "-DB" in nu or "SQL" in nu or "DATABASE" in nu:
-                    role_val = "Database Server"
-                elif "WEB-" in nu or "-WEB" in nu or "IIS" in nu or "NGINX" in nu:
-                    role_val = "Web Server"
-                elif "APP-" in nu or "-APP" in nu or "APPLICATION" in nu:
-                    role_val = "Application Server"
-                elif "FILE-" in nu or "-FILE" in nu or "FS-" in nu or "STORAGE" in nu:
-                    role_val = "File Server"
-                elif "BACKUP-" in nu or "-BACKUP" in nu or "BKP" in nu:
-                    role_val = "Backup Server"
-                elif "WINDOWS_SERVER" in nc:
+                if "WINDOWS_SERVER" in nc:
                     role_val = "Windows Server"
                 elif "LINUX_SERVER" in nc:
                     role_val = "Linux Server"
@@ -208,9 +194,17 @@ class Device(BaseModel):
                 elif "LINUX_WORKSTATION" in nc:
                     role_val = "Linux Workstation"
                 elif "MAC" in nc:
-                    role_val = "Mac"
+                    role_val = "Mac Workstation"
+                elif "VMWARE_VM_HOST" in nc:
+                    role_val = "VMware Host"
+                elif "VMWARE_VM_GUEST" in nc:
+                    role_val = "VMware Guest"
+                elif "HYPER_V_VMM_HOST" in nc:
+                    role_val = "Hyper-V Host"
+                elif "HYPER_V_VMM_GUEST" in nc:
+                    role_val = "Hyper-V Guest"
                 elif "SERVER" in nc or "SERVER" in os_name:
-                    role_val = "Windows Server" if "WIN" in os_name or "WIN" in nc else "Linux Server" if "LINUX" in os_name or "LINUX" in nc else "General Server"
+                    role_val = "Windows Server" if "WIN" in os_name or "WIN" in nc else "Linux Server" if "LINUX" in os_name or "LINUX" in nc else "Server"
                 elif "WORKSTATION" in nc:
                     role_val = "Workstation"
                 else:
