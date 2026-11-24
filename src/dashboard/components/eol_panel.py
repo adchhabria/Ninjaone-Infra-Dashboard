@@ -22,9 +22,10 @@ def build_eol_panel(os_data: dict, theme_mode: str = "dark") -> dbc.Card:
     p = T.get_theme_palette(theme_mode)
     status_counts = os_data.get("eol_status_counts", {})
     eol_by_os = os_data.get("eol_by_os", {})
+    status_by_os = os_data.get("eol_status_by_os", {})
 
     status_fig = charts.eol_status_donut(status_counts, theme_mode=theme_mode)
-    by_os_fig = charts.eol_by_os_bar(eol_by_os, theme_mode=theme_mode)
+    by_os_fig = charts.eol_by_os_bar(eol_by_os, status_by_os=status_by_os, theme_mode=theme_mode)
 
     eol_count = os_data.get("eol_count", 0)
     approaching_count = os_data.get("approaching_count", 0)

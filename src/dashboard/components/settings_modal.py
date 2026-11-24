@@ -352,7 +352,7 @@ def build_settings_modal(theme_mode: str = "light") -> dbc.Modal:
                                                                 type="number",
                                                                 min=0,
                                                                 max=100,
-                                                                step=1,
+                                                                step="any",
                                                                 value=DEFAULT_YTD_TREND.get(month, 85),
                                                                 style={"fontSize": "0.78rem", "textAlign": "center", "padding": "4px 6px"},
                                                             ),

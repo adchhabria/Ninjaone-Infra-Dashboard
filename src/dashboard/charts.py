@@ -224,7 +224,11 @@ def eol_status_donut(eol_status_counts: dict[str, int], theme_mode: str = "dark"
     return _apply_theme(fig, "Lifecycle & Support Status", theme_mode=theme_mode)
 
 
-def eol_by_os_bar(eol_by_os_counts: dict[str, int], theme_mode: str = "dark") -> go.Figure:
+def eol_by_os_bar(
+    eol_by_os_counts: dict[str, int],
+    status_by_os: dict[str, str] | None = None,
+    theme_mode: str = "dark",
+) -> go.Figure:
     """Horizontal bar — distribution of devices on obsolete/at-risk OS versions."""
     p = T.get_theme_palette(theme_mode)
     if not eol_by_os_counts:
@@ -234,6 +238,12 @@ def eol_by_os_bar(eol_by_os_counts: dict[str, int], theme_mode: str = "dark") ->
     labels = [i[0] for i in reversed(sorted_items)]
     values = [i[1] for i in reversed(sorted_items)]
 
+    # Approaching EOL in Amber (#F59E0B), Expired (EOL) in Red (#EF4444)
+    bar_colors = [
+        T.RAG_AMBER if (status_by_os or {}).get(lbl) == "Approaching EOL" else T.RAG_RED
+        for lbl in labels
+    ]
+
     fig = go.Figure(
         go.Bar(
             y=labels,
@@ -242,7 +252,7 @@ def eol_by_os_bar(eol_by_os_counts: dict[str, int], theme_mode: str = "dark") ->
             textposition="auto",
             textfont=dict(color=p["text_primary"], size=11, family="Inter, -apple-system, sans-serif"),
             orientation="h",
-            marker=dict(color=T.RAG_RED, line=dict(color=p["bg_card"], width=1)),
+            marker=dict(color=bar_colors, line=dict(color=p["bg_card"], width=1)),
             hovertemplate="<b>%{y}</b><br>%{x} at-risk devices<extra></extra>",
         )
     )
@@ -444,19 +454,18 @@ def hosting_role_heatmap(matrix: list[dict], theme_mode: str = "dark") -> go.Fig
 # ---------------------------------------------------------------------------
 
 DEFAULT_YTD_TREND: dict[str, float] = {
-    "Oct-25": 80.0,
-    "Nov-25": 82.0,
-    "Dec-25": 90.0,
-    "Jan-26": 85.0,
-    "Feb-26": 88.0,
-    "Mar-26": 74.0,
-    "Apr-26": 95.0,
-    "May-26": 90.0,
-    "Jun-26": 50.0,
-    "Jul-26": 70.0,
-    "Aug-26": 85.0,
-    "Sep-26": 96.0,
-    "Oct-26": 90.0,
+    "Nov-25": 90.2,
+    "Dec-25": 94.4,
+    "Jan-26": 91.1,
+    "Feb-26": 89.5,
+    "Mar-26": 94.0,
+    "Apr-26": 90.0,
+    "May-26": 94.0,
+    "Jun-26": 93.0,
+    "Jul-26": 54.0,
+    "Aug-26": 97.0,
+    "Sep-26": 98.0,
+    "Oct-26": 94.0,
 }
 
 

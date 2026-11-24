@@ -300,6 +300,7 @@ def compute_os_metrics(
             "eol_table_data": [],
             "eol_status_counts": {"Supported": 0, "Approaching EOL": 0, "Expired (EOL)": 0},
             "eol_by_os": {},
+            "eol_status_by_os": {},
             "os_compliance_pct": 100.0,
             "total_devices": 0,
             "eol_count": 0,
@@ -326,6 +327,13 @@ def compute_os_metrics(
     # EOL Breakdown by OS
     eol_df = df[df["status"].isin(["Expired (EOL)", "Approaching EOL"])].copy()
     eol_by_os = eol_df["version_label"].value_counts().to_dict() if not eol_df.empty else {}
+    eol_status_by_os: dict[str, str] = {}
+    if not eol_df.empty:
+        for v_label, grp in eol_df.groupby("version_label"):
+            if (grp["status"] == "Expired (EOL)").any():
+                eol_status_by_os[str(v_label)] = "Expired (EOL)"
+            else:
+                eol_status_by_os[str(v_label)] = "Approaching EOL"
 
     # Full EOL table data
     eol_table_data = (
@@ -352,6 +360,7 @@ def compute_os_metrics(
         "eol_table_data": eol_table_data,
         "eol_status_counts": eol_status_counts,
         "eol_by_os": eol_by_os,
+        "eol_status_by_os": eol_status_by_os,
         "os_compliance_pct": os_compliance_pct,
         "total_devices": total,
         "eol_count": expired_count,

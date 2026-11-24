@@ -118,9 +118,25 @@ class TestCharts:
         assert isinstance(fig, go.Figure)
 
     def test_eol_by_os_bar(self):
-        by_os = {"Windows 8.1": 8, "CentOS 7": 4}
-        fig = eol_by_os_bar(by_os)
+        by_os = {"Windows Server 2012": 8, "Windows Server 2016": 4}
+        status_by_os = {"Windows Server 2012": "Expired (EOL)", "Windows Server 2016": "Approaching EOL"}
+        fig = eol_by_os_bar(by_os, status_by_os=status_by_os)
         assert isinstance(fig, go.Figure)
+
+        # Labels are reversed (sorted ascending for horizontal bar)
+        # Windows Server 2016 (4) is first, Windows Server 2012 (8) is second
+        colors = fig.data[0].marker.color
+        assert colors[0] in ("#FFC107", "#F59E0B")  # Approaching EOL is Amber
+        assert colors[1] in ("#F44336", "#EF4444", "#DC2626")  # Expired (EOL) is Red
+
+    def test_default_ytd_trend_sample_values(self):
+        expected = {
+            "Nov-25": 90.2, "Dec-25": 94.4, "Jan-26": 91.1, "Feb-26": 89.5,
+            "Mar-26": 94.0, "Apr-26": 90.0, "May-26": 94.0, "Jun-26": 93.0,
+            "Jul-26": 54.0, "Aug-26": 97.0, "Sep-26": 98.0, "Oct-26": 94.0,
+        }
+        for month, val in expected.items():
+            assert DEFAULT_YTD_TREND[month] == val
 
     def test_patch_sla_aging_bar(self):
         counts = {"< 7 Days (Within SLA)": 40, "8 - 30 Days (Warning)": 15, "31 - 90 Days (High Risk)": 8, "> 90 Days (SLA Breach)": 3}

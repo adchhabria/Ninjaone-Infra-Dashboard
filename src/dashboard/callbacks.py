@@ -500,19 +500,18 @@ def register_callbacks(app, get_data_fn=None):
             return no_update
 
     # -----------------------------------------------------------------------
-    # 2c. Standalone Interactive HTML Report Download / Share (.html)
+    # 2c. Standalone Interactive HTML Report Download (.html)
     # -----------------------------------------------------------------------
     @app.callback(
         Output("download-html-data", "data"),
         Input("btn-download-html-trigger", "n_clicks"),
-        Input("header-share-btn", "n_clicks"),
         State("filter-state-store", "data"),
         State("threshold-settings-store", "data"),
         State("theme-store", "data"),
         prevent_initial_call=True,
     )
-    def download_html_report(btn_tab_clicks, btn_hdr_clicks, filter_state, threshold_settings, current_theme):
-        if not btn_tab_clicks and not btn_hdr_clicks:
+    def download_html_report(btn_tab_clicks, filter_state, threshold_settings, current_theme):
+        if not btn_tab_clicks:
             return no_update
 
         filter_state = filter_state or {}
@@ -549,7 +548,7 @@ def register_callbacks(app, get_data_fn=None):
             patch_red=p_red,
             patch_amber=p_amber,
             patch_green=p_green,
-            custom_ytd_trend=ts_settings.get("custom_ytd_trend"),
+            custom_ytd_trend=ts_settings.get("ytd_trend"),
             theme_mode=theme_mode,
         )
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1088,143 +1087,9 @@ def register_callbacks(app, get_data_fn=None):
             return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2"), True, False
 
     # -----------------------------------------------------------------------
-    # 12. Automated Update Checker & Prompt Modal Callbacks
-    # -----------------------------------------------------------------------
-    def _build_update_prompt_content(res: dict):
-        latest_v = res.get("latest_version", "New Version")
-        cur_v = res.get("current_version", f"v{CURRENT_VERSION}")
-        pub = res.get("published_at", "")
-        notes = res.get("release_notes", "")
-        return html.Div(
-            [
-                dbc.Alert(
-                    [
-                        html.H5(f"🎉 New Version Available: {latest_v}", className="alert-heading mb-1", style={"fontWeight": "bold"}),
-                        html.Div(f"You are currently running {cur_v}. A newer release is published on GitHub (Released: {pub}).", style={"fontSize": "0.85rem"}),
-                    ],
-                    color="primary",
-                    style={"backgroundColor": "rgba(47, 129, 247, 0.15)", "border": f"1px solid {T.ACCENT_BLUE}"},
-                ),
-                html.Div(
-                    [
-                        html.B("Release Notes:"),
-                        html.Pre(
-                            notes[:600] + ("..." if len(notes) > 600 else ""),
-                            style={
-                                "fontSize": "0.78rem",
-                                "backgroundColor": "rgba(0,0,0,0.3)",
-                                "padding": "10px",
-                                "borderRadius": "4px",
-                                "whiteSpace": "pre-wrap",
-                                "marginTop": "6px",
-                                "maxHeight": "200px",
-                                "overflowY": "auto",
-                                "color": T.TEXT_PRIMARY,
-                            },
-                        ),
-                    ],
-                    className="mb-3",
-                ) if notes else html.Div(),
-                html.P(
-                    "Clicking 'Update & Restart Now' will automatically download the updated executable, synchronize all repository files (git pull), and restart the application seamlessly.",
-                    style={"fontSize": "0.80rem", "color": T.TEXT_MUTED},
-                ),
-            ]
-        )
-
-    @app.callback(
-        Output("update-prompt-modal", "is_open"),
-        Output("update-prompt-content", "children"),
-        Output("auto-update-info-store", "data"),
-        Output("header-update-badge-btn", "style"),
-        Output("header-update-badge-btn", "children"),
-        Output("dismissed-update-version-store", "data"),
-        Input("auto-update-check-interval", "n_intervals"),
-        Input("header-update-badge-btn", "n_clicks"),
-        Input("update-prompt-dismiss-btn", "n_clicks"),
-        State("update-prompt-modal", "is_open"),
-        State("auto-update-info-store", "data"),
-        State("dismissed-update-version-store", "data"),
-        prevent_initial_call=False,
-    )
-    def manage_update_prompt(n_intervals, header_clicks, dismiss_clicks, is_open, cached_update_info, dismissed_version):
-        trigger = ctx.triggered_id if hasattr(ctx, "triggered_id") else None
-        if not trigger and ctx.triggered:
-            trigger = ctx.triggered[0]["prop_id"].split(".")[0]
-
-        # User clicked dismiss button
-        if trigger == "update-prompt-dismiss-btn":
-            badge_style = {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"} if (cached_update_info and cached_update_info.get("update_available")) else {"display": "none"}
-            badge_text = f"🚀 Update {cached_update_info.get('latest_version')}" if cached_update_info else "🚀 Update Available"
-            dismissed = cached_update_info.get("latest_version") if cached_update_info else None
-            return False, no_update, no_update, badge_style, badge_text, dismissed
-
-        # User clicked header badge to reopen
-        if trigger == "header-update-badge-btn":
-            if cached_update_info:
-                content = _build_update_prompt_content(cached_update_info)
-                return True, content, no_update, no_update, no_update, no_update
-            return True, no_update, no_update, no_update, no_update, no_update
-
-        # Periodic check or initial load
-        try:
-            res = check_for_updates()
-            if res.get("success") and res.get("update_available"):
-                latest_v = res.get("latest_version")
-                content = _build_update_prompt_content(res)
-                badge_style = {"fontSize": "0.8rem", "fontWeight": "600", "display": "inline-block"}
-                badge_text = f"🚀 Update {latest_v}"
-                # If the user previously dismissed this version, keep modal closed but keep badge visible
-                should_open = (latest_v != dismissed_version)
-                return should_open, content, res, badge_style, badge_text, no_update
-            else:
-                return False, no_update, res, {"display": "none"}, "🚀 Update Available", no_update
-        except Exception:
-            return False, no_update, no_update, {"display": "none"}, "🚀 Update Available", no_update
-
-    @app.callback(
-        Output("update-prompt-status", "children"),
-        Output("update-progress-interval", "disabled", allow_duplicate=True),
-        Output("update-prompt-confirm-btn", "disabled"),
-        Input("update-prompt-confirm-btn", "n_clicks"),
-        State("auto-update-info-store", "data"),
-        prevent_initial_call=True,
-    )
-    def handle_modal_install_update(n_clicks, update_info):
-        if not n_clicks or not update_info:
-            return no_update, no_update, no_update
-
-        dl_url = update_info.get("download_url")
-        if not dl_url:
-            return dbc.Alert("No download asset found in the latest release.", color="danger", className="mt-2"), True, False
-
-        success, msg = start_auto_update(dl_url)
-        if success:
-            progress_initial = html.Div(
-                [
-                    dbc.Progress(
-                        value=3,
-                        striped=True,
-                        animated=True,
-                        color="primary",
-                        style={"height": "22px"},
-                        className="mb-2",
-                    ),
-                    html.Div(
-                        "Connecting to GitHub and initializing update download...",
-                        style={"fontSize": "0.85rem", "fontWeight": "600", "color": T.ACCENT_BLUE},
-                    ),
-                ]
-            )
-            return progress_initial, False, True
-        else:
-            return dbc.Alert(f"❌ {msg}", color="danger", className="mt-2"), True, False
-
-    # -----------------------------------------------------------------------
-    # 13. Update Progress Polling Callback
+    # 12. Update Progress Polling Callback
     # -----------------------------------------------------------------------
     @app.callback(
-        Output("update-prompt-status", "children", allow_duplicate=True),
         Output("update-apply-status-container", "children", allow_duplicate=True),
         Output("update-progress-interval", "disabled", allow_duplicate=True),
         Input("update-progress-interval", "n_intervals"),
@@ -1256,7 +1121,7 @@ def register_callbacks(app, get_data_fn=None):
                     ),
                 ]
             )
-            return content, content, False
+            return content, False
 
         elif status in ("restarting", "completed"):
             content = html.Div(
@@ -1297,7 +1162,7 @@ def register_callbacks(app, get_data_fn=None):
                     ),
                 ]
             )
-            return content, content, True
+            return content, True
 
         elif status == "failed":
             content = dbc.Alert(
@@ -1308,12 +1173,12 @@ def register_callbacks(app, get_data_fn=None):
                 color="danger",
                 className="mb-0",
             )
-            return content, content, True
+            return content, True
 
-        return no_update, no_update, no_update
+        return no_update, no_update
 
     @app.callback(
-        Output("update-prompt-status", "children", allow_duplicate=True),
+        Output("update-apply-status-container", "children", allow_duplicate=True),
         Input("btn-restart-app-now", "n_clicks"),
         prevent_initial_call=True,
     )

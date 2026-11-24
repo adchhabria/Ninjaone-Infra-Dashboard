@@ -171,41 +171,48 @@ def generate_html_report(
     overall_rag_class = "rag-green" if data.compliance_rag == "GREEN" else "rag-amber" if data.compliance_rag == "AMBER" else "rag-red"
 
     offline_count = max(0, data.total_devices - data.online_devices)
+    offline_pct = (offline_count / data.total_devices * 100) if data.total_devices > 0 else 0.0
+    server_online_pct = data.servers.get("server_online_pct", 0.0) if hasattr(data, "servers") and isinstance(data.servers, dict) else 0.0
     patch_color = 'var(--rag-green)' if patch_pct >= green_target else 'var(--rag-amber)' if patch_pct >= (red_limit + 1.0) else 'var(--rag-red)'
     eol_color = 'var(--rag-red)' if data.eol_risk_count > 0 else 'var(--rag-green)'
     offline_color = 'var(--rag-red)' if offline_count > 0 else 'var(--rag-green)'
 
-    # Row 1: 5 Clean Center-Aligned KPI Cards (Item 9a)
+    # Row 1: 5 Clean Center-Aligned KPI Cards (Item 9a & Subtitles)
     row1_kpi_html = f"""
             <div class="row g-3 mb-4">
                 <div class="col">
                     <div class="kpi-card text-center">
                         <div class="kpi-title">Total Servers</div>
                         <div class="kpi-val" style="color: var(--accent-blue);">{data.total_servers:,}</div>
+                        <div class="kpi-subtitle">{server_online_pct:.1f}% servers online</div>
                     </div>
                 </div>
                 <div class="col">
                     <div class="kpi-card text-center">
                         <div class="kpi-title">Devices Online</div>
                         <div class="kpi-val" style="color: var(--accent-cyan);">{data.online_devices:,}</div>
+                        <div class="kpi-subtitle">{data.online_pct:.1f}% online ({data.online_devices:,}/{data.total_devices:,})</div>
                     </div>
                 </div>
                 <div class="col">
                     <div class="kpi-card text-center">
                         <div class="kpi-title">Devices Offline</div>
                         <div class="kpi-val" style="color: {offline_color};">{offline_count:,}</div>
+                        <div class="kpi-subtitle">{offline_pct:.1f}% offline</div>
                     </div>
                 </div>
                 <div class="col">
                     <div class="kpi-card text-center">
                         <div class="kpi-title">Patch Coverage</div>
                         <div class="kpi-val" style="color: {patch_color};">{patch_pct:.1f}%</div>
+                        <div class="kpi-subtitle">{data.patches.get('installed_patches', 0):,} installed</div>
                     </div>
                 </div>
                 <div class="col">
                     <div class="kpi-card text-center">
                         <div class="kpi-title">EOL Devices</div>
                         <div class="kpi-val" style="color: {eol_color};">{data.eol_risk_count:,}</div>
+                        <div class="kpi-subtitle">OS Compliance: {data.os.get('os_compliance_pct', 0):.1f}%</div>
                     </div>
                 </div>
             </div>
@@ -409,6 +416,11 @@ def generate_html_report(
             line-height: 1.1;
             margin-bottom: 4px;
         }}
+        .kpi-subtitle {{
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }}
         .chart-card {{
             background-color: var(--bg-card);
             border: 1px solid var(--border);
@@ -497,7 +509,6 @@ def generate_html_report(
                 <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">
                     Scope: <span class="badge badge-scope">{data.active_filter_label}</span>
                     &nbsp;&bull;&nbsp; Generated: <strong>{now_str}</strong>
-                    &nbsp;&bull;&nbsp; <span style="color: var(--accent-cyan); font-weight: 600;">Offline Executive Edition</span>
                 </div>
             </div>
         </div>

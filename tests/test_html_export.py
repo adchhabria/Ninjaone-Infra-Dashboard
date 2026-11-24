@@ -110,3 +110,18 @@ class TestHTMLExport:
         html_lin = generate_html_report(data_lin)
         assert "Linux Operating Systems" in html_lin
         assert "Windows Operating Systems" not in html_lin
+
+    def test_html_report_no_offline_executive_edition_and_kpi_subtitles(self):
+        """Verify removal of 'Offline Executive Edition' and addition of matching KPI subtitles."""
+        data = get_mock_dashboard_data()
+        html_out = generate_html_report(data)
+
+        # Removal of Offline Executive Edition
+        assert "Offline Executive Edition" not in html_out
+
+        # Subtitles under KPI cards matching dashboard
+        assert "servers online" in html_out
+        assert "online (" in html_out
+        assert "offline" in html_out
+        assert "installed" in html_out
+        assert "OS Compliance:" in html_out

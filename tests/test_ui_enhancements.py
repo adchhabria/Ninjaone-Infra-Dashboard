@@ -476,6 +476,21 @@ def test_settings_modal_5_columns_eol_layout():
     assert "0 0 20%" in modal_str
 
 
+def test_header_navbar_no_update_or_share_button():
+    """Verify Update button, Share button, auto-update interval, and update modal are removed from main layout."""
+    from src.dashboard.layout import build_layout
+    from scripts.generate_sample_data import get_mock_dashboard_data
+
+    mock_data = get_mock_dashboard_data()
+    layout = build_layout(mock_data)
+    layout_str = str(layout)
+
+    assert "header-update-badge-btn" not in layout_str
+    assert "header-share-btn" not in layout_str
+    assert "update-prompt-modal" not in layout_str
+    assert "auto-update-check-interval" not in layout_str
+
+
 
 
 

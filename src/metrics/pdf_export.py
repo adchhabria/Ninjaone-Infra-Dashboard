@@ -422,7 +422,11 @@ def generate_pdf_report(
     story.append(Paragraph("6. End-of-Life (EOL) Analytics & At-Risk OS Versions", h2_style))
 
     eol_donut_fig = charts.eol_status_donut(data.os.get("eol_status_counts", {}), theme_mode=theme_mode)
-    eol_bar_fig = charts.eol_by_os_bar(data.os.get("eol_by_os", {}), theme_mode=theme_mode)
+    eol_bar_fig = charts.eol_by_os_bar(
+        data.os.get("eol_by_os", {}),
+        status_by_os=data.os.get("eol_status_by_os", {}),
+        theme_mode=theme_mode,
+    )
 
     eol_donut_img = _fig_to_image_flowable(eol_donut_fig, width=350, height=200, scale=1)
     eol_bar_img = _fig_to_image_flowable(eol_bar_fig, width=350, height=200, scale=1)

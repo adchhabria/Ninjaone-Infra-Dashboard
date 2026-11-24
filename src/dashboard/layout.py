@@ -126,15 +126,6 @@ def build_header(
                                     style={"display": "inline-flex", "alignItems": "center"},
                                 ),
                                 dbc.Button(
-                                    "📤 Share Report",
-                                    id="header-share-btn",
-                                    color="success",
-                                    outline=True,
-                                    size="sm",
-                                    className="me-2",
-                                    style={"fontSize": "0.8rem"},
-                                ),
-                                dbc.Button(
                                     "☀️ Light" if theme_mode == "dark" else "🌙 Dark",
                                     id="theme-toggle-btn",
                                     color="secondary",
@@ -142,14 +133,6 @@ def build_header(
                                     size="sm",
                                     className="me-2",
                                     style={"fontSize": "0.8rem"},
-                                ),
-                                dbc.Button(
-                                    "🚀 Update Available",
-                                    id="header-update-badge-btn",
-                                    color="warning",
-                                    size="sm",
-                                    className="me-2",
-                                    style={"fontSize": "0.8rem", "fontWeight": "600", "display": "none"},
                                 ),
                                 dbc.Button(
                                     "⚙️ Settings",
@@ -1157,53 +1140,6 @@ def build_layout(data, theme_mode: str = "light") -> html.Div:
 
             # In-App Settings Modal
             build_settings_modal(theme_mode=theme_mode),
-
-            # Auto-Update Periodic Checker & Notification Modal
-            dcc.Interval(id="auto-update-check-interval", interval=60 * 60 * 1000, n_intervals=0),
-            dcc.Interval(id="update-progress-interval", interval=500, n_intervals=0, disabled=True),
-            dcc.Store(id="auto-update-info-store"),
-            dcc.Store(id="dismissed-update-version-store", storage_type="local"),
-            dbc.Modal(
-                [
-                    dbc.ModalHeader(
-                        dbc.ModalTitle("🚀 New Toolkit Version Available!"),
-                        close_button=True,
-                        style={"backgroundColor": p["bg_card"], "borderBottom": f"1px solid {p['border']}"},
-                    ),
-                    dbc.ModalBody(
-                        [
-                            html.Div(id="update-prompt-content"),
-                            html.Div(id="update-prompt-status", className="mt-3"),
-                        ],
-                        style={"backgroundColor": p["bg_primary"], "color": p["text_primary"], "padding": "20px"},
-                    ),
-                    dbc.ModalFooter(
-                        [
-                            dbc.Button(
-                                "Remind Me Later",
-                                id="update-prompt-dismiss-btn",
-                                color="secondary",
-                                outline=True,
-                                size="sm",
-                                className="me-auto",
-                            ),
-                            dbc.Button(
-                                "🚀 Update & Restart Now",
-                                id="update-prompt-confirm-btn",
-                                color="success",
-                                size="sm",
-                                style={"fontWeight": "600"},
-                            ),
-                        ],
-                        style={"backgroundColor": p["bg_card"], "borderTop": f"1px solid {p['border']}"},
-                    ),
-                ],
-                id="update-prompt-modal",
-                is_open=False,
-                centered=True,
-                size="lg",
-                style={"borderRadius": "16px"},
-            ),
 
             # Persistent Browser Download Components
             dcc.Download(id="download-excel-data"),
